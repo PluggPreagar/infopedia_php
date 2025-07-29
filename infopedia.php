@@ -48,7 +48,9 @@ function isCacheValid($cacheFile) {
 }
 
 // Function to load filtered content from cache
-function loadFilteredContent($cacheFile, $filter) {
+function loadFilteredContent($cacheFile, $filter, $parentsToTopicFilters = []) {
+    global $parentContent;
+
     $lines = file($cacheFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     $filteredData = [];
     $rowCount = 0;
@@ -56,7 +58,20 @@ function loadFilteredContent($cacheFile, $filter) {
     foreach ($lines as $line) {
         // Skip lines that do not contain the filter
         if (empty($line) || strpos($line, $filter) === false) {
-            if ($rowCount++ < 10) {
+            $found = false;
+            foreach ($parentsToTopicFilters as $parentFilter) {
+                //log_debug("Checking parent filter: " . $parentFilter . " for line: " . $line);
+                if (strpos($line, $parentFilter) != 0) {
+                    $parts = str_getcsv($line);
+                    $entry = $parts[1] ?? '';
+                    list($topic, $node, $content) = explode(" | ", $entry);
+                    $parentContent[ $topic."/".$node ] = $content;
+                    log_debug("matched parent filter: " . $parentFilter . " for " . $topic."/".$node . " with: " . $content);
+                    $found = true;
+                    break;
+                }
+            }
+            if (!$found && $rowCount++ < 10) {
                 log_debug("skipped line: " . $line);
             }
             continue;
@@ -64,12 +79,14 @@ function loadFilteredContent($cacheFile, $filter) {
             $filteredData[] = $line;
         }
     }
+    var_dump($parentContent);
+    log_debug("\n");
     log_debug("loaded " . count($filteredData) . " lines matching filter '$filter'.\n");
     return $filteredData;
 }
 
 // Function to parse data into structured format
-function parseData($lines, $filter = '') {
+function parseData($lines, $filter = '', $parentsToTopicFilters = []) {
     $data = [];
     foreach ($lines as $line) {
         $parts = str_getcsv($line); // Handle quotes and commas
@@ -87,6 +104,10 @@ function parseData($lines, $filter = '') {
         // if a filter is set, check if the entry starts with the filter
         // (we can't filter the file as it contains multiple columns and delimiters before the entry)
         if ($filter && strpos($entry, $filter) !== 0) {
+            // Check if the entry matches any of the parent topic filters
+            if (count($data) < 10) {
+                log_debug("skipped data: " . $entry);
+            }
             continue; // Skip entries that do not match the filter
         }
         list($topic, $node, $content) = explode(" | ", $entry);
@@ -111,12 +132,13 @@ function generateHtmlHead($topic = '') {
     echo "<link rel='stylesheet' type='text/css' href='styles.css'>";
     echo "<body>";
     echo "<h1>Infopedia</h1>";
-    echo "<div id='debug' style='display:block;font-size:smallest;'>";
+    echo "<div id='debug' style='display:none;font-size:smaller;'>";
     log_debug("Generating HTML head... for topic: " . htmlspecialchars($topic));
 }
 
 // Function to generate HTML output
 function generateHtmlOutput($data, $topic = '') {
+    global $parentContent;
     log_debug("Generating HTML output... for topic: " . htmlspecialchars($topic));
     echo "</div>"; // Close debug div
 
@@ -128,30 +150,33 @@ function generateHtmlOutput($data, $topic = '') {
     // split path of $entry['topic']
     // skipp leading slash
     $parts = explode('/', $topic);
+    $current_part = array_pop($parts);
     $path = '';
     foreach ($parts as $part) {
         $path .= $part;
         if (empty($part)) {
             echo "<a href='?topic=/'>/</a>&nbsp;";
         } else {
-            echo "<a href='?topic=" . htmlspecialchars($path) . "'>" . htmlspecialchars( $part ) . "</a>&nbsp;/&nbsp";
+            echo "<a href='?topic=" . htmlspecialchars($path) . "'>" . htmlspecialchars(  $parentContent[$path]  ) . "</a>&nbsp;/&nbsp";
         }
         $path .= '/' ; // Add a slash for the next part
     }
+
+    echo " " . htmlspecialchars($parentContent[$path.$current_part] ?? "/") . " ";
     echo "</h2>";
     // space
+    echo "<table border='0'>";
     if (!empty($data)) {
-        echo "<table border='0'>";
         // data
         foreach ($data as $entry) {
             echo "<tr>";
             echo "<td><a href='?topic={$entry['topic']}/{$entry['node']}'>{$entry['content']}</a></td>";
             echo "</tr>";
         }
-        echo "</table>";
     } else {
-        echo "<p>No data available.</p>";
+        echo "<tr><td>No data found</td></tr>";
     }
+    echo "</table>";
 
     echo "</body>";
     echo "</html>";
@@ -164,33 +189,21 @@ function generateHtmlOutput($data, $topic = '') {
     /clima/biz/tracker | content |
     /clima/biz/tracker/content  << TOPIC
 */
-function parentsToTopic($topic){
+function parentsToTopicFilter($topic){
     // replace last "/" in string with " | "
     $parts = explode('/', $topic);
     // append empty string to the end of the array
-    array_push($parts, '');
+    array_shift($parts);
     $topics = [];
     $path = '';
+    log_debug("Generating parentsToTopicFilter for: " . $topic);
     foreach ($parts as $part) {
-        $topics[] = $path . " | " . $part . " | ";
+        $topics[] = ',' . $path . " | " . $part . " | ";
         log_debug("topic: " . $path . " | " . $part . " | ");
         $path .= '/' . $part;
     }
     return $topics;
 }
-
-function preFilter($topics){
-    $preFilters = [];
-    foreach ($topics as $topic) {
-        $preFilters[] = ',' . $topic; // Add comma before each topic
-    }
-    return $preFilters;
-}
-
-/*
-    UPLOAD ...
- */
-
 
 
 
@@ -222,13 +235,15 @@ if ("/" === $topic) {
 $filter = $topic . ' | ' ; // Default to 'example_filter' if not set
 // as file is comma separated, we need take in account first column and delimiter
 $preFilter = ',' . $filter; // ... and csv might have a trimmed data
+$parentContent = array();
 
 generateHtmlHead($topic);
 
 if (!isCacheValid($cacheFile)) {
     downloadAndCacheGoogleSheet($googleSheetUrl, $cacheFile);
 }
-$filteredLines = loadFilteredContent($cacheFile, $preFilter);
+log_debug("555555555555");
+$filteredLines = loadFilteredContent($cacheFile, $preFilter, parentsToTopicFilter($topic));
 $data = parseData($filteredLines, $filter);
 generateHtmlOutput($data, $topic);
 

@@ -1,0 +1,7 @@
+RewriteEngine On
+
+# Apply rules only if the request contains /infopedia
+RewriteCond %{REQUEST_URI} ^/infopedia
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^infopedia(/.*)$ infopedia/infopedia.php?topic=$1 [QSA,L]
