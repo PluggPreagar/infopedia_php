@@ -1,5 +1,6 @@
 body {
     font-family: Arial, sans-serif;
+    font-size: large;
     background-color: #CFFCFF;
     color: #358600;
     margin: 0;
@@ -32,4 +33,18 @@ td {
 tr:nth-child(even) {
 }
 tr:nth-child(odd) {
+}
+
+/* Add media query for mobile devices */
+@media (max-width: 1000px) {
+    body {
+        font-size: xxx-large; /* Increase font size for mobile devices */
+    }
+    h1, h2 {
+        font-size: xxx-large; /* Adjust heading sizes for better visibility */
+    }
+    td {
+        font-size: xxx-large; /* Ensure table content is readable */
+        padding-top: 30px; /* Add margin for better spacing */
+    }
 }
