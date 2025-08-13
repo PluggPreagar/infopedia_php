@@ -10,15 +10,21 @@
 
 ### Code:
 */
-
+$debug=false;
 function log_debug($message) {
     // Uncomment the next line to enable debugging output
+    if (!$GLOBALS['debug']) {
+        return; // Skip debug output if debug mode is off
+    }
     echo $message;
     echo "<br>";
 }
 
 function log_warn($message) {
     // Uncomment the next line to enable warning output
+    if (!$GLOBALS['debug']) {
+        return; // Skip debug output if debug mode is off
+    }
     echo "<strong>Warning: </strong>" . $message;
     echo "<br>";
 }
@@ -131,7 +137,7 @@ function generateHtmlHead($topic = '') {
     echo "<head><title>Infopedia {$topic}</title></head>";
     echo "<link rel='stylesheet' type='text/css' href='styles.css'>";
     echo "<body>";
-    echo "<h1>Infopedia</h1>";
+    echo "<h1><a href='.'>Infopedia<a/></h1>";
     echo "<div id='debug' style='display:none;font-size:smaller;'>";
     log_debug("Generating HTML head... for topic: " . htmlspecialchars($topic));
 }
@@ -158,6 +164,7 @@ function generateHtmlOutput($data, $topic = '') {
             echo "<a href='?topic=/'>/</a>&nbsp;";
         } else {
             echo "<a href='?topic=" . htmlspecialchars($path) . "'>" . htmlspecialchars(  $parentContent[$path]  ) . "</a>&nbsp;/&nbsp";
+            echo "<br>";
         }
         $path .= '/' ; // Add a slash for the next part
     }
@@ -210,10 +217,20 @@ function parentsToTopicFilter($topic){
 
 // Read configurations from the configuration file
 $configFile = 'infopedia.cfg';
+$type = "web";
 if (file_exists($configFile)) {
-    $config = parse_ini_file($configFile);
-    if ($config === false) {
+    $configGeneral = parse_ini_file($configFile, true); // Enable section parsing
+    if ($configGeneral === false) {
         die("Failed to parse configuration file.");
+    }
+
+    // Check if the 'general' and 'votes' sections exist
+    $config = [];
+    if (isset($configGeneral['general'])) {
+        $config = $configGeneral['general'];
+    }
+    if (isset($configGeneral[$type])) {
+        $config = array_merge($config, $configGeneral[$type]);
     }
 } else {
     die("Configuration file not found.");
@@ -225,6 +242,7 @@ $cacheFile = $config['cacheFile'] ?? 'sheet.cache'; // Default to 'sheet.cache' 
 $filter = $config['filter'] ?? 'example_filter'; // Default to 'example_filter' if not set
 */
 
+$useReadPhp = isset($config['useReadPhp']) ? $config['useReadPhp'] : false; // Default to false if not set
 $cacheTime = isset($_GET['force_update']) ? 0 : $config['cache_time'] ?? 3600; // Default to 1 hour if not set
 $googleSheetUrl = $config['googleSheetUrl'] ?? '...';
 $cacheFile = $config['cacheFile'] ?? 'sheet.cache'; // Default to 'sheet.cache' if not set
@@ -240,7 +258,28 @@ $parentContent = array();
 generateHtmlHead($topic);
 
 if (!isCacheValid($cacheFile)) {
-    downloadAndCacheGoogleSheet($googleSheetUrl, $cacheFile);
+    if ($useReadPhp) {
+        // Use read.php to fetch and cache the Google Sheet data
+        log_debug("Using read.php to fetch and cache Google Sheet data...");
+        //include 'read.php';
+        // call read.php to fetch and cache the Google Sheet data
+        $readPhpUrl = "https:" . $_SERVER['HTTP_HOST'] . str_replace('infopedia.php', 'read.php', $_SERVER['PHP_SELF']);
+        $readUrl = $readPhpUrl . "?type=entry&force_update=" . (isset($_GET['force_update']) ? '1' : '0') . "&topic=" . urlencode($topic);
+        log_debug("get-methode to receive read.php: " . $readUrl);
+        // get my URL
+        log_debug("my REQUEST_URI: ".$_SERVER["REQUEST_URI"]);
+        log_debug("my PHP_SELF: ".$_SERVER["PHP_SELF"]);
+        log_debug("my SERVER_NAME: ".$_SERVER["SERVER_NAME"]);
+
+
+
+        log_debug("my URL: ".$_SERVER["SCRIPT_NAME"]);
+        $response = file_get_contents($readUrl); // side-effect: this will also cache the data
+    } else {
+        // Download and cache the Google Sheet data
+        log_debug("Downloading and caching Google Sheet data...");
+        downloadAndCacheGoogleSheet($googleSheetUrl, $cacheFile);
+    }
 }
 log_debug("555555555555");
 $filteredLines = loadFilteredContent($cacheFile, $preFilter, parentsToTopicFilter($topic));
