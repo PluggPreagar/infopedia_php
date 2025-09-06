@@ -1,23 +1,6 @@
 <?php
-$configFile = 'infopedia.cfg';
-$type = $_GET['type'];
-if (file_exists($configFile)) {
-    $configGeneral = parse_ini_file($configFile, true); // Enable section parsing
-    if ($configGeneral === false) {
-        die("Failed to parse configuration file.");
-    }
 
-    // Check if the 'general' and 'votes' sections exist
-    $config = [];
-    if (isset($configGeneral['general'])) {
-        $config = $configGeneral['general'];
-    }
-    if (isset($configGeneral[$type])) {
-        $config = array_merge($config, $configGeneral[$type]);
-    }
-} else {
-    die("Configuration file not found.");
-}
+require 'util.php';
 
 // Cache settings
 $cacheTime = isset($_GET['force_update']) ? 0 : $config['cache_time'] ?? 3600; // Default to 1 hour if not set
@@ -27,12 +10,7 @@ $googleSheetUrl = "https://docs.google.com/spreadsheets/d/{$googleSheetId}/expor
 $cacheFile = $config['cacheFile']; // Path to the cache file
 $dryRun = isset($config['dryRun']) && $config['dryRun'] ; // Check if dry run is requested
 #$dryRun = true;
-if ($dryRun) {
-    // output googleSheetUrl
-    echo "type: " . $type . "<br>";
-    echo "Google Sheet URL: " . $googleSheetUrl . "<br>";
-    exit;
-}
+
 
 // function to sort csv data
 //    timestamp; topic | node | message indicator

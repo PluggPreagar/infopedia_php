@@ -1,0 +1,67 @@
+/* General body styling */
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #CFFCFF; /* Adjusted to match styles.css */
+    color: #358600; /* Adjusted to match styles.css */
+}
+
+/* Headings */
+h1 {
+    color: #63C132; /* Adjusted to match styles.css */
+    border-bottom: 2px solid #63C132; /* Adjusted to match styles.css */
+    padding-bottom: 5px;
+}
+
+h2 {
+    color: #63C132; /* Adjusted to match styles.css */
+    margin-top: 20px;
+}
+
+/* Lists */
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+ul li {
+    background: #CFFCFF; /* Adjusted to match styles.css */
+    margin: 5px 0;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+/* Table styling */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+table th, table td {
+    border: 1px solid #63C132; /* Adjusted to match styles.css */
+    padding: 10px;
+    text-align: left;
+}
+
+table th {
+    background-color: #63C132; /* Adjusted to match styles.css */
+    color: #fff;
+    text-transform: uppercase;
+}
+
+table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+table tr:hover {
+    background-color: #CFFCFF; /* Adjusted to match styles.css */
+}
+
+/* Details column */
+table td:last-child {
+    font-style: italic;
+    color: #555;
+}
