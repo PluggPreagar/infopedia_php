@@ -1,6 +1,7 @@
 /* General body styling */
 body {
     font-family: Arial, sans-serif;
+    font-size: small;
     margin: 20px;
     background-color: #CFFCFF; /* Adjusted to match styles.css */
     color: #358600; /* Adjusted to match styles.css */
@@ -27,7 +28,7 @@ ul {
 ul li {
     background: #CFFCFF; /* Adjusted to match styles.css */
     margin: 5px 0;
-    padding: 10px;
+    padding: 5px;
     border-radius: 5px;
 }
 
@@ -38,12 +39,12 @@ table {
     margin-top: 20px;
     background-color: #fff;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    font-size: small;
+    font-size: xx-small;
 }
 
 table th, table td {
     border: 1px solid #63C132; /* Adjusted to match styles.css */
-    padding: 10px;
+    padding: 5px;
     text-align: left;
 }
 

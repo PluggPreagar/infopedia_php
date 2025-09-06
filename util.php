@@ -44,6 +44,7 @@ function log_to_file($message) {
     $logMessage .= " " . $_SERVER['REQUEST_URI'] . " ; ";
     $logMessage .= " " . $_SERVER['REQUEST_METHOD'] . " ; ";
     $logMessage .= " " . $session_id . " ; ";
+    $logMessage .= " " . $_SERVER['SCRIPT_NAME'] . " ; ";
     $logMessage .= " " . $message . " ; ";
     $logMessage .= "\n";
     // Append the log message to the file

@@ -96,7 +96,7 @@ echo "</ul>";
 // Display the last 20 entries in detail
 echo "<h1>Last 20 Log Entries</h1>";
 echo "<table border='1'>";
-echo "<tr><th>Timestamp</th><th>Type</th><th>URI</th><th>Method</th><th>Session</th><th>Details</th></tr>";
+echo "<tr><th>Timestamp</th><th>Type</th><th>URI</th><th>Method</th><th>Session</th><th>Script</th><th>Details</th></tr>";
 // reverse the lastEntries array to show the most recent first
 $lastEntries = array_reverse($lastEntries);
 
@@ -111,7 +111,8 @@ foreach ($lastEntries as $line) {
     $uri = htmlspecialchars(trim($parts[2]));
     $method = htmlspecialchars(trim($parts[3]));
     $session_id = htmlspecialchars(trim($parts[4] ?? ''));
-    $details = htmlspecialchars(implode(" ; ", array_slice($parts, 5)));
+    $script = htmlspecialchars(trim($parts[5] ?? ''));
+    $details = htmlspecialchars(implode(" ; ", array_slice($parts, 6)));
 
     echo "<tr>";
     echo "<td>$timestamp</td>";
@@ -119,6 +120,7 @@ foreach ($lastEntries as $line) {
     echo "<td>$uri</td>";
     echo "<td>$method</td>";
     echo "<td>$session_id</td>";
+    echo "<td>$script</td>";
     echo "<td>$details</td>";
     echo "</tr>";
 }

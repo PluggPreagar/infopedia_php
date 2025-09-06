@@ -1,4 +1,7 @@
 <?php
+
+// test by calling: http://fayf.info/entry
+
 require 'util.php';
 
 // Cache settings
