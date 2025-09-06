@@ -50,6 +50,7 @@ $googlePostEntryId = $config['googlePostEntryId'] ?? 'entry.1234567890'; // Repl
 $googlePostEntryId_ = str_replace('.', '_', $googlePostEntryId); // Replace '.' with '_' in the entry ID for compatibility
 $data = isset($_POST[$googlePostEntryId_]) ? $_POST[$googlePostEntryId_] : ( isset($_GET[$googlePostEntryId_]) ? $_GET[$googlePostEntryId_] : '' ); // Get data from POST request
 $cacheFile = $config['cacheFile']; // Path to the cache file
+$cacheOutdatedFile = $config['cacheOutdatedFile']; // Path to the cache file
 $dryRun = isset($config['dryRun']) && $config['dryRun'] == 'true'; // Check if dry run is requested
 // $dryRun = true;
 //$googlePostEntryId = 'entry.1234567890';
@@ -80,6 +81,11 @@ if ($response === false) {
     echo "Error sending POST request: " . $error['message'];
 } else {
     echo "Response: " . $response;
+}
+
+// touch cache file to signal update
+if (file_exists($cacheOutdatedFile)) {
+    touch($cacheOutdatedFile);
 }
 
 ?>
