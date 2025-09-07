@@ -43,7 +43,7 @@ function sortCsvData($csvData) {
         } else {
             // even number of quotes, line is complete
             $line_wrapped = "";
-            // Split the line by semicolon, only 2 parts are expected
+            // Split the line by comma, only 2 parts are expected
             $parts = str_getcsv($line);
             if (count($parts) >= 2) {
                 // split second part by " | "
@@ -69,6 +69,28 @@ function sortCsvData($csvData) {
         } // line wrapped ?
     }
 
+    // -- just to easy access most recent entry, as we reorder by key --
+    //
+    // keep last / most recent key of non hidden entry (not starting with "/_" )
+    // search from back to front
+    $mostRecentLine = "";
+    foreach (array_reverse($aggregatedData, true) as $key => $line) {
+        if (substr($key, 0, 2) !== '/_') {
+            // construct DUMMY Most-Recent-Entry from latest Entry
+            // prefix Topic with (non-reachable) "/_Most-Recent-Entry"
+            $mostRecentLine = $line;
+            // <timestamp>,<topic> | <node> | <message><indicator>
+            // to absolute node
+            // <timestamp>,/_Most-Recent-Entry | <topic><node> | <message><indicator>
+            // -->
+            //   1. replace first " | " with "/"
+            $mostRecentLine = preg_replace('/ \| /', '/', $mostRecentLine, 1);
+            //   2. inject "/_Most-Recent-Entry"  after first ,-Delimiter
+            $mostRecentLine = substr_replace( $mostRecentLine, "/_/menu/Most-Recent-Entry | ", strpos($mostRecentLine, ",") + 1, 0);
+            break;
+        }
+    }
+
     // sort aggregatedData by key
     ksort($aggregatedData);
 
@@ -79,6 +101,10 @@ function sortCsvData($csvData) {
             continue; // Skip empty lines
         }
         $sortedCsv .= $line . "\n";
+    }
+    // append most recent line at the end
+    if ($mostRecentLine !== "") {
+        $sortedCsv .= $mostRecentLine . "\n";
     }
 
     return trim($sortedCsv);
