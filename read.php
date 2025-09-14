@@ -85,8 +85,17 @@ function sortCsvData($csvData) {
             // -->
             //   1. replace first " | " with "/"
             $mostRecentLine = preg_replace('/ \| /', '/', $mostRecentLine, 1);
+            $posEntryStart = strpos($mostRecentLine, ",") + 1;
+            //
+            // if mostRecentLine has quote after posEntryStart "," move it before "/_/menu/Most-Recent-Entry"
+            //
+            // 14/09/2025 07:17:33,"/1754063068 | 1757827051 | Früher auf Probe 2 - Verzichte auf Waschmaschine, Kühlschrank und Heizung."
+            // 14/09/2025 07:17:33,"/_/menu/Most-Recent-Entry | /1754063068/1757827051 | Früher auf Probe 2 - Verzichte auf Waschmaschine, Kühlschrank und Heizung."
+            if ($mostRecentLine[$posEntryStart] === '"') {
+                $posEntryStart++;
+            }
             //   2. inject "/_Most-Recent-Entry"  after first ,-Delimiter
-            $mostRecentLine = substr_replace( $mostRecentLine, "/_/menu/Most-Recent-Entry | ", strpos($mostRecentLine, ",") + 1, 0);
+            $mostRecentLine = substr_replace( $mostRecentLine, "/_/menu/Most-Recent-Entry | ", $posEntryStart, 0);
             break;
         }
     }
@@ -120,10 +129,10 @@ header('Expires: 0');
 // if cacheOutdatedFile exists and is newer than cacheFile then delete cacheFile
 $cacheOutdated= false;
 $cacheOutdatedFile = $config['cacheOutdatedFile'] ?? null;
-$cache_time_min = $config['cache_time_min'] ?? 10; // default 60 seconds
+$cache_time_delay = $config['cache_time_delay'] ?? 10; // default 60 seconds
 $cacheOutdated = $cacheOutdatedFile
     && file_exists($cacheOutdatedFile) && file_exists($cacheFile)
-    && (filemtime($cacheOutdatedFile) > filemtime($cacheFile) + $cache_time_min) ;
+    && (filemtime($cacheOutdatedFile) > filemtime($cacheFile) + $cache_time_delay) ;
 
 // Check if the cache is valid
 if (file_exists($cacheFile)

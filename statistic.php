@@ -76,21 +76,11 @@ echo "</ul>";
 // Display method statistics
 echo "<h2>Requests by HTTP Method</h2>";
 echo "<ul>";
+$methodStatsLimited = array_slice($methodStats, 0, 10, true);
 foreach ($methodStats as $method => $count) {
     echo "<li>Method: <strong>$method</strong> - Requests: $count</li>";
 }
 echo "</ul>";
-
-// Display URI statistics
-echo "<h2>Most Accessed URIs</h2>";
-echo "<ul>";
-foreach ($uriStats as $uri => $count) {
-    echo "<li>URI: <strong>$uri</strong> - Requests: $count</li>";
-}
-echo "</ul>";
-
-
-
 
 
 // Display the last 20 entries in detail
@@ -127,6 +117,17 @@ foreach ($lastEntries as $line) {
 
 echo "</table>";
 
+// Display the statistics
+echo "<h1>Display URI Statistics</h1>";
+
+// Display URI statistics
+echo "<h2>Most Accessed URIs</h2>";
+echo "<ul>";
+$uriStats = array_slice($uriStats, 0, 20, true); // Limit to top 20 URIs
+foreach ($uriStats as $uri => $count) {
+    echo "<li>URI: <strong>$uri</strong> - Requests: $count</li>";
+}
+echo "</ul>";
 
 
 
