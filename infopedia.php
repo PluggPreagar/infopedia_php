@@ -1,5 +1,8 @@
 <?php
 
+  require 'util.php';
+
+
 /*
 ### Explanation:
 1. **Download Google Sheet**: Use `file_get_contents` to fetch the sheet data.
@@ -11,24 +14,6 @@
 ### Code:
 */
 $debug=false;
-function log_debug($message) {
-    // Uncomment the next line to enable debugging output
-    if (!$GLOBALS['debug']) {
-        return; // Skip debug output if debug mode is off
-    }
-    echo $message;
-    echo "<br>";
-}
-
-function log_warn($message) {
-    // Uncomment the next line to enable warning output
-    if (!$GLOBALS['debug']) {
-        return; // Skip debug output if debug mode is off
-    }
-    echo "<strong>Warning: </strong>" . $message;
-    echo "<br>";
-}
-
 
 // Function to download Google Sheet and cache it
 function downloadAndCacheGoogleSheet($url, $cacheFile) {
@@ -62,12 +47,14 @@ function loadFilteredContent($cacheFile, $filter, $parentsToTopicFilters = []) {
     $rowCount = 0;
     log_debug( "Loading data from cache...\n");
     foreach ($lines as $line) {
+        // replace ',"' with ',' to ignore quotes during filtering
+        $line_ = str_replace(',"', ',', $line);
         // Skip lines that do not contain the filter
-        if (empty($line) || strpos($line, $filter) === false) {
+        if (empty($line) || strpos($line_, $filter) === false) {
             $found = false;
             foreach ($parentsToTopicFilters as $parentFilter) {
                 //log_debug("Checking parent filter: " . $parentFilter . " for line: " . $line);
-                if (strpos($line, $parentFilter) != 0) {
+                if (strpos($line_, $parentFilter) != 0) {
                     $parts = str_getcsv($line);
                     $entry = $parts[1] ?? '';
                     list($topic, $node, $content) = explode(" | ", $entry);
@@ -95,7 +82,8 @@ function loadFilteredContent($cacheFile, $filter, $parentsToTopicFilters = []) {
 function parseData($lines, $filter = '', $parentsToTopicFilters = []) {
     $data = [];
     foreach ($lines as $line) {
-        $parts = str_getcsv($line); // Handle quotes and commas
+        // use delimiter as comma, but handle quotes "
+        $parts = str_getcsv($line);
         if (count($parts) < 2) {
             continue;
         }
