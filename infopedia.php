@@ -165,7 +165,9 @@ function generateHtmlOutput($data, $topic = '') {
         // data
         foreach ($data as $entry) {
             echo "<tr>";
-            echo "<td><a href='?topic={$entry['topic']}/{$entry['node']}'>{$entry['content']}</a></td>";
+            // when $entry['content'] ends with ">" then set class "topic"
+            $class = str_ends_with($entry['entry_type'], '>') ? 'class="topic"' : '';
+            echo "<td><a {$class} href='?topic={$entry['topic']}/{$entry['node']}'>{$entry['content']}</a></td>";
             echo "</tr>";
         }
     } else {
@@ -251,7 +253,7 @@ if (!isCacheValid($cacheFile)) {
         log_debug("Using read.php to fetch and cache Google Sheet data...");
         //include 'read.php';
         // call read.php to fetch and cache the Google Sheet data
-        $readPhpUrl = "https:" . $_SERVER['HTTP_HOST'] . str_replace('infopedia.php', 'read.php', $_SERVER['PHP_SELF']);
+        $readPhpUrl = "https://" . $_SERVER['HTTP_HOST'] . str_replace('infopedia.php', 'read.php', $_SERVER['PHP_SELF']);
         $readUrl = $readPhpUrl . "?type=entry&force_update=" . (isset($_GET['force_update']) ? '1' : '0') . "&topic=" . urlencode($topic);
         log_debug("get-methode to receive read.php: " . $readUrl);
         // get my URL
@@ -262,7 +264,12 @@ if (!isCacheValid($cacheFile)) {
 
 
         log_debug("my URL: ".$_SERVER["SCRIPT_NAME"]);
-        $response = file_get_contents($readUrl); // side-effect: this will also cache the data
+        try{
+            // side-effect: this will also cache the data
+            $response = file_get_contents($readUrl);
+        } catch (Exception $e) {
+            log_debug("Exception when calling read.php: " . $e->getMessage());
+        }
     } else {
         // Download and cache the Google Sheet data
         log_debug("Downloading and caching Google Sheet data...");

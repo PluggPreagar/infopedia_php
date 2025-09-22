@@ -1,7 +1,9 @@
+/* # CFFCFF    AAEFDF    9EE37D   63C132   358600 */
+
 body {
     font-family: Arial, sans-serif;
-    font-size: large;
-    background-color: #CFFCFF;
+    font-size: x-large;
+    background-color: #63C132;
     color: #358600;
     margin: 0;
     padding: 0;
@@ -15,25 +17,48 @@ h2 {
     font-size: medium;
 }
 
+/* class topic */
+.topic {
+    font-weight: bold;
+}
+
 a {
     color: black;
     text-decoration: none;
-    font-weight: bold;
 }
+
 a:hover {
+    color: #9ee37d;
+    text-decoration: none;
+}
+
+/* <a> below <td> */
+td a {
+    border: 5px solid transparent;
+    border-radius: 30px;
+    padding: 10px;
+    margin: 5px;
+    background: #9ee37d;
+    display: inline-block;
+    width: 100%
+}
+
+td a:hover {
     color: #63C132;
     text-decoration: none;
 }
+
 table {
-    width: 80%;
+    max-width: 75%; /* Set the maximum width to 75% of the container */
     margin: 20px auto;
     border: 0px solid #63C132;
     border-collapse: collapse;
 }
 td {
-    padding: 10px;
+    padding: 0px;
     border: 0px solid #63C132;
     text-align: center;
+
 }
 tr:nth-child(even) {
 }
