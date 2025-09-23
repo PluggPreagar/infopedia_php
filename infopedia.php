@@ -225,6 +225,60 @@ function parentsToTopicFilter($topic){
 }
 
 
+function updateCacheIfNeeded() {
+    global $cacheFile, $cacheTime, $useReadPhp, $googleSheetUrl;
+    if (!isCacheValid($cacheFile)) {
+        if ($useReadPhp) {
+            // Use read.php to fetch and cache the Google Sheet data
+            log_debug("Using read.php to fetch and cache Google Sheet data...");
+            //include 'read.php';
+            // call read.php to fetch and cache the Google Sheet data
+            $readPhpUrl = "https://" . $_SERVER['HTTP_HOST'] . str_replace('infopedia.php', 'read.php', $_SERVER['PHP_SELF']);
+            $readUrl = $readPhpUrl . "?type=entry&force_update=" . (isset($_GET['force_update']) ? '1' : '0') . "&topic=" . urlencode($topic);
+            log_debug("get-methode to receive read.php: " . $readUrl);
+            // get my URL
+            log_debug("my REQUEST_URI: " . $_SERVER["REQUEST_URI"]);
+            log_debug("my PHP_SELF: " . $_SERVER["PHP_SELF"]);
+            log_debug("my SERVER_NAME: " . $_SERVER["SERVER_NAME"]);
+
+
+            log_debug("my URL: " . $_SERVER["SCRIPT_NAME"]);
+            try {
+                // side-effect: this will also cache the data
+                $response = file_get_contents($readUrl);
+            } catch (Exception $e) {
+                log_debug("Exception when calling read.php: " . $e->getMessage());
+            }
+        } else {
+            // Download and cache the Google Sheet data
+            log_debug("Downloading and caching Google Sheet data...");
+            downloadAndCacheGoogleSheet($googleSheetUrl, $cacheFile);
+        }
+    }
+}
+
+function setFilters(){
+    global $topic, $filter, $preFilter, $parentContent;
+    if ("/" === $topic) {
+        $topic = ''; // If topic is just '/', set it to empty
+    }
+    $filter = $topic . ' | ' ; // Default to 'example_filter' if not set
+// as file is comma separated, we need take in account first column and delimiter
+    $preFilter = ',' . $filter; // ... and csv might have a trimmed data
+    $parentContent = array();
+}
+
+function run(){
+    global $topic, $cacheFile, $preFilter, $filter;
+    setFilters();
+    generateHtmlHead($topic);
+    updateCacheIfNeeded();
+
+    $filteredLines = loadFilteredContent($cacheFile, $preFilter, parentsToTopicFilter($topic));
+    $data = parseData($filteredLines, $filter);
+    generateHtmlOutput($data, $topic);
+
+}
 
 
 // Read configurations from the configuration file
@@ -259,48 +313,17 @@ $cacheTime = isset($_GET['force_update']) ? 0 : $config['cache_time'] ?? 3600; /
 $googleSheetUrl = $config['googleSheetUrl'] ?? '...';
 $cacheFile = $config['cacheFile'] ?? 'sheet.cache'; // Default to 'sheet.cache' if not set
 $topic = isset($_GET['topic']) ? $_GET['topic'] : ''; // Default to empty if not set
-if ("/" === $topic) {
-    $topic = ''; // If topic is just '/', set it to empty
-}
-$filter = $topic . ' | ' ; // Default to 'example_filter' if not set
-// as file is comma separated, we need take in account first column and delimiter
-$preFilter = ',' . $filter; // ... and csv might have a trimmed data
-$parentContent = array();
-
-generateHtmlHead($topic);
-
-if (!isCacheValid($cacheFile)) {
-    if ($useReadPhp) {
-        // Use read.php to fetch and cache the Google Sheet data
-        log_debug("Using read.php to fetch and cache Google Sheet data...");
-        //include 'read.php';
-        // call read.php to fetch and cache the Google Sheet data
-        $readPhpUrl = "https://" . $_SERVER['HTTP_HOST'] . str_replace('infopedia.php', 'read.php', $_SERVER['PHP_SELF']);
-        $readUrl = $readPhpUrl . "?type=entry&force_update=" . (isset($_GET['force_update']) ? '1' : '0') . "&topic=" . urlencode($topic);
-        log_debug("get-methode to receive read.php: " . $readUrl);
-        // get my URL
-        log_debug("my REQUEST_URI: ".$_SERVER["REQUEST_URI"]);
-        log_debug("my PHP_SELF: ".$_SERVER["PHP_SELF"]);
-        log_debug("my SERVER_NAME: ".$_SERVER["SERVER_NAME"]);
+# use setFilter() to init depending on topic
+$filter = "";
+$preFilter = "";
+$parentContent = [];
 
 
 
-        log_debug("my URL: ".$_SERVER["SCRIPT_NAME"]);
-        try{
-            // side-effect: this will also cache the data
-            $response = file_get_contents($readUrl);
-        } catch (Exception $e) {
-            log_debug("Exception when calling read.php: " . $e->getMessage());
-        }
-    } else {
-        // Download and cache the Google Sheet data
-        log_debug("Downloading and caching Google Sheet data...");
-        downloadAndCacheGoogleSheet($googleSheetUrl, $cacheFile);
-    }
+
+if (!isset($test)) {
+    run();
 }
 
-$filteredLines = loadFilteredContent($cacheFile, $preFilter, parentsToTopicFilter($topic));
-$data = parseData($filteredLines, $filter);
-generateHtmlOutput($data, $topic);
 
 ?>
