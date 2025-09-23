@@ -10,7 +10,7 @@ body {
 }
 h1, h2 {
     text-align: center;
-    color: #63C132;
+    /* color: #63C132; */
 }
 
 h2 {
@@ -32,8 +32,13 @@ a:hover {
     text-decoration: none;
 }
 
+p, .leaf {
+    color: #358600;
+    text-decoration: none;
+}
+
 /* <a> below <td> */
-td a {
+td a, td p {
     border: 5px solid transparent;
     border-radius: 30px;
     padding: 10px;
@@ -49,7 +54,7 @@ td a:hover {
 }
 
 table {
-    max-width: 75%; /* Set the maximum width to 75% of the container */
+    max-width: 80%; /* Set the maximum width to 75% of the container */
     margin: 20px auto;
     border: 0px solid #63C132;
     border-collapse: collapse;
