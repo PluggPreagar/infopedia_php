@@ -69,6 +69,8 @@ function loadFilteredContent($cacheFile, $filter, $parentsToTopicFilters = []) {
             if (!$found && $rowCount++ < 10) {
                 log_debug("skipped line: " . $line);
             }
+            // may bay is child of filtered entry - relevant to separate node from leaf (leaf has no link)
+
             continue;
         } else {
             $filteredData[] = $line;
