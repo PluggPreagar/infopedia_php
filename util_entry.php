@@ -6,8 +6,7 @@
  *  - filters obsolete (updated, removed) entries, sorts into <data-type>_cleaned.cache
  *      - (!) the content will be transformed
  *          - datasource-style: <timestamp>,"?<parent-node> | <node> | <content><content-type-hint>"? (e.g. multiline)
- *          - fayf-style-0v02:  <parent-node> | <node> | <timestamp2> | <content><content-type-hint> | flags (single-line using \\n)
- *          - fayf-style-0v02e: | <parent-node>/<node> | <parent-node> | <node> | <timestamp2> | <content><content-type-hint> | flags
+ *          - fayf-style-0v02:  <parent-node>|<node>|<timestamp2>|flags|<content><content-type-hint> (single-line using \\n)
  *      - time by google
  *          - timestamp  07/09/2025 20:44:54
  *          - timestamp2 2025/09/07 20:44:54
@@ -18,50 +17,22 @@
  */
 
 
-    // Function to download Google Sheet and cache it
-    function downloadAndCacheGoogleSheet($url, $cacheFile) {
-        $sheetData = file_get_contents($url);
-        if ($sheetData !== false) {
-            file_put_contents($cacheFile, $sheetData);
-            $cleanedData = cleanData(transform_0v02($sheetData));
-            $cacheFileCleaned = str_replace( ".cache", "_0v02.cache", $cacheFile);
-            file_put_contents($cacheFileCleaned, $cleanedData);
-            log_debug("Google Sheet data downloaded and cached successfully.\n");
-        } else {
-            log_debug("Failed to download Google Sheet data.\n");
-        }
-    }
-
-    function isCacheValid($cacheFile, $cacheTime) {
-        if (!file_exists($cacheFile)) {
-            log_debug("Cache file does not exist.\n");
-            return false;
-        }
-        $lastModified = filemtime($cacheFile);
-        log_debug("Cache file last modified at: " . date('Y-m-d H:i:s', $lastModified) . "\n");
-        return (time() - $lastModified) < $cacheTime ; // Cache valid for 1 hour
-    }
-
-    function updateCacheIfNeeded($cacheFile, $googleSheetUrl) {
-        if (!isCacheValid($cacheFile)) {
-            // Download and cache the Google Sheet data
-            log_debug("Downloading and caching Google Sheet data...");
-            downloadAndCacheGoogleSheet($googleSheetUrl, $cacheFile);
-        }
-    }
-
-
-    /*
-     *  TRANSFORM - Entry-Versions !!
-     */
-
-
     function transform_0v02($data_raw) {
         $data = [];
+        $line = "";
         foreach ($data_raw as $k => $v) {
-            $value = data_entry($v);
-            if ($value) {
-                $data[] = $value;
+            $line = $line . $v;
+            if (substr_count($line, '"') % 2 != 0
+                    // allow \" as zoll - only check if necessary
+                    // && substr_count( str_replace( "\"","", $line)  , '"') % 2 != 0
+                    ) {
+                // odd number of quotes, line is wrapped
+                $line = $line . "\n";
+            } else {
+                if ($line) {
+                    $data[] = data_entry( $line );
+                }
+                $line = "";
             }
         }
         return $data;
@@ -116,6 +87,8 @@
                     $parent = $parts2[0];
                     $node = $parts2[1];
                     $content = $parts2[2];
+                    // escape \r\n
+                    $content = str_replace("\n", "\\n", str_replace("\r", "\\r", $content));
                     //$value0v02 = [ $parent, $node, $time, $content, str_ends_with($v,"\"") ];
                     //array_push($data, $value0v02);
                     // $k =  $parent. "|". $node."|".$time
@@ -130,6 +103,20 @@
         return $value;
     }
 
-
+    function topicFilter($topic){
+        // replace last "/" in string with " | "
+        $parts = explode('/', $topic);
+        // append empty string to the end of the array
+        array_shift($parts);
+        $topics = [];
+        $path = '';
+        // log_debug("Generating parentsToTopicFilter for: " . $topic);
+        foreach ($parts as $part) {
+            $topics[] = ',' . $path . " | " . $part . " | ";
+            //log_debug("topic: " . $path . " | " . $part . " | ");
+            $path .= '/' . $part;
+        }
+        return $topics;
+    }
 
 ?>

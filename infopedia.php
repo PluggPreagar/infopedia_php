@@ -1,42 +1,14 @@
 <?php
+    $type = "web";
+    require 'util.php';
+    require 'util_entry.php';
+    require 'util_file.php';
 
-  require 'util.php';
+  /*
+   *  entry_0v02: <parent-node>|<node>|<timestamp>|[flags|]<content><content-type-hint> (\n for multilines)
+   *        they will be sorted by <parent-node>/<node>
+   */
 
-
-/*
-### Explanation:
-1. **Download Google Sheet**: Use `file_get_contents` to fetch the sheet data.
-2. **Cache Management**: Save the sheet data in `sheet.cache` and check its validity based on the timestamp.
-3. **Loading Function**: Read the cache file, filter lines based on a pattern, and parse the data into an array.
-4. **Data Parsing**: Split the data into timestamp, entry, topic, node, and content, and assign `entry_type`.
-5. **HTML Output**: Generate a table with links and a header.
-
-### Code:
-*/
-$debug=false;
-
-// Function to download Google Sheet and cache it
-function downloadAndCacheGoogleSheet($url, $cacheFile) {
-    $sheetData = file_get_contents($url);
-    if ($sheetData !== false) {
-        file_put_contents($cacheFile, $sheetData);
-        log_debug("Google Sheet data downloaded and cached successfully.\n");
-    } else {
-        log_debug("Failed to download Google Sheet data.\n");
-    }
-}
-
-// Function to check if cache is valid
-function isCacheValid($cacheFile) {
-    global $cacheTime;
-    if (!file_exists($cacheFile)) {
-        log_debug("Cache file does not exist.\n");
-        return false;
-    }
-    $lastModified = filemtime($cacheFile);
-    log_debug("Cache file last modified at: " . date('Y-m-d H:i:s', $lastModified) . "\n");
-    return (time() - $lastModified) < $cacheTime ; // Cache valid for 1 hour
-}
 
 // Function to load filtered content from cache
 function loadFilteredContent($cacheFile, $filter, $parentsToTopicFilters = []) {
@@ -210,21 +182,7 @@ function generateHtmlOutput($data, $topic = '') {
     /clima/biz/tracker | content |
     /clima/biz/tracker/content  << TOPIC
 */
-function parentsToTopicFilter($topic){
-    // replace last "/" in string with " | "
-    $parts = explode('/', $topic);
-    // append empty string to the end of the array
-    array_shift($parts);
-    $topics = [];
-    $path = '';
-    log_debug("Generating parentsToTopicFilter for: " . $topic);
-    foreach ($parts as $part) {
-        $topics[] = ',' . $path . " | " . $part . " | ";
-        log_debug("topic: " . $path . " | " . $part . " | ");
-        $path .= '/' . $part;
-    }
-    return $topics;
-}
+
 
 
 function updateCacheIfNeeded() {

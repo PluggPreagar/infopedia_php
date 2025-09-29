@@ -10,7 +10,7 @@
  *          - fayf-style-0v02e: | <parent-node>/<node> | <parent-node> | <node> | <timestamp> | <data><data-type-hint>
  */
 
-    require_once "util_cache.php";
+    require_once "util_entry.php";
     require_once "util_test.php";
 
     function json_encode_($data) {
@@ -28,7 +28,21 @@
         trnsf_run( ['0/0/0/t,"p0 | n0 | d0"'], ["p0/n0##9-9-9 t##p0|n0|0-0-0 t|d0"], "basic, single quoted - Quoted-Hint");
         // allow proper time-format
         trnsf_run( ['0-0-0 t,"p0 | n0 | d0"'], ["p0/n0##9-9-9 t##p0|n0|0-0-0 t|d0"], "basic, time formated already y-m-d");
+        // multiline - allow easy reading
+        trnsf_run( ['0/0/0/t,"p0 | n0 | d0_
+                    _0d"']
+            , ["p0/n0##9-9-9 t##p0|n0|0-0-0 t|d0_\\r\\n                    _0d"]
+            , "multiline - basic in a string");
+        trnsf_run( ['0/0/0/t,"p0 | n0 | d0_'
+                    ,'_0d"']
+            , ["p0/n0##9-9-9 t##p0|n0|0-0-0 t|d0_\\n_0d"]
+            , "multiline - basic in 2 strings, 2 lines");
     }
+
+    /*
+     *
+     *
+     */
 
     function cleanData_run($data_in, $data_expect, $message) {
         $data_csv=[];
@@ -69,9 +83,26 @@
             , "clean sort by asc");
     }
 
+    /*
+     *
+     *
+     */
+    function topicFilter_run($topic, $data_expect, $message) {
+        $data = topicFilter( $topic );
+        assert_equals(  json_encode_($data_expect), json_encode_($data) , $message);
+    }
+
+    function topicFilter_test(){
+        topicFilter_run("p0", ["|p0|","p0|","p0/"] , "1.level - itself, direct childs, grand childs");
+        topicFilter_run("/p0", ["|p0|","p0|","p0/"] , "1.level - with root prefix");
+        topicFilter_run("p0/p1", ["|p0|","p0|p1|","p0/p1|","p0/p1/"] , "1.level - itself, direct childs, grand childs");
+    }
+
+
 
     transform_0v02_test();
     cleanData_test();
+    topicFilter_test();
 
 
 
