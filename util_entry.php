@@ -30,7 +30,7 @@
                 $line = $line . "\n";
             } else {
                 if ($line) {
-                    $data[] = data_entry( $line );
+                    $data[] = data_entry_line_sortable( $line );
                 }
                 $line = "";
             }
@@ -44,11 +44,12 @@
      *  - remove deleted (by "--" suffix)
      *  ! ticky - use "inverted"-Time-Stamp to sort time (implicit) desc (by sorting key asc)
      */
-    function cleanData($data) {
+    function cleanData($dataSortKeyPrefixed) {
         // sort array of data
-        asort($data);
+        asort($dataSortKeyPrefixed); // asc key but desc time !!
+        $data = [];
         $key_last = "XXXXXXXXXX";
-        foreach ($data as $k => $v) {
+        foreach ($dataSortKeyPrefixed as $k => $v) {
             if (str_starts_with($v, $key_last)) {
                 // obsolete key
                 unset($data[$k]);
@@ -70,7 +71,7 @@
     }
 
 
-    function data_entry($csv_value) {
+    function data_entry_line_sortable($csv_value) {
         $value = null;
         $parts1 = str_getcsv($csv_value); // split top level, handle quotes
         if (count($parts1) >= 2) {
@@ -103,7 +104,30 @@
         return $value;
     }
 
-    function topicFilter($topic){
+    function data_entry0v02($data_entry_line, $nodesWithChildren = []){
+        // /topic|node|time[|flags]|content
+        $parts = explode("|", $data_entry_line);
+        $topic = $parts[0];
+        $node = $parts[1];
+        $timestamp = $parts[2];
+        $flags =  count($parts) > 4 ? $parts[3] : 0;
+        $content = $parts[count($parts)-1];
+        $nodeKey = $topic."|".$node;
+        $entry[] = [
+            'timestamp' => $timestamp,
+            'topic' => $topic,
+            'node' => $node,
+            'flags' => $flags,
+            'content' => $content,
+            'entry_type' => substr($content, -1),
+            'child_count' => in_array($nodeKey, $nodesWithChildren)
+        ];
+        return $entry;
+    }
+
+
+
+    function topicFilter_($topic){
         // replace last "/" in string with " | "
         $parts = explode('/', $topic);
         // append empty string to the end of the array

@@ -52,16 +52,50 @@
      *  p1/p2/f|c3|child3
      */
     function loadFiltered($cacheFile, $folderNode) {
-        // parent-id before folder-node-id before child-id before grand-child-id - as they are sorted
-        // parent-id is prefix of folder-node-id
-        // folder-node-id is prefix of child-id
-        $lines = file($cacheFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        log_debug( "Loading data from cache...\n");
-        foreach ($lines as $line) {
-            $parts = preg_split("|",$line, 3);
-            $id = $parts[0]."/".$parts[1];
+        if (!str_starts_with($folderNode, "/")) {
+            $folderNode = "/" . $folderNode;
+        }
+        $folderNode = str_replace("|", "/", $folderNode);
 
+        // parent-id before folder-node-id before child-id before grand-child-id - as they are sorted
+        // parent-id is prefix of folder-node-id  -> parent shorter
+        // folder-node-id is prefix of child-id   -> children longer
+        $lines = is_array($cacheFile) ? $cacheFile : file($cacheFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        log_debug( "Loading data from cache...\n");
+        $parents = [];
+        $myself = "";
+        $children = [];
+        $hasGrandChilds = [];
+        $skippGrandChilds = "XXXXXX";
+        foreach ($lines as $line) {
+            if (str_contains($line, "|")) {
+                $parts = preg_split("/\|/",$line, 3);
+                $cur_parent = $parts[0];
+                $cur_key = $parts[0]."/".$parts[1];
+                if ( $folderNode == $cur_key ) {
+                    // myself
+                    $myself = $line;
+                } else if ( str_starts_with($folderNode, $cur_key) ) {
+                    // parent -> $id is part of $folderNode
+                    $parents[] = $line;
+                } else if ( $cur_parent == $folderNode ) {
+                    // my children
+                    $children[] = $line;
+                } else if ( str_starts_with($cur_parent, $skippGrandChilds) ) {
+                    // skipp non first grandchilds
+                } else if ( str_starts_with($cur_parent, $folderNode) ) {
+                    // grand children -- needed to know if further links should be shown ...
+                    // replace last "/" with "|"
+                    $pos = strrpos($cur_parent, $folderNode);
+                    if ($pos !== false) {
+                        $cur_parent = substr_replace($cur_parent, "|", $pos, 1);
+                    }
+                    $hasGrandChilds[] = $cur_parent;
+                    $skippGrandChilds = $cur_parent;
+                }
+            }
         } // lines
+        return [ "parents" => $parents,  "myself" => $myself, "children" => $children , "hasGrandChilds" => $hasGrandChilds ];
     }
 
 ?>

@@ -87,22 +87,38 @@
      *
      *
      */
+/* -- split every row instead ... for now ...
+    function topicFilter($topic) {
+        $filter = "";
+        $parts = explode('/', str_replace( "|", "/", $topic));
+        foreach ($parts as $part) {
+            $filter .= $part."[/|]";
+        }
+    }
+
     function topicFilter_run($topic, $data_expect, $message) {
         $data = topicFilter( $topic );
         assert_equals(  json_encode_($data_expect), json_encode_($data) , $message);
     }
 
     function topicFilter_test(){
-        topicFilter_run("p0", ["|p0|","p0|","p0/"] , "1.level - itself, direct childs, grand childs");
-        topicFilter_run("/p0", ["|p0|","p0|","p0/"] , "1.level - with root prefix");
-        topicFilter_run("p0/p1", ["|p0|","p0|p1|","p0/p1|","p0/p1/"] , "1.level - itself, direct childs, grand childs");
+        topicFilter_run("p0",    "/^[|]?p0[/|]/" , "1.level - itself, direct childs, grand childs");
+        topicFilter_run("/p0",   "/^[|]?p0[/|]/" , "1.level - with root prefix");
+        topicFilter_run("p0/p1", "/^[|]?p0[/|](p1[/|])?/", "1.level - itself, direct childs, grand childs");
+        topicFilter_run("p0|p1", "/^[|]?p0[/|](p1[/|])?/", "1.level - with delmiter notation");
+        topicFilter_run("p0/p1/p2", "/^[|]?p0[/|](p1[/|](p2[/|])?)?/", "2.level - itself, direct childs, grand childs");
     }
 
-
+    function topicFilter_test_(){
+        topicFilter_run("p0",    ["|p0|","p0|","p0/"] , "1.level - itself, direct childs, grand childs");
+        topicFilter_run("/p0",   ["|p0|","p0|","p0/"] , "1.level - with root prefix");
+        topicFilter_run("p0/p1", ["|p0|","p0|p1|","p0/p1|","p0/p1/"] , "1.level - itself, direct childs, grand childs");
+    }
+*/
 
     transform_0v02_test();
     cleanData_test();
-    topicFilter_test();
+    //topicFilter_test();
 
 
 

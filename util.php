@@ -40,11 +40,14 @@
     function log_to_file($message) {
         global $logFile, $type, $session_id;
         $logMessage = "[" . date('Y-m-d H:i:s') . "] ; ";
-        $logMessage .= " " . ( $type ?? "none" ) . " ; ";
-        $logMessage .= " " . $_SERVER['REQUEST_URI'] . " ; ";
-        $logMessage .= " " . $_SERVER['REQUEST_METHOD'] . " ; ";
-        $logMessage .= " " . $session_id . " ; ";
-        $logMessage .= " " . $_SERVER['SCRIPT_NAME'] . " ; ";
+        if (isset($_SERVER) && isset($_SERVER['REQUEST_URI'])) {
+            // skipp during test
+            $logMessage .= " " . ( $type ?? "none" ) . " ; ";
+            $logMessage .= " " . $_SERVER['REQUEST_URI'] . " ; ";
+            $logMessage .= " " . $_SERVER['REQUEST_METHOD'] . " ; ";
+            $logMessage .= " " . $session_id . " ; ";
+            $logMessage .= " " . $_SERVER['SCRIPT_NAME'] . " ; ";
+        }
         $logMessage .= " " . $message . " ; ";
         $logMessage .= "\n";
         // Append the log message to the file
