@@ -40,6 +40,6 @@
     readfile($downloadFile);
     $data = "file=" . $downloadFile;
 
-    log_return( str_leng($response) . " bytes saved ( " . $data . ")"  );
+    log_return("downloaded: " . $data . ""  );
 
 ?>
