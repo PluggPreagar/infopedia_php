@@ -1,6 +1,10 @@
 <?php
 
-// test by calling: http://fayf.info/entry
+// test by calling:
+//      http://fayf.info/entry
+//      http://fayf.info/entry/get?sid=tst&tid=tenant1&force_update=1
+//      http://fayf.info/entry/get?sid=tst&tid=tenant1&format=txt
+
 
 require 'util.php';
 
@@ -11,7 +15,15 @@ $googleSheetGridId = $config['googleSheetGridId'] ?? '0'; // Default to 0 if not
 $googleSheetUrl = "https://docs.google.com/spreadsheets/d/{$googleSheetId}/export?format=csv&gid={$googleSheetGridId}"; // Construct the Google Sheet export URL
 $cacheFile = $config['cacheFile']; // Path to the cache file
 $dryRun = isset($config['dryRun']) && $config['dryRun'] ; // Check if dry run is requested
+$format = $_GET['format'] ?? ''; // default format is csv
 #$dryRun = true;
+
+// use local file for tenant specific data
+if ($tenant_id !== '') {
+    // modify cache file and google sheet url to include tenant id
+    $cacheFile = str_replace('.cache', "_{$tenant_id}.cache", $cacheFile);
+    $googleSheetUrl = "sheet_{$tenant_id}.csv"; // local file for tenant specific data
+}
 
 
 // function to sort csv data
@@ -24,7 +36,8 @@ function sortCsvData($csvData) {
     // Split the CSV data into rows
     // !! will not handle multiline as quote starts "within a column"
     $lines = explode("\n", $csvData);
-
+    // first line is header
+    $header = array_shift($lines);
     // aggregate data by topic and node
     $aggregatedData = [];
     $line_wrapped = "";
@@ -64,7 +77,10 @@ function sortCsvData($csvData) {
                     $aggregatedData[$key] = $line; // Store the line in the aggregated data
                 }
             } else  {
-                log_warn("Skipping malformed line[". $line_id ."]: $line");
+                // ignore empty lines
+                if (trim($line) !== '') {
+                    log_warn("Skipping malformed line[". $line_id ."]: $line");
+                }
             }
         } // line wrapped ?
     }
@@ -100,6 +116,9 @@ function sortCsvData($csvData) {
         }
     }
 
+    // log $aggregatedData
+    log_debug("Aggregated Data: " . print_r($aggregatedData, true) );
+
     // sort aggregatedData by key
     ksort($aggregatedData);
 
@@ -119,12 +138,17 @@ function sortCsvData($csvData) {
     return trim($sortedCsv);
 }
 
+// return csv if format is not txt
+if ($format === 'txt') {
+    header('Content-Type: text/plain');
+} else {
 
-// Proxy script to fetch and serve Google Sheet content with caching
-header('Content-Type: text/csv');
-header('Cache-Control: no-cache, no-store, must-revalidate');
-header('Pragma: no-cache');
-header('Expires: 0');
+    // Proxy script to fetch and serve Google Sheet content with caching
+    header('Content-Type: text/csv');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+}
 
 // if cacheOutdatedFile exists and is newer than cacheFile then delete cacheFile
 $cacheOutdated= false;
@@ -150,19 +174,32 @@ if (file_exists($cacheFile)
 $response = @file_get_contents($googleSheetUrl);
 
 if ($response === false) {
-    http_response_code(500);
-    log_warn("Failed to fetch Google Sheet");
-    exit;
+
+    //http_response_code(500);
+    log_warn("Failed to fetch Sheet ({$googleSheetUrl})");
+    http_response_code(404);
+    log_return( "404 - no data found" );
+
+} else {
+
+    if ($response === '') {
+        log_warn("Empty response from Sheet ({$googleSheetUrl})");
+    } else {
+        $response = sortCsvData($response); // Sort and uniq the CSV data
+
+        if ($response === '') {
+            log_warn("Empty response after sorting from Sheet ({$googleSheetUrl})");
+        } else {
+            // Save the content to the cache file
+            file_put_contents($cacheFile, $response);
+        }
+    }
+
+    // Output the content
+    echo $response;
+
+    log_return( strlen($response) . " bytes" );
 }
 
-$response = sortCsvData($response); // Sort and uniq the CSV data
-
-// Save the content to the cache file
-file_put_contents($cacheFile, $response);
-
-// Output the content
-echo $response;
-
-log_return( strlen($response) . " bytes" );
 
 ?>

@@ -1,7 +1,8 @@
 <?php
     $startTime = microtime(true); // Start time measurement
     // config
-    $debug= $debug ?? true; // Enable debug mode
+    $debug= $config['debug'] ?? $debug ?? false; // Enable debug mode
+
     $configFile = 'infopedia.cfg';
     $type = $_GET['type'] ?? $type ?? "none";
 
@@ -9,6 +10,17 @@
     // random session id if not provided
     if (empty($session_id)) {
         $session_id = bin2hex(random_bytes(4)); // Generate a random session ID
+    }
+
+    $tenant_id = ($_GET['tid'] ?? $_POST['tid'] ?? '') ; // tenant_id id from GET or POST (==tenantid)
+    // check tenant id is alphanumeric only + not longer than 30 chars
+    if (!empty($tenant_id) && !preg_match('/^[a-zA-Z0-9_-]+$/', $tenant_id)
+            && $tenant_id !== 'default'
+            && $tenant_id !== 'none'
+            && $tenant_id !== 'all'
+            && strlen($tenant_id) <= 30
+            ) {
+        die("Invalid tenant ID.");
     }
 
 
@@ -33,7 +45,7 @@
         die("Configuration file not found.");
     }
 
-    $logFile = $config['logFile'] ?? 'upload.log'; // Path to the log file
+    $logFile = $config['logFile'] ?? 'infopedia.log'; // Path to the log file
 
     // logging functions
 
@@ -48,6 +60,9 @@
             $logMessage .= " " . $session_id . " ; ";
             $logMessage .= " " . $_SERVER['SCRIPT_NAME'] . " ; ";
         }
+        // quote message to avoid log injection, replace newlines with spaces
+        $message = str_replace(["\n", "\r"], ' ', $message);
+
         $logMessage .= " " . $message . " ; ";
         $logMessage .= "\n";
         // Append the log message to the file
@@ -65,10 +80,16 @@
 
     function log_warn($message) {
         // Uncomment the next line to enable warning output
+        /*
         if (!$GLOBALS['debug']) {
             return; // Skip debug output if debug mode is off
         }
+        */
         log_to_file( "WARNING: " . $message );
+    }
+
+    function log_info($message) {
+        log_to_file( "INFO: " . $message );
     }
 
     function log_error($message) {
