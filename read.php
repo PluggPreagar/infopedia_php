@@ -22,7 +22,7 @@ $format = $_GET['format'] ?? ''; // default format is csv
 if ($tenant_id !== '') {
     // modify cache file and google sheet url to include tenant id
     $cacheFile = str_replace('.cache', "_{$tenant_id}.cache", $cacheFile);
-    $googleSheetUrl = "sheet_{$tenant_id}.csv"; // local file for tenant specific data
+    $googleSheetUrl = "entries_{$tenant_id}.csv"; // local file for tenant specific data
 }
 
 
@@ -107,12 +107,17 @@ function sortCsvData($csvData) {
             //
             // 14/09/2025 07:17:33,"/1754063068 | 1757827051 | Früher auf Probe 2 - Verzichte auf Waschmaschine, Kühlschrank und Heizung."
             // 14/09/2025 07:17:33,"/_/menu/Most-Recent-Entry | /1754063068/1757827051 | Früher auf Probe 2 - Verzichte auf Waschmaschine, Kühlschrank und Heizung."
-            if ($mostRecentLine[$posEntryStart] === '"') {
-                $posEntryStart++;
+            if ($posEntryStart < 5 || $posEntryStart >= strlen($mostRecentLine)){
+                // malformed / emtpy most recent line
+                // try next one
+            } else {
+                if ($mostRecentLine[$posEntryStart] === '"') {
+                    $posEntryStart++;
+                }
+                //   2. inject "/_Most-Recent-Entry"  after first ,-Delimiter
+                $mostRecentLine = substr_replace( $mostRecentLine, "/_/menu/Most-Recent-Entry | ", $posEntryStart, 0);
+                break;
             }
-            //   2. inject "/_Most-Recent-Entry"  after first ,-Delimiter
-            $mostRecentLine = substr_replace( $mostRecentLine, "/_/menu/Most-Recent-Entry | ", $posEntryStart, 0);
-            break;
         }
     }
 

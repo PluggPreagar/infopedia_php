@@ -50,19 +50,22 @@
     // logging functions
 
     function log_to_file($message) {
-        global $logFile, $type, $session_id;
+        global $logFile, $type, $session_id, $tenant_id;
         $logMessage = "[" . date('Y-m-d H:i:s') . "] ; ";
         if (isset($_SERVER) && isset($_SERVER['REQUEST_URI'])) {
             // skipp during test
             $logMessage .= " " . ( $type ?? "none" ) . " ; ";
             $logMessage .= " " . $_SERVER['REQUEST_URI'] . " ; ";
             $logMessage .= " " . $_SERVER['REQUEST_METHOD'] . " ; ";
-            $logMessage .= " " . $session_id . " ; ";
+            $logMessage .= " " . $session_id . (isset($tenant_id) ? "@".$tenant_id : "") . " ; ";
             $logMessage .= " " . $_SERVER['SCRIPT_NAME'] . " ; ";
         }
         // quote message to avoid log injection, replace newlines with spaces
         $message = str_replace(["\n", "\r"], ' ', $message);
-
+        // shorten log message to 500 chars
+        if (strlen($message) > 500) {
+            $message = substr($message, 0, 500) . "...(truncated)";
+        }
         $logMessage .= " " . $message . " ; ";
         $logMessage .= "\n";
         // Append the log message to the file

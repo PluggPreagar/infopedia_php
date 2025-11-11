@@ -16,14 +16,16 @@ $googlePostEntryId_ = str_replace('.', '_', $googlePostEntryId); // Replace '.' 
 $data = $_POST['entry'] ?? $_GET['entry']
     ?? $_POST[$googlePostEntryId] ?? $_GET[$googlePostEntryId]
     ?? $_POST[$googlePostEntryId_] ?? $_GET[$googlePostEntryId_]
+    ?? $_POST['dump'] ?? $_GET['dump']
+    ?? $_POST['log'] ?? $_GET['log']
     ?? '';
+$dataIsLog = ( $_POST['log'] ?? $_GET['log'] ?? '' ) != '' ; // suppress info log if data is log - to much details ...
 $cacheOutdatedFile = $config['cacheOutdatedFile']; // Path to the cache file
 // $dryRun = true;
 //$googlePostEntryId = 'entry.1234567890';
 //$data="tett";
 $url = "{$googlePostUrl}" ; // "?{$googlePostEntryId}=".urlencode($data); // Construct the Google Sheet export URL
 // dump config
-
 
 // use local file for tenant specific data
 if ($tenant_id == '') {
@@ -42,8 +44,14 @@ if ($tenant_id == '') {
     if ($response === false) {
         $error = error_get_last();
         echo "Error sending POST request: " . $error['message'];
+        log_error("Error sending POST request: " . $error['message']);
     } else {
         echo "Response: " . $response;
+        $responseCode = $http_response_header[0] ?? 'No response code';
+        if (!$dataIsLog) {
+            log_info("uploaded : " . $responseCode . " " . $url  );
+        }
+
     }
 
 } else {
@@ -51,7 +59,7 @@ if ($tenant_id == '') {
 
     // modify cache file and google sheet url to include tenant id
     $cacheOutdatedFile = str_replace('.cache', "_{$tenant_id}.cache", $cacheOutdatedFile);
-    $googleSheetUrl = "sheet_{$tenant_id}.csv"; // local file for tenant specific data
+    $googleSheetUrl = "entries_{$tenant_id}.csv"; // local file for tenant specific data
 
     // check if cache file exists
     if (file_exists($googleSheetUrl)
@@ -77,7 +85,9 @@ if ($tenant_id == '') {
         @file_put_contents($googleSheetUrl, $data, FILE_APPEND);
         $response = $data;
 
-        log_info("saved to tenant: " . $googleSheetUrl  );
+        if (!$dataIsLog) {
+            log_info("saved to tenant: " . $googleSheetUrl  );
+        }
     } else {
         log_warn("SKIPP unknown tenant: " . $googleSheetUrl  );
     }
@@ -88,6 +98,8 @@ if ($tenant_id == '') {
 if (file_exists($cacheOutdatedFile)) {
     touch($cacheOutdatedFile);
 }
-log_return( strlen($response ?? "") . " bytes saved ( " . $data . ")"  );
+if (!$dataIsLog) {
+    log_return( strlen($response ?? "") . " bytes saved ( " . $data . ")"  );
+}
 
 ?>
