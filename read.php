@@ -22,7 +22,7 @@ $format = $_GET['format'] ?? ''; // default format is csv
 if ($tenant_id !== '') {
     // modify cache file and google sheet url to include tenant id
     $cacheFile = str_replace('.cache', "_{$tenant_id}.cache", $cacheFile);
-    $googleSheetUrl = "entries_{$tenant_id}.csv"; // local file for tenant specific data
+    $googleSheetUrl = str_replace('.cache', ".csv", $cacheFile); // local file for tenant specific data
 }
 
 
@@ -199,6 +199,44 @@ if ($response === false) {
             file_put_contents($cacheFile, $response);
         }
     }
+
+
+    if ($type == 'vote') {
+
+        // aggregate votes
+        // anonymous votes except own session_id
+        $voteMarkerPrefix = "::Vote::";
+        $ownMarker = $voteMarkerPrefix . $session_id;
+        $othersMarker = $voteMarkerPrefix;
+        // echo "Aggregating votes, own marker: $ownMarker<br>\n"; // Debugging output
+        $lines = explode("\n", $response);
+        // remove header
+        array_shift($lines);
+        $aggregatedVotes = [];
+        $aggregatedVotesTimeStamp = [];
+        $aggregateContent = [];
+        foreach ($lines as $line) {
+            // 2025-12-12 21:29:27,/_/check/1759255656 | 55199::Vote::sid_examples | 2  akfkfafkaf adfjawdfjadfgjyefgajegjwg | 1
+            // ----- ts ---------- ============ key ==================( sid       )  -------- content -------------------     -- votes --
+            // split on first "," , then next " | " two times
+            [$timestamp, $rest] = explode(',', $line, 2);
+            [$path, $nodeWsid, $content, $votes] = array_pad(explode(' | ', $rest, 4), 4, ''); // assume content has no " | "
+            [$node, $wsid] = array_pad(explode($voteMarkerPrefix, $nodeWsid, 2), 2, '');
+            if (is_numeric($votes) && '' !== trim($votes) && '' !== trim($path) &&  '' !== trim($wsid) ) {
+                $key = $path . ' | ' . (strpos($nodeWsid, $ownMarker) > 0 ? $nodeWsid : $node . $othersMarker) ;
+                // echo "Processing vote line: $nodeWsid => key: $key<br>\n"; // Debugging output
+                $aggregatedVotesTimeStamp[$key] = $timestamp;
+                $aggregateContent[$key] = $content;
+                $aggregatedVotes[$key] = ($aggregatedVotes[$key] ?? 0) + $votes;
+            }
+        }
+        // reconstruct response
+        $response = "Timestamp,Topic | Node | Message | Votes\n";
+        foreach ($aggregatedVotes as $key => $votes) {
+            $response .= $aggregatedVotesTimeStamp[$key] . ',' . $key . ' | ' . $aggregateContent[$key] . ' | ' . $votes . "\n";
+        }
+    }
+
 
     // Output the content
     echo $response;

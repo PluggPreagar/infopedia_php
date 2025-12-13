@@ -21,6 +21,7 @@ $data = $_POST['entry'] ?? $_GET['entry']
     ?? '';
 $dataIsLog = ( $_POST['log'] ?? $_GET['log'] ?? '' ) != '' ; // suppress info log if data is log - to much details ...
 $cacheOutdatedFile = $config['cacheOutdatedFile']; // Path to the cache file
+$cacheFile = $config['cacheFile']; // Path to the cache file
 // $dryRun = true;
 //$googlePostEntryId = 'entry.1234567890';
 //$data="tett";
@@ -59,7 +60,7 @@ if ($tenant_id == '') {
 
     // modify cache file and google sheet url to include tenant id
     $cacheOutdatedFile = str_replace('.cache', "_{$tenant_id}.cache", $cacheOutdatedFile);
-    $googleSheetUrl = "entries_{$tenant_id}.csv"; // local file for tenant specific data
+    $googleSheetUrl = str_replace('.cache', "_{$tenant_id}.csv", $cacheFile); // local file for tenant specific data
 
     // check if cache file exists
     if (file_exists($googleSheetUrl)
