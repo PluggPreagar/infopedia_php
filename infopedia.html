@@ -119,6 +119,7 @@
         const topicFilter = document.getElementById("topicFilter");
         let data = []; // Store the retrieved data
         let topicMap = {}; // Map of topicId to topic name
+        let selectedTopic = "/";
 
         // Function to fetch and display CSV data
         async function loadCsvData() {
@@ -231,7 +232,10 @@
 
            // Add a link to the parent topic
             if (topicFilter.value !== "/") {
-                const parentTopic = topicFilter.value.split("/").slice(0, -2).join("/") + "/";
+                console.log("Adding parent topic link");
+                console.log("Current topic:", topicFilter.value);
+                console.log("Parent topic:", topicFilter.value.split("/").slice(0, -1).join("/") );
+                const parentTopic = topicFilter.value.split("/").slice(0, -1).join("/") ;
                 const parentRow = document.createElement("tr");
                 parentRow.innerHTML = `
                     <td colspan="4" style="text-align: left;">
@@ -266,7 +270,7 @@
                 link.addEventListener("click", (event) => {
                     console.log("Topic link clicked");
                     event.preventDefault();
-                    const selectedTopic = event.target.dataset.topic;
+                    selectedTopic = event.target.dataset.topic;
                     topicFilter.value = selectedTopic;
                     const filteredData = data.filter((row) => row.topic === selectedTopic);
                     displayData(filteredData);
@@ -277,7 +281,7 @@
 
         // Filter data based on selected topic
         topicFilter.addEventListener("change", () => {
-            const selectedTopic = topicFilter.value;
+            selectedTopic = topicFilter.value;
             if (selectedTopic === "") {
                 selectedTopic = "/";
             }
