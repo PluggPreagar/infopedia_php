@@ -3,7 +3,7 @@
 body {
     font-family: Arial, sans-serif;
     font-size: x-large;
-    background-color: #63C132;
+    background-color: #CFFCFF;
     color: #358600;
     margin: 0;
     padding: 0;
@@ -35,6 +35,8 @@ a:hover {
 p, .leaf {
     color: #358600;
     text-decoration: none;
+    background: transparent;
+    cursor: default;
 }
 
 /* <a> below <td> */
@@ -43,7 +45,7 @@ td a, td p {
     border-radius: 30px;
     padding: 10px;
     margin: 5px;
-    background: #9ee37d;
+    background: #AAEFDF;
     display: inline-block;
     width: 100%
 }

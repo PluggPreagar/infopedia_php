@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fact Farming Project - fayf.info">
+    <title>Fact Farming Project | fayf.info</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            color: #333;
+        }
+        header {
+            background: #4CAF50;
+            color: #fff;
+            padding: 1rem 0;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+        }
+        nav {
+            background: #333;
+            color: #fff;
+            padding: 0.5rem;
+        }
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 1rem;
+        }
+        nav a, .topic-link {
+            text-decoration: none;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        td {
+            color : #358600;
+        }
+        section {
+            padding: 2rem;
+            max-width: 800px;
+            margin: auto;
+        }
+        footer {
+            background: #333;
+            color: #fff;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Fact Farming Project</h1>
+        <p>Welcome to fayf.info - Cultivating Knowledge, One Fact at a Time</p>
+    </header>
+    <nav>
+        <a href="#browse">Browse Data</a>
+        <a href="#about">About</a>
+        <a href="#features">Features</a>
+        <a href="#contact">Contact</a>
+    </nav>
+    <section id="browse" style="max-width: fit-content; width: 90%;">
+        <h2>Browse Current Dataset</h2>
+        <p>Explore the latest data collected by the Fact Farming Project.</p>
+        <label for="topicFilter">Filter by Topic:</label>
+        <select id="topicFilter">
+            <option value="/">All Topics</option>
+        </select>
+        <table border="0" style="width:100%; border-collapse: collapse; text-align: left; margin-top: 1rem;">
+            <thead>
+            <tr>
+                <th>Topic</th>
+                <th>Message</th>
+                <th>Votes</th>
+                <th>Timestamp</th>
+            </tr>
+            </thead>
+            <tbody>
+            <!-- Data rows will be dynamically inserted here -->
+            <tr>
+                <td colspan="4" style="text-align: center;">No data available</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+    <section id="about">
+        <h2>About the Project</h2>
+        <p>The Fact Farming Project is dedicated to gathering, organizing, and presenting reliable information in an accessible way. Our mission is to empower individuals with knowledge and promote informed decision-making.</p>
+    </section>
+    <section id="features">
+        <h2>Key Features</h2>
+        <ul>
+            <li>Comprehensive fact database</li>
+            <li>Easy-to-use search functionality</li>
+            <li>Community-driven contributions</li>
+            <li>Real-time updates</li>
+        </ul>
+    </section>
+    <section id="contact">
+        <h2>Get in Touch</h2>
+        <p>Have questions or want to contribute? Reach out to us at <a href="mailto:info@fayf.info">info@fayf.info</a>.</p>
+    </section>
+    <footer>
+        <p>&copy; 2025 Fact Farming Project | fayf.info</p>
+    </footer>
+</body>
+</html>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const url = "entry/get?sid=tst&tid=tst&topicId=/";
+        const tableBody = document.querySelector("#browse tbody");
+        const topicFilter = document.getElementById("topicFilter");
+        let data = []; // Store the retrieved data
+        let topicMap = {}; // Map of topicId to topic name
+
+        // Function to fetch and display CSV data
+        async function loadCsvData() {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const csvText = await response.text();
+                const rows = csvText.trim().split("\n");
+
+                // Clear existing rows
+                tableBody.innerHTML = "";
+                line_left = "";
+                // Parse and populate rows
+                rows.forEach((row, index) => {
+                    if (row.startsWith("Timestamp") && index === 0) return; // Skip header row
+                    if (row.trim() === "") return; // Skip empty rows
+                    countQuotes = (row.match(/"/g) || []).length;
+                    if (countQuotes % 2 !== 0) {
+                        // Handle multi-line fields
+                        line_left += row + "\n";
+                        return;
+                    }
+                    row = line_left + row;
+                    line_left = "";
+                    // remove last character if it is a quote
+                    if (row.endsWith('"')) {
+                        // remove starting quote (after timestamp and comma)
+                        row = row.replace(/,"/, ",");
+                        row = row.slice(0, -1);
+                    }
+                    // tricky: replace only first comma (between timestamp and data) with internal delimiter " | "
+                    row = row.replace(/,/, " | ");
+                    //
+                    const columns = row.split(/ \| /);
+                    data.push({
+                        timestamp: columns[0],
+                        topic: columns[1], // TODO use topicId to get topic name
+                        nodeId: columns[2],
+                        message: columns[3],
+                        votes: columns[4] ? columns[4] : "0"
+                    });
+                });
+
+
+                checkData();
+                initializeTopicMap();
+                populateFilterOptions();
+                displayData(data.filter((row) => row.topic === "/"));
+
+            } catch (error) {
+                console.error("Error loading CSV data:", error);
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
+            }
+        }
+
+        function checkData() {
+            // ensure topic ends with ">", and topics must have children
+            // collect all topics
+            const topicsWithChildren = new Set(data.map(row => row.topic));
+            // if datas topic+nodeId is in topicsWithChildren, then append ">" to topic, else remove ">" if exists
+            data = data.map(row => {
+                if (topicsWithChildren.has(row.topic + ("/" == row.topic ? "" : "/") + row.nodeId)) {
+                    if (!row.message.endsWith(">")) {
+                        row.message += " >";
+                    }
+                } else {
+                    if (row.message.endsWith(">")) {
+                        row.message = row.message.slice(0, -1).trim();
+                    }
+                }
+                return row;
+            });
+            // root topic is "/"
+            data = data.map(row => {
+                if (row.topic === "") {
+                    row.topic = "/";
+                }
+                return row;
+            });
+
+        }
+
+        function initializeTopicMap() {
+            data.forEach((row) => {
+                const topicId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
+                if (!topicMap[topicId]) {
+                    topicMap[topicId] = row.message;
+                }
+            });
+        }
+
+        // Populate filter dropdown with unique topics
+        function populateFilterOptions() {
+            const topics = [...new Set(data
+                    .filter(row => row.message.endsWith(">"))
+                    .map((row) => ({topicId: row.topic + ("/" == row.topic ? "" : "/") + row.nodeId, name: row.message}) ))];
+            topics.forEach((topic) => {
+                const option = document.createElement("option");
+                option.value = topic.topicId;
+                option.textContent = topic.name;
+                topicFilter.appendChild(option);
+            });
+        }
+
+        // Display data in the table
+        function displayData(filteredData) {
+           tableBody.innerHTML = "";
+
+           // Add a link to the parent topic
+            if (topicFilter.value !== "/") {
+                const parentTopic = topicFilter.value.split("/").slice(0, -2).join("/") + "/";
+                const parentRow = document.createElement("tr");
+                parentRow.innerHTML = `
+                    <td colspan="4" style="text-align: left;">
+                        <a href="#" class="parent-topic-link" data-topic="${parentTopic}">Back to Parent Topic</a>
+                    </td>
+                `;
+                tableBody.appendChild(parentRow);
+            }
+
+            if (filteredData.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">No data available</td></tr>`;
+                return;
+            }
+            filteredData.forEach((row) => {
+                const tr = document.createElement("tr");
+                const fullNodeId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
+                let messageContent = row.message;
+                if (row.message.endsWith(">")) {
+                    messageContent = `<a href="#" class="topic-link" data-topic="${fullNodeId}">${topicMap[fullNodeId] || row.message}</a>`;
+                }
+                tr.innerHTML = `
+                    <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
+                    <td>${messageContent}</td>
+                    <td>${row.votes}</td>
+                    <td>${row.timestamp}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Add click event for topic links
+            document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
+                link.addEventListener("click", (event) => {
+                    console.log("Topic link clicked");
+                    event.preventDefault();
+                    const selectedTopic = event.target.dataset.topic;
+                    topicFilter.value = selectedTopic;
+                    const filteredData = data.filter((row) => row.topic === selectedTopic);
+                    displayData(filteredData);
+                });
+            });
+
+        }
+
+        // Filter data based on selected topic
+        topicFilter.addEventListener("change", () => {
+            const selectedTopic = topicFilter.value;
+            if (selectedTopic === "") {
+                selectedTopic = "/";
+            }
+            const filteredData = selectedTopic
+                ? data.filter((row) => row.topic === selectedTopic)
+                : data;
+            displayData(filteredData);
+        });
+
+
+
+        // Load data on page load
+        loadCsvData();
+    });
+</script>

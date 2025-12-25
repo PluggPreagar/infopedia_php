@@ -206,7 +206,6 @@ if ($response === false) {
         // aggregate votes
         // anonymous votes except own session_id
         $voteMarkerPrefix = "::Vote::";
-        $ownMarker = $voteMarkerPrefix . $session_id;
         $othersMarker = $voteMarkerPrefix;
         // echo "Aggregating votes, own marker: $ownMarker<br>\n"; // Debugging output
         $lines = explode("\n", $response);
@@ -223,11 +222,14 @@ if ($response === false) {
             [$path, $nodeWsid, $content, $votes] = array_pad(explode(' | ', $rest, 4), 4, ''); // assume content has no " | "
             [$node, $wsid] = array_pad(explode($voteMarkerPrefix, $nodeWsid, 2), 2, '');
             if (is_numeric($votes) && '' !== trim($votes) && '' !== trim($path) &&  '' !== trim($wsid) ) {
-                $key = $path . ' | ' . (strpos($nodeWsid, $ownMarker) > 0 ? $nodeWsid : $node . $othersMarker) ;
+                $key = $path . ' | ' . ($wsid == $session_id || $wsid == "signed" ? $nodeWsid : $node . $othersMarker) ;
                 // echo "Processing vote line: $nodeWsid => key: $key<br>\n"; // Debugging output
                 $aggregatedVotesTimeStamp[$key] = $timestamp;
                 $aggregateContent[$key] = $content;
+                // echo "Adding votes: $key   " . ($aggregatedVotes[$key] ?? "") . " += $votes<br>\n"; // Debugging output
                 $aggregatedVotes[$key] = ($aggregatedVotes[$key] ?? 0) + $votes;
+            } else {
+                log_warn("Skipping malformed vote line: $line");
             }
         }
         // reconstruct response

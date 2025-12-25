@@ -9,6 +9,7 @@ RewriteCond %{REQUEST_URI} !^/dev/?(.*)$ [NC]
 RewriteRule ^/?$ infopedia.php?topic=/ [QSA,L]
 RewriteRule ^/?InfoPedia_Steckbrief.pdf$ download.php?file=InfoPedia_Steckbrief.pdf [QSA,L]
 RewriteRule ^/?(infopedia/)?InfoPedia.apk$ download.php?file=InfoPedia.apk [QSA,L]
+RewriteRule ^/?(infopedia/)?fayf.apk$ download.php?file=fayf.apk [QSA,L]
 #RewriteRule ^/?download/?$ download.php [QSA,L]
 #
 RewriteRule ^/?(entries)(/get)?/?$ read.php?type=entry&op=get [QSA,L]
