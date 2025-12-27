@@ -179,309 +179,370 @@
     </section>
     <footer>
         <p>&copy; 2025 Fakt Farming Project | fayf.info</p>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                let url = "entry/get?sid=tst&tid=tst&topicId=/";
+                // for local testing, use local CSV file
+                // check if running from file://
+                if (window.location.protocol === "file:") {
+                    url = "entries_local.csv";
+                    console.log("Running from file://, using local CSV file( " + url + " )");
+                }
+                // if localhost, use local CSV file
+                if (window.location.hostname === "localhost") {
+                    url = "entries_local.csv";
+                    console.log("Running from localhost, using local CSV file( " + url + " )");
+                }
+
+                const tableBody = document.querySelector("#browse tbody");
+                const topicFilter = document.getElementById("topicFilter");
+                const typeFilter = document.getElementById("typeFilter");
+                let data = []; // Store the retrieved data
+                let topicMap = {}; // Map of topicId to topic name
+                let selectedTopic = "/";
+
+                // Function to fetch and display CSV data
+                async function loadCsvData() {
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const csvText = await response.text();
+                        const rows = csvText.trim().split("\n");
+
+                        // Clear existing rows
+                        tableBody.innerHTML = "";
+                        line_left = "";
+                        // Parse and populate rows
+                        rows.forEach((row, index) => {
+                            if (row.startsWith("Timestamp") && index === 0) return; // Skip header row
+                            if (row.trim() === "") return; // Skip empty rows
+                            countQuotes = (row.match(/"/g) || []).length;
+                            if (countQuotes % 2 !== 0) {
+                                // Handle multi-line fields
+                                line_left += row + "\n";
+                                return;
+                            }
+                            row = line_left + row;
+                            line_left = "";
+                            // remove last character if it is a quote
+                            if (row.endsWith('"')) {
+                                // remove starting quote (after timestamp and comma)
+                                row = row.replace(/,"/, ",");
+                                row = row.slice(0, -1);
+                            }
+                            // tricky: replace only first comma (between timestamp and data) with internal delimiter " | "
+                            row = row.replace(/,/, " | ");
+                            //
+                            const columns = row.split(/ \| /);
+                            // skipp hidden topics - starting with "/_/"
+                            if (columns[1].startsWith("/_/")) {
+                                return;
+                            }
+                            data.push({
+                                timestamp: columns[0],
+                                topic: columns[1], // TODO use topicId to get topic name
+                                nodeId: columns[2],
+                                message: columns[3],
+                                votes: columns[4] ? columns[4] : "0"
+                            });
+                        });
+
+
+                        checkData();
+                        initializeTopicMap();
+                        populateFilterOptions();
+                        displayData(data.filter((row) => row.topic === "/"));
+
+                    } catch (error) {
+                        console.error("Error loading CSV data:", error);
+                        tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
+                    }
+                }
+
+                function checkData() {
+                    // ensure topic ends with ">", and topics must have children
+                    // collect all topics
+                    const topicsWithChildren = new Set(data.map(row => row.topic));
+                    // if datas topic+nodeId is in topicsWithChildren, then append ">" to topic, else remove ">" if exists
+                    data = data.map(row => {
+                        if (topicsWithChildren.has(row.topic + ("/" == row.topic ? "" : "/") + row.nodeId)) {
+                            if (!row.message.endsWith(">")) {
+                                row.message += " >";
+                            }
+                        } else {
+                            if (row.message.endsWith(">")) {
+                                row.message = row.message.slice(0, -1).trim();
+                            }
+                        }
+                        return row;
+                    });
+                    // root topic is "/"
+                    data = data.map(row => {
+                        if (row.topic === "") {
+                            row.topic = "/";
+                        }
+                        return row;
+                    });
+
+                }
+
+                function initializeTopicMap() {
+                    var mapTopicIdToRow = [];
+                    data.forEach((row) => {
+                        const topicId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
+                        if (row.message.endsWith(">")) {
+                            mapTopicIdToRow[topicId] = row;
+                        }
+                        if (!topicMap[topicId]) {
+                            topicMap[topicId] = row.message;
+                        }
+                    });
+                    // add full paths to topicMap
+                    // iterate over mapTopicIdToRow
+                    Object.keys(mapTopicIdToRow).forEach((topicId) => {
+                        const parts = topicId.split("/");
+                        const path = parts.map((part) => topicMap[part] || part).join(" > ");
+                        // add path to mapTopicIdToRow row
+                        mapTopicIdToRow[topicId].path = path;
+                    });
+                    console.log("Topic Map mapTopicIdToRow:", mapTopicIdToRow);
+                }
+
+                // Populate filter dropdown with unique topics
+                function populateFilterOptions() {
+                    const topics = [...new Set(data
+                            .filter(row => row.message.endsWith(">"))
+                            .map((row) => ({topicId: row.topic + ("/" == row.topic ? "" : "/") + row.nodeId, name: row.message}) ))];
+                    // expand paths to include parent topics
+
+                    topics.forEach((topic) => {
+                        const option = document.createElement("option");
+                        option.value = topic.topicId;
+                        option.textContent = topic.name;
+                        topicFilter.appendChild(option);
+                    });
+                }
+
+                // Display data in the table
+                function displayData(filteredData) {
+                   tableBody.innerHTML = "";
+
+                   // Add a link to the parent topic
+                    if (topicFilter.value !== "/") {
+                        console.log("Adding parent topic link");
+                        console.log("Current topic:", topicFilter.value);
+                        console.log("Parent topic:", topicFilter.value.split("/").slice(0, -1).join("/") );
+                        let parentTopic = topicFilter.value.split("/").slice(0, -1).join("/") ;
+                        if ("" == parentTopic){
+                            parentTopic="/";
+                        }
+                        const parentRow = document.createElement("tr");
+                        parentRow.innerHTML = `
+                            <td colspan="4" style="text-align: left;">
+                                <a href="#" class="parent-topic-link" data-topic="${parentTopic}">
+                                <i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>zurück
+                                </a>
+                            </td>
+                        `;
+                        tableBody.appendChild(parentRow);
+                    }
+
+                    if (filteredData.length === 0) {
+                        tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Keine Daten - hilf uns Sie zu ergänzen!</td></tr>`;
+                        return;
+                    }
+                    filteredData.forEach((row) => {
+                        const tr = document.createElement("tr");
+                        const fullNodeId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
+                        let messageContent = row.message;
+                        if (row.message.endsWith(">")) {
+                            messageContent = `<a href="#" class="topic-link" data-topic="${fullNodeId}">${topicMap[fullNodeId] || row.message}</a>`;
+                        }
+                        tr.innerHTML = `
+                            <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
+                            <td>${messageContent}</td>
+                            <td>${row.votes >0 ? row.votes : ""}</td>
+                            <td>${row.timestamp.replace(" ","&nbsp;")}</td>
+                        `;
+                        tableBody.appendChild(tr);
+                    });
+
+                    function updateFilteredData() {
+                        console.log("updateFilteredData: Updating filtered data...");
+                        console.log(data);
+                        let selectedTopic = topicFilter.value;
+                        if (selectedTopic === "") {
+                            selectedTopic = "/";
+                            topicFilter.value = selectedTopic;
+                        }
+                        const selectedType = typeFilter.value;
+                        displayData(updateFilteredData_(data,  selectedTopic, selectedType));
+                        console.log("updateFilteredData: Filtered data updated. - DONE");
+                    }
+
+                    function updateFilteredData_(data, selectedTopic, selectedType) {
+                        console.log("Filtering by topic: " + selectedTopic);
+                        let filteredData = data.filter((row) => row.topic === selectedTopic  );
+                        console.log(filteredData);
+                        if (selectedType !== "all") {
+                            console.log("Filtering by type: " + selectedType);
+                            filteredData = filteredData.filter((row) => row.message.endsWith(selectedType) || row.message.endsWith(">"));
+                            console.log(filteredData);
+                        }
+                        console.log("removing empty topics:");
+                        // remove empty topics - those without children
+                        // /clima/biz/ 123123 "Climate change is real!"
+                        //  will keep /clima/biz
+                        // 1. collect all topics from messages to filled-topics
+                        // 2. topic stays
+                        //      2.1. if a filled-topic with that topic prefix exists
+                        //      2.2. if topic filter exists...
+                        //
+                        const filledTopics = [];
+                        filteredData.filter((row) => {
+                            return row.message.endsWith(">") ? "" : row.topic;
+                        });
+                        filteredData = filteredData.filter((row) => {
+                            return (!row.message.endsWith(">"))
+                                || filledTopics.some(t => t.startsWith(row.topic + ("/" == row.topic ? "" : "/") + row.nodeId));
+                        });
+                        console.log(filteredData);
+                        console.log("updateFilteredData: Updating filtered data -------- '" + selectedTopic + "'  '" + selectedType + "'");
+                        return displayData(filteredData);
+                    }
+
+                    /*
+                        test
+                    */
+
+                    function assertEq(m,e,i){
+                        if (e!==i){
+                            console.error("ASSERTION FAILED in test #"+m+": expected '"+e+"' but got '"+i+"'");
+                        } else {
+                            console.log("ASSERTION PASSED in test #"+m+": '"+e+"'");
+                        }
+                    }
+
+                    function lookupById(){
+                        let lookup = {};
+                        mockData.forEach((row) => {
+                            const key = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
+                            lookup[key] = row;
+                        });
+                        return lookup;
+                    }
+
+                    function test() {
+                        mockData =  [
+                        ];
+
+                        function addMockRow(topic, nodeId, message){
+                            mockData.push( { topic: topic, nodeId: nodeId, message: message, votes: "0", timestamp: "2023-10-01 12:00:00" } );
+                        }
+
+                        addMockRow("/", "war", "War >");
+                        addMockRow("/", "migration", "Migration >");
+                        addMockRow("/", "clima", "Clima >");
+                        addMockRow("/clima", "", "Climate change is real.");
+
+                        // by topic
+
+                        let msg = "Root + ALL -> all Topics/Messages at root"
+                        let items = lookupById(updateFilteredData_(mockData, "/", "all"));
+                        assertEq(msg, items["/clima"].message, "Clima >");
+                        assertEq(msg, items["/science"].message, "Science >");
+                        assertEq(msg, items["/tech"].message, "Technology >");
+                        assertEq('size', Object.keys(items).length, 3);
+                        console.debug(items);
+
+                        msg = "Clima + ALL -> only Clima topic, has no child"
+                        items = lookupById(updateFilteredData_(mockData, "/clima", "all"));
+                        assertEq('size', Object.keys(items).length, 0);
+
+                        msg = "Science + ALL -> Science topic with 2 messages"
+                        items = lookupById( updateFilteredData_(mockData, "/science", "all"));
+                        assertEq(msg, items["/science/3"].message, "Science works!");
+                        assertEq(msg, items["/science/4"].message, "Science may fail.");
+                        assertEq('size', Object.keys(items).length, 2);
+
+                        // by type - show only topics that have at least 1 child
+
+
+                    }
+
+                    test();
+
+                    /*
+                        events ...
+                    */
+
+                    // Add click event for topic links
+                    document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
+                        link.addEventListener("click", (event) => {
+                            console.log("Topic link clicked");
+                            event.preventDefault();
+                            selectedTopic = event.target.dataset.topic;
+                            console.log("Topic link clicked: '" + selectedTopic+"'");
+                            topicFilter.value = selectedTopic; // run updates ..
+                            updateFilteredData();
+                        });
+                    });
+
+                    // Filter data based on selected topic
+                    topicFilter.addEventListener("change", () => {
+                        console.log("Topic filter changed");
+                        selectedTopic = topicFilter.value;
+                        updateFilteredData();
+                    });
+
+                    typeFilter.addEventListener("change", () => {
+                        console.log("Type filter changed");
+                        updateFilteredData();
+                    });
+
+                }
+
+
+
+
+                // Load data on page load
+                loadCsvData();
+            });
+
+            //
+            //   -- cinema slogans animation (optional,deutsch) --
+            //
+
+            const slogans = [
+                "Welcome to fayf.info - Cultivating Knowledge, 'Fakt' on time.",
+                "Welcome to fayf.info - Cultivating Knowledge, 'Fakt' on time.",
+                "Welcome to fayf.info - Cultivating Knowledge, 'Fakt' on time.",
+                "Fakt Farming - Fakten pflegen, als wäre es Wissen.",
+                "Widersprüche sind widersprüchlich - egal welchen Standpunkt du hast.",
+                "Fakt Farming macht Wissen leicht zugänglich.",
+                "Der Nutri-Score für Fakten.",
+                "Fakt Farming - deine Quelle für Gegenfragen.",
+                "Differenziert Meinung - ganz persönlich, für dich."
+            ];
+
+            document.addEventListener("DOMContentLoaded", function () {
+
+                const sloganContainer = document.getElementById("cinema-slogans");
+                let index = 0;
+
+                function updateSlogan() {
+                    sloganContainer.textContent = slogans[index];
+                    index = (index + 1) % slogans.length; // Loop back to the first slogan
+                }
+
+                // Initialize and start the interval
+                updateSlogan();
+                setInterval(updateSlogan, 3000); // Change slogan every 3 seconds
+            });
+
+        </script>
     </footer>
 </body>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        let url = "entry/get?sid=tst&tid=tst&topicId=/";
-        // for local testing, use local CSV file
-        // check if running from file://
-        if (window.location.protocol === "file:") {
-            url = "entries_local.csv";
-            console.log("Running from file://, using local CSV file( " + url + " )");
-        }
-        // if localhost, use local CSV file
-        if (window.location.hostname === "localhost") {
-            url = "entries_local.csv";
-            console.log("Running from localhost, using local CSV file( " + url + " )");
-        }
-
-        const tableBody = document.querySelector("#browse tbody");
-        const topicFilter = document.getElementById("topicFilter");
-        const typeFilter = document.getElementById("typeFilter");
-        let data = []; // Store the retrieved data
-        let topicMap = {}; // Map of topicId to topic name
-        let selectedTopic = "/";
-
-        // Function to fetch and display CSV data
-        async function loadCsvData() {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const csvText = await response.text();
-                const rows = csvText.trim().split("\n");
-
-                // Clear existing rows
-                tableBody.innerHTML = "";
-                line_left = "";
-                // Parse and populate rows
-                rows.forEach((row, index) => {
-                    if (row.startsWith("Timestamp") && index === 0) return; // Skip header row
-                    if (row.trim() === "") return; // Skip empty rows
-                    countQuotes = (row.match(/"/g) || []).length;
-                    if (countQuotes % 2 !== 0) {
-                        // Handle multi-line fields
-                        line_left += row + "\n";
-                        return;
-                    }
-                    row = line_left + row;
-                    line_left = "";
-                    // remove last character if it is a quote
-                    if (row.endsWith('"')) {
-                        // remove starting quote (after timestamp and comma)
-                        row = row.replace(/,"/, ",");
-                        row = row.slice(0, -1);
-                    }
-                    // tricky: replace only first comma (between timestamp and data) with internal delimiter " | "
-                    row = row.replace(/,/, " | ");
-                    //
-                    const columns = row.split(/ \| /);
-                    // skipp hidden topics - starting with "/_/"
-                    if (columns[1].startsWith("/_/")) {
-                        return;
-                    }
-                    data.push({
-                        timestamp: columns[0],
-                        topic: columns[1], // TODO use topicId to get topic name
-                        nodeId: columns[2],
-                        message: columns[3],
-                        votes: columns[4] ? columns[4] : "0"
-                    });
-                });
-
-
-                checkData();
-                initializeTopicMap();
-                populateFilterOptions();
-                displayData(data.filter((row) => row.topic === "/"));
-
-            } catch (error) {
-                console.error("Error loading CSV data:", error);
-                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
-            }
-        }
-
-        function checkData() {
-            // ensure topic ends with ">", and topics must have children
-            // collect all topics
-            const topicsWithChildren = new Set(data.map(row => row.topic));
-            // if datas topic+nodeId is in topicsWithChildren, then append ">" to topic, else remove ">" if exists
-            data = data.map(row => {
-                if (topicsWithChildren.has(row.topic + ("/" == row.topic ? "" : "/") + row.nodeId)) {
-                    if (!row.message.endsWith(">")) {
-                        row.message += " >";
-                    }
-                } else {
-                    if (row.message.endsWith(">")) {
-                        row.message = row.message.slice(0, -1).trim();
-                    }
-                }
-                return row;
-            });
-            // root topic is "/"
-            data = data.map(row => {
-                if (row.topic === "") {
-                    row.topic = "/";
-                }
-                return row;
-            });
-
-        }
-
-        function initializeTopicMap() {
-            var mapTopicIdToRow = [];
-            data.forEach((row) => {
-                const topicId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
-                if (row.message.endsWith(">")) {
-                    mapTopicIdToRow[topicId] = row;
-                }
-                if (!topicMap[topicId]) {
-                    topicMap[topicId] = row.message;
-                }
-            });
-            // add full paths to topicMap
-            // iterate over mapTopicIdToRow
-            Object.keys(mapTopicIdToRow).forEach((topicId) => {
-                const parts = topicId.split("/");
-                const path = parts.map((part) => topicMap[part] || part).join(" > ");
-                // add path to mapTopicIdToRow row
-                mapTopicIdToRow[topicId].path = path;
-            });
-            console.log("Topic Map mapTopicIdToRow:", mapTopicIdToRow);
-        }
-
-        // Populate filter dropdown with unique topics
-        function populateFilterOptions() {
-            const topics = [...new Set(data
-                    .filter(row => row.message.endsWith(">"))
-                    .map((row) => ({topicId: row.topic + ("/" == row.topic ? "" : "/") + row.nodeId, name: row.message}) ))];
-            // expand paths to include parent topics
-
-            topics.forEach((topic) => {
-                const option = document.createElement("option");
-                option.value = topic.topicId;
-                option.textContent = topic.name;
-                topicFilter.appendChild(option);
-            });
-        }
-
-        // Display data in the table
-        function displayData(filteredData) {
-           tableBody.innerHTML = "";
-
-           // Add a link to the parent topic
-            if (topicFilter.value !== "/") {
-                console.log("Adding parent topic link");
-                console.log("Current topic:", topicFilter.value);
-                console.log("Parent topic:", topicFilter.value.split("/").slice(0, -1).join("/") );
-                let parentTopic = topicFilter.value.split("/").slice(0, -1).join("/") ;
-                if ("" == parentTopic){
-                    parentTopic="/";
-                }
-                const parentRow = document.createElement("tr");
-                parentRow.innerHTML = `
-                    <td colspan="4" style="text-align: left;">
-                        <a href="#" class="parent-topic-link" data-topic="${parentTopic}">
-                        <i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>zurück
-                        </a>
-                    </td>
-                `;
-                tableBody.appendChild(parentRow);
-            }
-
-            if (filteredData.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Keine Daten - hilf uns Sie zu ergänzen!</td></tr>`;
-                return;
-            }
-            filteredData.forEach((row) => {
-                const tr = document.createElement("tr");
-                const fullNodeId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
-                let messageContent = row.message;
-                if (row.message.endsWith(">")) {
-                    messageContent = `<a href="#" class="topic-link" data-topic="${fullNodeId}">${topicMap[fullNodeId] || row.message}</a>`;
-                }
-                tr.innerHTML = `
-                    <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
-                    <td>${messageContent}</td>
-                    <td>${row.votes >0 ? row.votes : ""}</td>
-                    <td>${row.timestamp.replace(" ","&nbsp;")}</td>
-                `;
-                tableBody.appendChild(tr);
-            });
-
-            function updateFilteredData() {
-                console.log("updateFilteredData: Updating filtered data...");
-                console.log(data);
-                let selectedTopic = topicFilter.value;
-                if (selectedTopic === "") {
-                    selectedTopic = "/";
-                    topicFilter.value = selectedTopic;
-                }
-                const selectedType = typeFilter.value;
-                displayData(updateFilteredData_(data,  selectedTopic, selectedType));
-                console.log("updateFilteredData: Filtered data updated. - DONE");
-            }
-
-            function updateFilteredData_(data, selectedTopic, selectedType) {
-                console.log("Filtering by topic: " + selectedTopic);
-                let filteredData = data.filter((row) => row.topic === selectedTopic  );
-                console.log(filteredData);
-                if (selectedType !== "all") {
-                    console.log("Filtering by type: " + selectedType);
-                    filteredData = filteredData.filter((row) => row.message.endsWith(selectedType) || row.message.endsWith(">"));
-                    console.log(filteredData);
-                }
-                console.log("removing empty topics:");
-                // remove empty topics - those without children
-                // /clima/biz/ 123123 "Climate change is real!"
-                //  will keep /clima/biz
-                // 1. collect all topics from messages to filled-topics
-                // 2. topic stays
-                //      2.1. if a filled-topic with that topic prefix exists
-                //      2.2. if topic filter exists...
-                //
-                const filledTopics = [];
-                filteredData.filter((row) => {
-                    return row.message.endsWith(">") ? "" : row.topic;
-                });
-                filteredData = filteredData.filter((row) => {
-                    return (!row.message.endsWith(">"))
-                        || filledTopics.some(t => t.startsWith(row.topic + ("/" == row.topic ? "" : "/") + row.nodeId));
-                });
-                console.log(filteredData);
-                console.log("updateFilteredData: Updating filtered data -------- '" + selectedTopic + "'  '" + selectedType + "'");
-                return displayData(filteredData);
-            }
-
-
-
-
-
-            // Add click event for topic links
-            document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
-                link.addEventListener("click", (event) => {
-                    console.log("Topic link clicked");
-                    event.preventDefault();
-                    selectedTopic = event.target.dataset.topic;
-                    console.log("Topic link clicked: '" + selectedTopic+"'");
-                    topicFilter.value = selectedTopic; // run updates ..
-                    updateFilteredData();
-                });
-            });
-
-            // Filter data based on selected topic
-            topicFilter.addEventListener("change", () => {
-                console.log("Topic filter changed");
-                selectedTopic = topicFilter.value;
-                updateFilteredData();
-            });
-
-            typeFilter.addEventListener("change", () => {
-                console.log("Type filter changed");
-                updateFilteredData();
-            });
-
-        }
-
-
-
-
-        // Load data on page load
-        loadCsvData();
-    });
-
-    //
-    //   -- cinema slogans animation (optional,deutsch) --
-    //
-
-    const slogans = [
-        "Welcome to fayf.info - Cultivating Knowledge, 'Fakt' on time.",
-        "Welcome to fayf.info - Cultivating Knowledge, 'Fakt' on time.",
-        "Welcome to fayf.info - Cultivating Knowledge, 'Fakt' on time.",
-        "Fakt Farming - Fakten pflegen, als wäre es Wissen.",
-        "Widersprüche sind widersprüchlich - egal welchen Standpunkt du hast.",
-        "Fakt Farming macht Wissen leicht zugänglich.",
-        "Der Nutri-Score für Fakten.",
-        "Fakt Farming - deine Quelle für Gegenfragen.",
-        "Differenziert Meinung - ganz persönlich, für dich."
-    ];
-
-    document.addEventListener("DOMContentLoaded", function () {
-
-        const sloganContainer = document.getElementById("cinema-slogans");
-        let index = 0;
-
-        function updateSlogan() {
-            sloganContainer.textContent = slogans[index];
-            index = (index + 1) % slogans.length; // Loop back to the first slogan
-        }
-
-        // Initialize and start the interval
-        updateSlogan();
-        setInterval(updateSlogan, 3000); // Change slogan every 3 seconds
-    });
-
-</script>
 </html>
