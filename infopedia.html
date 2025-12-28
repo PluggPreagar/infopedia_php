@@ -256,7 +256,7 @@
                 checkData();
                 initializeTopicMap();
                 populateFilterOptions();
-                displayData(data.filter((row) => row.topic === "/"));
+                updateFilteredData();
 
             } catch (error) {
                 console.error("Error loading CSV data:", error);
@@ -371,182 +371,182 @@
                 `;
                 tableBody.appendChild(tr);
             });
+        }
 
-            function updateFilteredData() {
-                console.log("updateFilteredData: Updating filtered data...");
-                console.log(data);
-                let selectedTopic = topicFilter.value;
-                if (selectedTopic === "") {
-                    selectedTopic = "/";
-                    topicFilter.value = selectedTopic;
-                }
-                const selectedType = typeFilter.value;
-                displayData(getFilteredData(data,  selectedTopic, selectedType));
-                console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType + "')");
+        function updateFilteredData() {
+            console.log("updateFilteredData: Updating filtered data...");
+            console.log(data);
+            let selectedTopic = topicFilter.value;
+            if (selectedTopic === "") {
+                selectedTopic = "/";
+                topicFilter.value = selectedTopic;
             }
+            const selectedType = typeFilter.value;
+            displayData(getFilteredData(data,  selectedTopic, selectedType));
+            console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType + "')");
+        }
+
+        //
+        //  selectedTopic:  "/clima" -> focus on topic (and its children to search in)
+        //  selectedType:   "."      -> filter by type (search in topic and its children)
+        //  returns filtered data    -> topic direct entries and
+        //                              entries leading to children with that type
+        //
+        function getFilteredData(data, selectedTopic, selectedType) {
+            console.log("Filtering by topic: " + selectedTopic);
+            let filteredData = data.filter((row) => row.topic === selectedTopic );
+            if ("all" !== selectedType){
+                // keep only if at least one (grand)*child with that type exists
+                filteredData = filteredData.filter((row) => {
+                    return data.some((childRow) =>
+                        childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
+                        && childRow.message.endsWith(selectedType)
+                    );
+                });
+            }
+            console.log(filteredData);
+            return filteredData;
+        }
+
+        /*
+            test
+        */
+
+
+        function assertExists(m,e){
+            const e_ = typeof e === "object" ? JSON.stringify(e) : e;
+            if (!e){
+                console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got none");
+            } else {
+                console.log("ASSERTION PASSED in test #"+m+": '"+e_+"' exists");
+            }
+        }
+
+        function assertEq(m,e,i){
+            const e_ = typeof e === "object" ? JSON.stringify(e) : e;
+            const i_ = typeof i === "object" ? JSON.stringify(i) : i;
+            if (e!==i){
+                console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got '"+i_+"'");
+            } else {
+                console.log("ASSERTION PASSED in test #"+m+": '"+e_+"'");
+            }
+        }
+
+        function testBlock(msg){
+            console.log("---- TEST BLOCK: "+msg+" ----");
+            return msg;
+        }
+
+        function lookupById(filteredData){
+            let lookup = {};
+            filteredData.forEach((row) => {
+                const key = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
+                lookup[key] = row;
+            });
+            return lookup;
+        }
+
+        function test() {
+            mockData =  [];
+
+            function addMockRow(topic, nodeId, message){
+                mockData.push( { topic: topic, nodeId: nodeId, message: message, votes: "0", timestamp: "2023-10-01 12:00:00" } );
+            }
+
+            addMockRow("/",               "war",      "War >");
+            addMockRow("/",               "migration","Migration >");
+            addMockRow("/migration",      "eu",       "Migration in EU is complex.");
+            addMockRow("/",               "clima",    "Clima >");
+            addMockRow("/clima",          "changes",  "Clima changes >");
+            addMockRow("/clima/changes",  "real",     "Climate change is real!");
+            addMockRow("/clima/changes",  "biz",      "Climate discussion kills business.");
+            addMockRow("/",               "support",  "Support us!");
 
             //
-            //  selectedTopic:  "/clima" -> focus on topic (and its children to search in)
-            //  selectedType:   "."      -> filter by type (search in topic and its children)
-            //  returns filtered data    -> topic direct entries and
-            //                              entries leading to children with that type
+            // by topic
             //
-            function getFilteredData(data, selectedTopic, selectedType) {
-                console.log("Filtering by topic: " + selectedTopic);
-                let filteredData = data.filter((row) => row.topic === selectedTopic );
-                if ("all" !== selectedType){
-                    // keep only if at least one (grand)*child with that type exists
-                    filteredData = filteredData.filter((row) => {
-                        return data.some((childRow) =>
-                            childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
-                            && childRow.message.endsWith(selectedType)
-                        );
-                    });
-                }
-                console.log(filteredData);
-                return filteredData;
-            }
 
-            /*
-                test
-            */
+            let msg = testBlock( "Root + ALL -> all Topics");
 
+            let filteredData = getFilteredData( mockData, "/", "all");
+            console.debug(filteredData);
+            let items = lookupById( filteredData );
+            assertExists(msg, items["/war"]);
+            assertExists(msg, items["/migration"]);
+            assertExists(msg, items["/clima"]);
+            assertExists(msg, items["/support"]);
+            assertEq('size', Object.keys(items).length, 4);
+            console.debug(items);
 
-            function assertExists(m,e){
-                const e_ = typeof e === "object" ? JSON.stringify(e) : e;
-                if (!e){
-                    console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got none");
-                } else {
-                    console.log("ASSERTION PASSED in test #"+m+": '"+e_+"' exists");
-                }
-            }
+            msg = testBlock( "War + ALL -> none (no children)");
 
-            function assertEq(m,e,i){
-                const e_ = typeof e === "object" ? JSON.stringify(e) : e;
-                const i_ = typeof i === "object" ? JSON.stringify(i) : i;
-                if (e!==i){
-                    console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got '"+i_+"'");
-                } else {
-                    console.log("ASSERTION PASSED in test #"+m+": '"+e_+"'");
-                }
-            }
+            items = lookupById(getFilteredData(mockData, "/war", "all"));
+            assertEq('size', Object.keys(items).length, 0);
 
-            function testBlock(msg){
-                console.log("---- TEST BLOCK: "+msg+" ----");
-                return msg;
-            }
+            msg = testBlock( "Migration + ALL -> clima topic with 1 child topic");
 
-            function lookupById(filteredData){
-                let lookup = {};
-                filteredData.forEach((row) => {
-                    const key = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
-                    lookup[key] = row;
-                });
-                return lookup;
-            }
+            items = lookupById(getFilteredData(mockData, "/clima", "all"));
+            assertExists(msg, items["/clima/changes"]);
+            assertEq('size', Object.keys(items).length, 1);
 
-            function test() {
-                mockData =  [];
+            msg = testBlock( "Migration + ALL -> clima topic with 2 child messages");
 
-                function addMockRow(topic, nodeId, message){
-                    mockData.push( { topic: topic, nodeId: nodeId, message: message, votes: "0", timestamp: "2023-10-01 12:00:00" } );
-                }
+            items = lookupById( getFilteredData(mockData, "/clima/changes", "all"));
+            assertExists(msg, items["/clima/changes/real"]);
+            assertExists(msg, items["/clima/changes/biz"]);
+            assertEq('size', Object.keys(items).length, 2);
 
-                addMockRow("/",               "war",      "War >");
-                addMockRow("/",               "migration","Migration >");
-                addMockRow("/migration",      "eu",       "Migration in EU is complex.");
-                addMockRow("/",               "clima",    "Clima >");
-                addMockRow("/clima",          "changes",  "Clima changes >");
-                addMockRow("/clima/changes",  "real",     "Climate change is real!");
-                addMockRow("/clima/changes",  "biz",      "Climate discussion kills business.");
-                addMockRow("/",               "support",  "Support us!");
+            //
+            // by topic and type
+            //   - topics with message of type (maybe in nested topics)
+            //
 
-                //
-                // by topic
-                //
+            msg = testBlock( "All + Fakt -> only topics with Meinung messages");
 
-                let msg = testBlock( "Root + ALL -> all Topics");
+            items = lookupById( getFilteredData(mockData, "/", "."));
+            assertExists(msg + "(direct)", items["/migration"]);
+            assertExists(msg + "(nested)", items["/clima"]);
+            assertEq('size', Object.keys(items).length, 2);
 
-                let filteredData = getFilteredData( mockData, "/", "all");
-                console.debug(filteredData);
-                let items = lookupById( filteredData );
-                assertExists(msg, items["/war"]);
-                assertExists(msg, items["/migration"]);
-                assertExists(msg, items["/clima"]);
-                assertExists(msg, items["/support"]);
-                assertEq('size', Object.keys(items).length, 4);
-                console.debug(items);
+            msg = testBlock( "Clima + Fakt -> only topics with Meinung messages");
 
-                msg = testBlock( "War + ALL -> none (no children)");
+            items = lookupById( getFilteredData(mockData, "/clima", "."));
+            assertExists(msg + "(topic and nested)", items["/clima/changes"]);
+            assertEq('size', Object.keys(items).length, 1);
 
-                items = lookupById(getFilteredData(mockData, "/war", "all"));
-                assertEq('size', Object.keys(items).length, 0);
-
-                msg = testBlock( "Migration + ALL -> clima topic with 1 child topic");
-
-                items = lookupById(getFilteredData(mockData, "/clima", "all"));
-                assertExists(msg, items["/clima/changes"]);
-                assertEq('size', Object.keys(items).length, 1);
-
-                msg = testBlock( "Migration + ALL -> clima topic with 2 child messages");
-
-                items = lookupById( getFilteredData(mockData, "/clima/changes", "all"));
-                assertExists(msg, items["/clima/changes/real"]);
-                assertExists(msg, items["/clima/changes/biz"]);
-                assertEq('size', Object.keys(items).length, 2);
-
-                //
-                // by topic and type
-                //   - topics with message of type (maybe in nested topics)
-                //
-
-                msg = testBlock( "All + Fakt -> only topics with Meinung messages");
-
-                items = lookupById( getFilteredData(mockData, "/", "."));
-                assertExists(msg + "(direct)", items["/migration"]);
-                assertExists(msg + "(nested)", items["/clima"]);
-                assertEq('size', Object.keys(items).length, 2);
-
-                msg = testBlock( "Clima + Fakt -> only topics with Meinung messages");
-
-                items = lookupById( getFilteredData(mockData, "/clima", "."));
-                assertExists(msg + "(topic and nested)", items["/clima/changes"]);
-                assertEq('size', Object.keys(items).length, 1);
-
-
-            }
-
-            test();
-
-            /*
-                events ...
-            */
-
-            // Add click event for topic links
-            document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
-                link.addEventListener("click", (event) => {
-                    console.log("Topic link clicked");
-                    event.preventDefault();
-                    selectedTopic = event.target.dataset.topic;
-                    console.log("Topic link clicked: '" + selectedTopic+"'");
-                    topicFilter.value = selectedTopic; // run updates ..
-                    updateFilteredData();
-                });
-            });
-
-            // Filter data based on selected topic
-            topicFilter.addEventListener("change", () => {
-                console.log("Topic filter changed");
-                selectedTopic = topicFilter.value;
-                updateFilteredData();
-            });
-
-            typeFilter.addEventListener("change", () => {
-                console.log("Type filter changed");
-                updateFilteredData();
-            });
 
         }
+
+        test();
+
+        /*
+            events ...
+        */
+
+        // Add click event for topic links
+        document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
+            link.addEventListener("click", (event) => {
+                console.log("Topic link clicked");
+                event.preventDefault();
+                selectedTopic = event.target.dataset.topic;
+                console.log("Topic link clicked: '" + selectedTopic+"'");
+                topicFilter.value = selectedTopic; // run updates ..
+                updateFilteredData();
+            });
+        });
+
+        // Filter data based on selected topic
+        topicFilter.addEventListener("change", () => {
+            console.log("Topic filter changed");
+            selectedTopic = topicFilter.value;
+            updateFilteredData();
+        });
+
+        typeFilter.addEventListener("change", () => {
+            console.log("Type filter changed");
+            updateFilteredData();
+        });
+
 
 
 
