@@ -218,27 +218,28 @@
                 line_left = "";
                 // Parse and populate rows
                 rows.forEach((row, index) => {
+                    // header / empty -- skip
                     if (row.startsWith("Timestamp") && index === 0) return; // Skip header row
                     if (row.trim() === "") return; // Skip empty rows
                     countQuotes = (row.match(/"/g) || []).length;
+                    // multi line -- Handle multi-line fields
                     if (countQuotes % 2 !== 0) {
-                        // Handle multi-line fields
                         line_left += row + "\n";
                         return;
                     }
                     row = line_left + row;
                     line_left = "";
-                    // remove last character if it is a quote
+                    // quotes -- remove last character if it is a quote
                     if (row.endsWith('"')) {
                         // remove starting quote (after timestamp and comma)
                         row = row.replace(/,"/, ",");
                         row = row.slice(0, -1);
                     }
-                    // tricky: replace only first comma (between timestamp and data) with internal delimiter " | "
+                    // delimiter -- tricky: replace only first comma (between timestamp and data) with internal delimiter " | "
                     row = row.replace(/,/, " | ");
                     //
                     const columns = row.split(/ \| /);
-                    // skipp hidden topics - starting with "/_/"
+                    // hidden topics -- skipp hidden topics - starting with "/_/"
                     if (columns[1].startsWith("/_/")) {
                         return;
                     }
@@ -250,7 +251,6 @@
                         votes: columns[4] ? columns[4] : "0"
                     });
                 });
-
 
                 checkData();
                 initializeTopicMap();
@@ -380,36 +380,28 @@
                     topicFilter.value = selectedTopic;
                 }
                 const selectedType = typeFilter.value;
-                displayData(updateFilteredData_(data,  selectedTopic, selectedType));
+                displayData(getFilteredData(data,  selectedTopic, selectedType));
                 console.log("updateFilteredData: Filtered data updated. - DONE");
             }
 
-            function updateFilteredData_(data, selectedTopic, selectedType) {
+            //
+            //  selectedTopic:  "/clima" -> focus on topic (and its children to search in)
+            //  selectedType:   "."      -> filter by type (search in topic and its children)
+            //  returns filtered data    -> topic direct entries and
+            //                              entries leading to children with that type
+            //
+            function getFilteredData(data, selectedTopic, selectedType) {
                 console.log("Filtering by topic: " + selectedTopic);
-                let filteredData = data.filter((row) => row.topic === selectedTopic  );
-                console.log(filteredData);
-                if (selectedType !== "all") {
-                    console.log("Filtering by type: " + selectedType);
-                    filteredData = filteredData.filter((row) => row.message.endsWith(selectedType) || row.message.endsWith(">"));
-                    console.log(filteredData);
+                let filteredData = data.filter((row) => row.topic === selectedTopic );
+                if ("all" !== selectedType){
+                    // keep only if at least one (grand)*child with that type exists
+                    filteredData = filteredData.filter((row) => {
+                        return data.some((childRow) =>
+                            childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
+                            && childRow.message.endsWith(selectedType)
+                        );
+                    });
                 }
-                console.log("removing empty topics:");
-                // remove empty topics - those without children
-                // /clima/biz/ 123123 "Climate change is real!"
-                //  will keep /clima/biz
-                // 1. collect all topics from messages to filled-topics
-                // 2. topic stays
-                //      2.1. if a filled-topic with that topic prefix exists
-                //      2.2. if topic filter exists...
-                //
-                const filledTopics = [];
-                filteredData.filter((row) => {
-                    return row.message.endsWith(">") ? "" : row.topic;
-                });
-                filteredData = filteredData.filter((row) => {
-                    return (!row.message.endsWith(">"))
-                        || filledTopics.some(t => t.startsWith(row.topic + ("/" == row.topic ? "" : "/") + row.nodeId));
-                });
                 console.log(filteredData);
                 console.log("updateFilteredData: Updating filtered data -------- '" + selectedTopic + "'  '" + selectedType + "'");
                 return displayData(filteredData);
@@ -466,7 +458,7 @@
 
                 let msg = "Root + ALL -> all Topics"
 
-                let items = lookupById(updateFilteredData_(mockData, "/", "all"));
+                let items = lookupById(getFilteredData(mockData, "/", "all"));
                 assertExists(msg, items["/war"]);
                 assertExists(msg, items["/migration"]);
                 assertExists(msg, items["/clima"]);
@@ -476,18 +468,18 @@
 
                 msg = "War + ALL -> none (no children)"
 
-                items = lookupById(updateFilteredData_(mockData, "/war", "all"));
+                items = lookupById(getFilteredData(mockData, "/war", "all"));
                 assertEq('size', Object.keys(items).length, 0);
 
                 msg = "Migration + ALL -> clima topic with 1 child topic"
 
-                items = lookupById(updateFilteredData_(mockData, "/clima", "all"));
+                items = lookupById(getFilteredData(mockData, "/clima", "all"));
                 assertExists(msg, items["/clima/changes"]);
                 assertEq('size', Object.keys(items).length, 1);
 
                 msg = "Migration + ALL -> clima topic with 2 child messages"
 
-                items = lookupById( updateFilteredData_(mockData, "/clima/changes", "all"));
+                items = lookupById( getFilteredData(mockData, "/clima/changes", "all"));
                 assertExists(msg, items["/clima/changes/real"]);
                 assertExists(msg, items["/clima/changes/biz"]);
                 assertEq('size', Object.keys(items).length, 2);
@@ -499,14 +491,14 @@
 
                 msg = "All + Fakt -> only topics with Meinung messages"
 
-                items = lookupById( updateFilteredData_(mockData, "/", "."));
+                items = lookupById( getFilteredData(mockData, "/", "."));
                 assertExists(msg + "(direct)", items["/migration"]);
                 assertExists(msg + "(nested)", items["/clima"]);
                 assertEq('size', Object.keys(items).length, 2);
 
                 msg = "Clima + Fakt -> only topics with Meinung messages"
 
-                items = lookupById( updateFilteredData_(mockData, "/clima", "."));
+                items = lookupById( getFilteredData(mockData, "/clima", "."));
                 assertExists(msg + "(topic and nested)", items["/clima/changes"]);
                 assertEq('size', Object.keys(items).length, 1);
 
