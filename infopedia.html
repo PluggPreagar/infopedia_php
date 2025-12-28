@@ -186,7 +186,7 @@
     </section>
     <section id="browse" style="width: 90%; margin: auto;">
         <h2>Browse Example Dataset</h2>
-        <p>Explore the data collected by the Fakt Farming Project.</p>
+        <p id="browse_comment">Explore the data collected by the Fakt Farming Project.</p>
         <div class="filter-container">
             <div class="filter-row">
                 <label for="topicFilter">Filter&nbsp;nach&nbsp;Thema:</label>
@@ -214,7 +214,7 @@
                 <th></th>
                 <th>Message</th>
                 <th></th>
-                <th>Timestamp</th>
+                <th>Stand</th>
             </tr>
             </thead>
             <tbody>
@@ -246,16 +246,35 @@
 </html>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        let url = "entry/get?sid=www&tid=tst&topicId=/";
+
+        // choose tenant and topic
+        // Get the current URL's query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // Retrieve the tenantid parameter or default to "tst" if not provided
+        const tenantId = urlParams.get('tenantid') || 'tst';
+        // Validate tenantid (alphanumeric, underscores, hyphens, max length 30)
+        if (!/^[a-zA-Z0-9_-]+$/.test(tenantId) || tenantId.length > 30) {
+            console.error("Invalid tenant ID.");
+            tenantId = "tst"; // fallback to default
+        } else {
+            console.log("Valid tenant ID:", tenantId);
+            if  (tenantId !== 'tst') {
+                document.getElementById("browse_comment").innerText =
+                    "Explore the data collected for tenant '" + tenantId + "'.";
+            }
+        }
+
+        let url = "entry/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/";
         // for local testing, use local CSV file
         // check if running from file://
         if (window.location.protocol === "file:") {
-            url = "entries_local.csv";
+            url = "entries_local_"+ encodeURIComponent(tenantId) +".csv";
             console.log("Running from file://, using local CSV file( " + url + " )");
         }
         // if localhost, use local CSV file
         if (window.location.hostname === "localhost") {
-            url = "entries_local.csv";
+            url = "entries_local_"+ encodeURIComponent(tenantId) +".csv";
             console.log("Running from localhost, using local CSV file( " + url + " )");
         }
 
@@ -265,6 +284,33 @@
         let data = []; // Store the retrieved data
         let topicMap = {}; // Map of topicId to topic name
         let selectedTopic = "/";
+
+        function formatTimestamp(timestamp) {
+            const [datePart, timePart] = timestamp.split(" ");
+            const [day, month, year] = datePart.split("/").map(Number);
+            const [hours, minutes, seconds] = timePart.split(":").map(Number);
+            // Create a Date object
+            const date = new Date(year, month - 1, day, hours, minutes, seconds);
+
+            if (isNaN(date.getTime())) {
+                return "";
+            }
+            const now = new Date();
+
+            // Check if the date is today
+            const isToday = date.toDateString() === now.toDateString();
+
+            if (isToday) {
+                // Format as hour:minute (e.g., 14:30)
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else if (date.getFullYear() === now.getFullYear()) {
+                // If the year matches the current year, format as "Month Day" (e.g., "October 1")
+                return date.toLocaleDateString([], { month: 'long', day: 'numeric' });
+            } else {
+                // If the year is different, format as just the year (e.g., "2022")
+                return date.getFullYear().toString();
+            }
+        }
 
         // Function to fetch and display CSV data
         async function loadCsvData() {
@@ -307,7 +353,7 @@
                         return;
                     }
                     data.push({
-                        timestamp: columns[0],
+                        timestamp: formatTimestamp(columns[0]),
                         topic: columns[1], // TODO use topicId to get topic name
                         nodeId: columns[2],
                         message: columns[3],
