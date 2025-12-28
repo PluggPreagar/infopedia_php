@@ -181,6 +181,7 @@
         <p>&copy; 2025 Fakt Farming Project | fayf.info</p>
     </footer>
 </body>
+</html>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         let url = "entry/get?sid=tst&tid=tst&topicId=/";
@@ -381,7 +382,7 @@
                 }
                 const selectedType = typeFilter.value;
                 displayData(getFilteredData(data,  selectedTopic, selectedType));
-                console.log("updateFilteredData: Filtered data updated. - DONE");
+                console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType + "')");
             }
 
             //
@@ -403,33 +404,41 @@
                     });
                 }
                 console.log(filteredData);
-                console.log("updateFilteredData: Updating filtered data -------- '" + selectedTopic + "'  '" + selectedType + "'");
-                return displayData(filteredData);
+                return filteredData;
             }
 
             /*
                 test
             */
 
+
             function assertExists(m,e){
+                const e_ = typeof e === "object" ? JSON.stringify(e) : e;
                 if (!e){
-                    console.error("ASSERTION FAILED in test #"+m+": expected '"+e+"' but got none");
+                    console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got none");
                 } else {
-                    console.log("ASSERTION PASSED in test #"+m+": '"+e+"' exists");
+                    console.log("ASSERTION PASSED in test #"+m+": '"+e_+"' exists");
                 }
             }
 
             function assertEq(m,e,i){
+                const e_ = typeof e === "object" ? JSON.stringify(e) : e;
+                const i_ = typeof i === "object" ? JSON.stringify(i) : i;
                 if (e!==i){
-                    console.error("ASSERTION FAILED in test #"+m+": expected '"+e+"' but got '"+i+"'");
+                    console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got '"+i_+"'");
                 } else {
-                    console.log("ASSERTION PASSED in test #"+m+": '"+e+"'");
+                    console.log("ASSERTION PASSED in test #"+m+": '"+e_+"'");
                 }
             }
 
-            function lookupById(){
+            function testBlock(msg){
+                console.log("---- TEST BLOCK: "+msg+" ----");
+                return msg;
+            }
+
+            function lookupById(filteredData){
                 let lookup = {};
-                mockData.forEach((row) => {
+                filteredData.forEach((row) => {
                     const key = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
                     lookup[key] = row;
                 });
@@ -443,22 +452,24 @@
                     mockData.push( { topic: topic, nodeId: nodeId, message: message, votes: "0", timestamp: "2023-10-01 12:00:00" } );
                 }
 
-                addMockRow("/", "war", "War >");
-                addMockRow("/", "migration", "Migration >");
-                addMockRow("/migration", "eu", "Migration in EU is complex.");
-                addMockRow("/", "clima", "Clima >");
-                addMockRow("/clima", "changes", "Clima changes >");
-                addMockRow("/clima/changes", "real", "Climate change is real!");
-                addMockRow("/clima/changes", "biz", "Climate discussion kills business.");
-                addMockRow("/", "support", "Support us!");
+                addMockRow("/",               "war",      "War >");
+                addMockRow("/",               "migration","Migration >");
+                addMockRow("/migration",      "eu",       "Migration in EU is complex.");
+                addMockRow("/",               "clima",    "Clima >");
+                addMockRow("/clima",          "changes",  "Clima changes >");
+                addMockRow("/clima/changes",  "real",     "Climate change is real!");
+                addMockRow("/clima/changes",  "biz",      "Climate discussion kills business.");
+                addMockRow("/",               "support",  "Support us!");
 
                 //
                 // by topic
                 //
 
-                let msg = "Root + ALL -> all Topics"
+                let msg = testBlock( "Root + ALL -> all Topics");
 
-                let items = lookupById(getFilteredData(mockData, "/", "all"));
+                let filteredData = getFilteredData( mockData, "/", "all");
+                console.debug(filteredData);
+                let items = lookupById( filteredData );
                 assertExists(msg, items["/war"]);
                 assertExists(msg, items["/migration"]);
                 assertExists(msg, items["/clima"]);
@@ -466,18 +477,18 @@
                 assertEq('size', Object.keys(items).length, 4);
                 console.debug(items);
 
-                msg = "War + ALL -> none (no children)"
+                msg = testBlock( "War + ALL -> none (no children)");
 
                 items = lookupById(getFilteredData(mockData, "/war", "all"));
                 assertEq('size', Object.keys(items).length, 0);
 
-                msg = "Migration + ALL -> clima topic with 1 child topic"
+                msg = testBlock( "Migration + ALL -> clima topic with 1 child topic");
 
                 items = lookupById(getFilteredData(mockData, "/clima", "all"));
                 assertExists(msg, items["/clima/changes"]);
                 assertEq('size', Object.keys(items).length, 1);
 
-                msg = "Migration + ALL -> clima topic with 2 child messages"
+                msg = testBlock( "Migration + ALL -> clima topic with 2 child messages");
 
                 items = lookupById( getFilteredData(mockData, "/clima/changes", "all"));
                 assertExists(msg, items["/clima/changes/real"]);
@@ -489,14 +500,14 @@
                 //   - topics with message of type (maybe in nested topics)
                 //
 
-                msg = "All + Fakt -> only topics with Meinung messages"
+                msg = testBlock( "All + Fakt -> only topics with Meinung messages");
 
                 items = lookupById( getFilteredData(mockData, "/", "."));
                 assertExists(msg + "(direct)", items["/migration"]);
                 assertExists(msg + "(nested)", items["/clima"]);
                 assertEq('size', Object.keys(items).length, 2);
 
-                msg = "Clima + Fakt -> only topics with Meinung messages"
+                msg = testBlock( "Clima + Fakt -> only topics with Meinung messages");
 
                 items = lookupById( getFilteredData(mockData, "/clima", "."));
                 assertExists(msg + "(topic and nested)", items["/clima/changes"]);
@@ -576,4 +587,3 @@
     });
 
 </script>
-</html>
