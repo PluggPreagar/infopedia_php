@@ -43,6 +43,10 @@
         td {
             color : #358600;
         }
+        table tr {
+            display: block;
+            margin-bottom: 10px; /* Adds a gap between rows */
+        }
         section {
             padding: 1rem;
             max-width: 800px;
@@ -166,11 +170,23 @@
         <div id="cinema-slogans"></div>
     </header>
     <nav>
-        <a href="#browse">Browse Data</a>
         <a href="#about">About</a>
+        <a href="#browse">Browse Data</a>
         <a href="#features">Features</a>
         <a href="#contact">Contact</a>
     </nav>
+    <section id="about">
+        <h2>About the Project</h2>
+        <p>Das Projekt Fakt Farming widmet sich der Sammlung, Organisation und Präsentation zuverlässiger Informationen
+            auf leicht zugängliche Weise.
+            Unsere Mission ist es, Menschen mit Wissen zu stärken, fundierte Entscheidungen zu fördern
+            und absichtliche Fehlinformationen sichtbar zu machen.
+        </p>
+        <!-- https://fayf.info/InfoPedia_Steckbrief.pdf -->
+        <p>
+            Hier finden Sie unseren <a href="https://fayf.info/InfoPedia_Steckbrief.pdf" target="_blank">one pager (PDF)</a>.
+        </p>
+    </section>
     <section id="browse" style="width: 90%; margin: auto;">
         <h2>Browse Example Dataset</h2>
         <p>Explore the data collected by the Fakt Farming Project.</p>
@@ -212,18 +228,6 @@
             </tbody>
         </table>
     </section>
-    <section id="about">
-        <h2>About the Project</h2>
-        <p>Das Projekt Fakt Farming widmet sich der Sammlung, Organisation und Präsentation zuverlässiger Informationen
-            auf leicht zugängliche Weise.
-            Unsere Mission ist es, Menschen mit Wissen zu stärken, fundierte Entscheidungen zu fördern
-            und absichtliche Fehlinformationen sichtbar zu machen.
-        </p>
-        <!-- https://fayf.info/InfoPedia_Steckbrief.pdf -->
-        <p>
-            Hier finden Sie unseren <a href="https://fayf.info/InfoPedia_Steckbrief.pdf" target="_blank">one pager (PDF)</a>.
-        </p>
-    </section>
     <section id="features">
         <h2>Key Features</h2>
         <ul>
@@ -245,7 +249,7 @@
 </html>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        let url = "entry/get?sid=tst&tid=tst&topicId=/";
+        let url = "entry/get?sid=www&tid=tst&topicId=/";
         // for local testing, use local CSV file
         // check if running from file://
         if (window.location.protocol === "file:") {
@@ -314,6 +318,7 @@
                     });
                 });
 
+                typeFilter.value = "!"; // default to facts
                 checkData();
                 initializeTopicMap();
                 populateFilterOptions();
