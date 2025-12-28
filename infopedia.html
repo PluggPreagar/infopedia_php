@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Fakt Farming Project - fayf.info">
-    <title>Fakt Farming Project | fayf.info</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -79,11 +78,64 @@
             box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
         }
 
+        .filter-container {
+            display: grid;
+            grid-template-columns: auto 1fr; /* Label and dropdown alignment */
+            gap: 1rem 2rem; /* Space between rows and columns */
+            align-items: start; /* Align items to the top/left */
+            max-width: 600px; /* Limit the width for better layout */
+            margin: 1rem auto; /* Center the container */
+            text-align: left; /* Ensure text aligns to the left */
+        }
         .filter-row {
-            margin: 1rem; /* Adds space between the filters */
-            display: flex;
-            align-items: center;
-            gap: 0.5rem; /* Adds space between the label and select */
+            grid-column: span 2; /* Make each filter row span across both columns */
+        }
+
+        .filter-row label {
+            font-weight: bold; /* Highlight labels */
+            font-size: 1rem; /* Ensure consistent font size */
+            color: #333; /* Modern text color */
+            text-align: left; /* Align label text to the left */
+        }
+
+        .filter-row select {
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            color: #333;
+            outline: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            width: 100%; /* Ensure dropdowns take full width */
+            text-align: left; /* Align dropdown text to the left */
+        }
+
+        .filter-row select:hover {
+            border-color: #4CAF50;
+            background-color: #fff;
+        }
+
+        .filter-row select:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+
+        button#toggleTypeFilter {
+            grid-column: span 2; /* Make the button span across both columns */
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button#toggleTypeFilter:hover {
+            background-color: #45a049;
         }
 
         #cinema-slogans__ {
@@ -96,7 +148,15 @@
             overflow: hidden;
             white-space: nowrap;
         }
+
+        @media (max-width: 600px) {
+            table th:nth-child(4),
+            table td:nth-child(4) {
+                display: none;
+            }
+        }
     </style>
+    <title>Fakt Farming Project | fayf.info</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -121,20 +181,18 @@
                     <option value="/">All Topics</option>
                 </select>
             </div>
-            <button id="toggleTypeFilter" style="display: none">Erweiterte Filter</button>
-            <div id="typeFilterContainer" style="display: block; margin-top: 1rem;">
-                <div class="filter-row">
-                    <label for="typeFilter">Filter&nbsp;nach&nbsp;Type:</label>
-                    <select id="typeFilter">
-                        <option value="all">All Types</option>
-                        <option value=".">Meinung</option>
-                        <option value="!">Fakt</option>
-                        <option value="!-">Falschaussage</option>
-                        <option value="?">Frage</option>
-                        <option value="??">Gegenfrage</option>
-                        <option value="@">Reference</option>
-                    </select>
-                </div>
+            <button id="toggleTypeFilter" style="display: block">Erweiterte Filter</button>
+            <div id="typeFilterContainer" class="filter-row" style="display: none;">
+                <label for="typeFilter" style="display: none" >Filter&nbsp;nach&nbsp;Type:</label>
+                <select id="typeFilter">
+                    <option value="all">All Types</option>
+                    <option value=".">Meinung</option>
+                    <option value="!">Fakt</option>
+                    <option value="!-">Falschaussage</option>
+                    <option value="?">Frage</option>
+                    <option value="??">Gegenfrage</option>
+                    <option value="@">Reference</option>
+                </select>
             </div>
         </div>
         <table border="0" style="width:100%; border-collapse: collapse; text-align: left; margin-top: 1rem;">
