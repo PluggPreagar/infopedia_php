@@ -371,6 +371,19 @@
                 `;
                 tableBody.appendChild(tr);
             });
+
+            // Add click event for topic links
+            document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
+                link.addEventListener("click", (event) => {
+                    console.log("Topic link clicked");
+                    event.preventDefault();
+                    selectedTopic = event.target.dataset.topic;
+                    console.log("Topic link clicked: '" + selectedTopic+"'");
+                    topicFilter.value = selectedTopic; // run updates ..
+                    updateFilteredData();
+                });
+            });
+
         }
 
         function updateFilteredData() {
@@ -523,17 +536,7 @@
             events ...
         */
 
-        // Add click event for topic links
-        document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
-            link.addEventListener("click", (event) => {
-                console.log("Topic link clicked");
-                event.preventDefault();
-                selectedTopic = event.target.dataset.topic;
-                console.log("Topic link clicked: '" + selectedTopic+"'");
-                topicFilter.value = selectedTopic; // run updates ..
-                updateFilteredData();
-            });
-        });
+
 
         // Filter data based on selected topic
         topicFilter.addEventListener("change", () => {
