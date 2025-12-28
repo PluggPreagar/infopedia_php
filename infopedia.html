@@ -116,22 +116,25 @@
         <p>Explore the data collected by the Fakt Farming Project.</p>
         <div class="filter-container">
             <div class="filter-row">
-                <label for="typeFilter">Filter&nbsp;nach&nbsp;Type:</label>
-                <select id="typeFilter">
-                    <option value="all">All Types</option>
-                    <option value=".">Meinung</option>
-                    <option value="!">Fakt</option>
-                    <option value="!-">Falschaussage</option>
-                    <option value="?">Frage</option>
-                    <option value="??">Gegenfrage</option>
-                    <option value="@">Reference</option>
-                </select>
-            </div>
-            <div class="filter-row">
                 <label for="topicFilter">Filter&nbsp;nach&nbsp;Thema:</label>
                 <select id="topicFilter">
                     <option value="/">All Topics</option>
                 </select>
+            </div>
+            <button id="toggleTypeFilter" style="display: none">Erweiterte Filter</button>
+            <div id="typeFilterContainer" style="display: block; margin-top: 1rem;">
+                <div class="filter-row">
+                    <label for="typeFilter">Filter&nbsp;nach&nbsp;Type:</label>
+                    <select id="typeFilter">
+                        <option value="all">All Types</option>
+                        <option value=".">Meinung</option>
+                        <option value="!">Fakt</option>
+                        <option value="!-">Falschaussage</option>
+                        <option value="?">Frage</option>
+                        <option value="??">Gegenfrage</option>
+                        <option value="@">Reference</option>
+                    </select>
+                </div>
             </div>
         </div>
         <table border="0" style="width:100%; border-collapse: collapse; text-align: left; margin-top: 1rem;">
@@ -408,16 +411,18 @@
         function getFilteredData(data, selectedTopic, selectedType) {
             console.log("Filtering by topic: " + selectedTopic);
             let filteredData = data.filter((row) => row.topic === selectedTopic );
+            console.log(filteredData);
             if ("all" !== selectedType){
                 // keep only if at least one (grand)*child with that type exists
                 filteredData = filteredData.filter((row) => {
-                    return data.some((childRow) =>
-                        childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
-                        && childRow.message.endsWith(selectedType)
+                    return row.message.endsWith(selectedType)
+                        || data.some((childRow) =>
+                            childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
+                            && childRow.message.endsWith(selectedType)
                     );
                 });
+                console.log(filteredData);
             }
-            console.log(filteredData);
             return filteredData;
         }
 
@@ -514,17 +519,25 @@
             //   - topics with message of type (maybe in nested topics)
             //
 
-            msg = testBlock( "All + Fakt -> only topics with Meinung messages");
+            msg = testBlock( "All + Meinung -> only topics with Meinung messages");
 
             items = lookupById( getFilteredData(mockData, "/", "."));
             assertExists(msg + "(direct)", items["/migration"]);
             assertExists(msg + "(nested)", items["/clima"]);
             assertEq('size', Object.keys(items).length, 2);
 
-            msg = testBlock( "Clima + Fakt -> only topics with Meinung messages");
+            //
+            msg = testBlock( "Clima + Meinung -> only topics with Meinung messages");
 
             items = lookupById( getFilteredData(mockData, "/clima", "."));
             assertExists(msg + "(topic and nested)", items["/clima/changes"]);
+            assertEq('size', Object.keys(items).length, 1);
+
+            //
+            msg = testBlock( "Clima changes + Meinung -> messages with Meinung");
+
+            items = lookupById( getFilteredData(mockData, "/clima/changes", "."));
+            assertExists(msg + "(direct)", items["/clima/changes/biz"]);
             assertEq('size', Object.keys(items).length, 1);
 
 
@@ -550,9 +563,16 @@
             updateFilteredData();
         });
 
+        const toggleButton = document.getElementById("toggleTypeFilter");
+        const typeFilterContainer = document.getElementById("typeFilterContainer");
 
-
-
+        toggleButton.addEventListener("click", () => {
+            if (typeFilterContainer.style.display === "none") {
+                typeFilterContainer.style.display = "block";
+            } else {
+                typeFilterContainer.style.display = "none";
+            }
+        });
 
         // Load data on page load
         loadCsvData();
