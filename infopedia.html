@@ -152,7 +152,30 @@
         }
 
         button#toggleTypeFilter:hover {
+            background-color: none;
+        }
+
+        #textFilter {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            border-color: #4CAF50;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            outline: none;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            width: 100%; /* Ensure it matches the width of the button */
+            box-sizing: border-box; /* Include padding and border in the element's width */
+        }
+
+        #textFilter:hover {
             background-color: #45a049;
+        }
+
+        #textFilter:focus {
+            background-color: #fff;
+            color: #333;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
         }
 
         #cinema-slogans{
@@ -248,7 +271,7 @@
                 </select>
             </div>
             <button id="toggleTypeFilter" style="display: block">Erweiterte Filter</button>
-            <div id="typeFilterContainer"  style="display: none;">
+            <div id="typeFilterContainer"  style="display: none; grid-column: span 2">
                 <div class="filter-row">
                     <label for="typeFilter" style="display: none" >Filter&nbsp;nach&nbsp;Type:</label>
                     <select id="typeFilter">
@@ -261,7 +284,7 @@
                         <option value="@">Reference</option>
                     </select>
                 </div> <!-- filter-row  -->
-                <div class="filter-row">
+                <div class="filter-row" style="padding-top: 0.5rem;">
                     <label for="textFilter" style="display: none" >Search by Text:</label>
                     <input type="text" id="textFilter" placeholder="Enter text to search...">
                 </div>
@@ -563,7 +586,8 @@
                 topicFilter.value = selectedTopic;
             }
             const selectedType = typeFilter.value;
-            displayData(getFilteredData(data,  selectedTopic, selectedType));
+            const textFilterValue = (document.getElementById("textFilter").value || "");
+            displayData(getFilteredData(data,  selectedTopic, selectedType, textFilterValue));
             console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType + "')");
         }
 
@@ -581,17 +605,16 @@
             if ("all" !== selectedType || textFilterValue.trim() !== "") {
                 // keep only if at least one (grand)*child with that type exists
                 filteredData = filteredData.filter((row) => {
-                    return
-                        ((selectedType === "all" || row.message.endsWith(selectedType))
+                    return ((selectedType === "all" || row.message.endsWith(selectedType))
                             && (textFilterValue.trim() === "" || row.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
                         )
                         || data.some((childRow) =>
                             childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
-                            && (( selectedType === "all" ||  childRow.message.endsWith(selectedType))
-                                && (textFilterValue.trim() === "" || childRow.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
-                            )
+                            && (selectedType === "all" ||  childRow.message.endsWith(selectedType))
+                            && (textFilterValue.trim() === "" || childRow.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
                     );
                 });
+                //filteredData = filteredData2; // KLUDGE - does not work as expected ..
                 console.log(filteredData);
             }
             return filteredData;
