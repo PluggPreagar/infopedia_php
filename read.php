@@ -144,7 +144,7 @@ function sortCsvData($csvData) {
 }
 
 // return csv if format is not txt
-if ($format === 'txt') {
+if ($format === 'txt' || $format === 'txt.0.2') {
     header('Content-Type: text/plain');
 } else {
 
@@ -167,6 +167,7 @@ $cacheOutdated = $cacheOutdatedFile
 if (file_exists($cacheFile)
             && (time() - filemtime($cacheFile)) < $cacheTime
             && !$cacheOutdated
+            && $format !== 'txt.0.2'
         ) {
     // serve the cached file
     readfile($cacheFile);
@@ -239,6 +240,48 @@ if ($response === false) {
         }
     }
 
+    if ($format === 'txt.0.2') {
+        // convert csv to txt v0.2
+        // target: <path>/<node> | <date> | <message>
+        // from  : <date>,<path> | <node> | <message> | <votes>
+        $lines = explode("\n", $response);
+        $newLines = [];
+        $txtResponse = "";
+        $leftoverLine = "";
+        foreach($lines as $line) {
+            // check quotes for wrapped lines
+            $quoteCount = substr_count($line, '"');
+            if ($quoteCount % 2 != 0) {
+                // odd number of quotes, line is wrapped
+                $leftoverLine .= $line . "\\n"; // preserve newline in message
+                continue;
+            } else {
+                // even number of quotes, line is complete
+                $line = $leftoverLine . $line;
+                $leftoverLine = "";
+            }
+            if (strpos($line, 'Timestamp,') !== 0) {
+                [$timestamp, $rest] = explode(',', $line, 2);
+                // handle <ts>,"/path | node | message | votes
+                $rest = trim($rest, '"');
+                [$path, $node, $message, $votes] = array_pad(explode(' | ', $rest, 4), 4, '');
+                $message = trim($message, '"'); // remove quotes around message
+                $fullPath = $path . "/" . $node; // fix multiple "/"
+                $fullPath = preg_replace('#/+#','/',$fullPath);
+                $newLine = [ $fullPath, $timestamp, $message, $votes];
+                if (trim($node) !== '' && trim($message) !== '') {
+                    $newLines[] = implode(' | ', $newLine);
+                } else {
+                    log_warn("Skipping malformed line for txt.0.2: $line");
+                }
+            }
+        }
+        // sort
+        $newLines = array_unique($newLines);
+        sort($newLines);
+        $response = implode("\n", $newLines);
+        log_warn("Converted csv to txt.0.2 format with " . count($newLines) . " lines");
+    }
 
     // Output the content
     echo $response;
