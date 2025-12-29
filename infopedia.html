@@ -31,10 +31,10 @@
             text-decoration: none;
             margin: 0 1rem;
         }
-        nav a, .topic-link, .parent-topic-link {
+        a, nav a, .topic-link, .parent-topic-link {
             text-decoration: none;
         }
-        nav a:hover {
+        a:hover, nav a:hover, .topic-link:hover, .parent-topic-link:hover {
             text-decoration: underline;
         }
         tbody {
@@ -256,9 +256,9 @@
         // Get the current URL's query parameters
         const urlParams = new URLSearchParams(window.location.search);
 
-        // Retrieve the tenantid parameter or default to "tst" if not provided
-        const tenantId = urlParams.get('tenantid') || 'tst';
-        // Validate tenantid (alphanumeric, underscores, hyphens, max length 30)
+        // Retrieve the tenantId parameter or default to "tst" if not provided
+        const tenantId = urlParams.get('tenantId') || 'tst';
+        // Validate tenantId (alphanumeric, underscores, hyphens, max length 30)
         if (!/^[a-zA-Z0-9_-]+$/.test(tenantId) || tenantId.length > 30) {
             console.error("Invalid tenant ID.");
             tenantId = "tst"; // fallback to default
