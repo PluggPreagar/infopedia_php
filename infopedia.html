@@ -208,7 +208,7 @@
         </p>
         <ul>
             <li>"NutriScore" für öffentliche Äußerungen.</li>
-            <li>Konstruktive (Gegen-)Fragen passend zum Kaffee.</li>
+            <li>Konstruktive (Gegen-) Fragen passend zum Kaffee.</li>
             <li>Meinungslandkarte für alle.</li>
         </ul>
         <!-- https://fayf.info/InfoPedia_Steckbrief.pdf -->
@@ -706,8 +706,10 @@
 
         toggleButton.addEventListener("click", () => {
             if (typeFilterContainer.style.display === "none") {
+                toggleButton.textContent = "Einfache Filter";
                 typeFilterContainer.style.display = "block";
             } else {
+                toggleButton.textContent = "Erweiterte Filter";
                 typeFilterContainer.style.display = "none";
             }
         });
