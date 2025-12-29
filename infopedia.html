@@ -155,21 +155,41 @@
             background-color: #45a049;
         }
 
-        #cinema-slogans__ {
-            background: #000;
-            color: #fff;
-            font-size: 1.5rem;
+        #cinema-slogans{
             text-align: center;
             padding: 1rem;
-            font-family: 'Courier New', Courier, monospace;
             overflow: hidden;
             white-space: nowrap;
+            min-height: 2.5rem;
+        }
+
+        @media (max-width: 600px) {
+            #cinema-slogans {
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch; /* Smooth scrolling for iOS */
+            }
         }
 
         @media (max-width: 600px) {
             table th:nth-child(4),
             table td:nth-child(4) {
                 display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            nav a {
+                font-size: 1rem; /* Default text size */
+                transition: font-size 0.3s ease; /* Smooth transition */
+            }
+
+            nav.sticky a {
+                font-size: 0; /* Hide text when sticky */
+            }
+
+            nav.sticky a i {
+                font-size: 1.5rem; /* Keep icons visible */
             }
         }
 
@@ -760,13 +780,20 @@
         const navProjectTitle = document.querySelector(".project-title");
         const projectTitle = "fayf - Fakt Farming Project";
         const mediaQuery = window.matchMedia("(min-width: 768px)"); // Adjust width as needed
+        const nav = document.querySelector("nav");
 
 
         window.addEventListener("scroll", function () {
             const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
 
             if (!mediaQuery.matches) {
-                navProjectTitle.textContent = "fayf";
+                if (window.scrollY < header.offsetHeight) {
+                    nav.classList.remove("sticky");
+                    navProjectTitle.textContent = "";
+            } else {
+                    nav.classList.add("sticky");
+                    navProjectTitle.textContent = "fayf";
+                }
                 return;
             }
             if (currentScroll < headerBottom) {
