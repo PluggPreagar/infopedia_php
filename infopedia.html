@@ -22,14 +22,30 @@
             margin: 0;
         }
         nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: left;
             background: #333;
             color: #fff;
             padding: 0.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
         nav a {
             color: #fff;
             text-decoration: none;
             margin: 0 1rem;
+        }
+        nav .project-title {
+            margin-left: auto;
+            font-size: 1rem;
+            color: #fff;
+            white-space: nowrap;
+        }
+        nav img {
+            height: 1.5rem; /* Adjust icon height to match text */
+            margin-right: 1rem;
         }
         a, nav a, .topic-link, .parent-topic-link {
             text-decoration: none;
@@ -156,6 +172,12 @@
                 display: none;
             }
         }
+
+        .project-title {
+            font-size: 1rem;
+            margin-left: 1rem;
+            color: #fff;
+        }
     </style>
     <title>Fakt Farming Project | fayf.info</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -167,10 +189,15 @@
         <div id="cinema-slogans"></div>
     </header>
     <nav>
-        <a href="#about">About</a>
-        <a href="#browse">Browse Data</a>
-        <a href="#features">Features</a>
-        <a href="#contact">Contact</a>
+        <!--
+        <div style="margin: 0;display: flex; align-items: center" ><img src="favicon-32x32.png" alt="Project Icon" style="height: 1em;"></div>
+        -->
+        <a href="#about">
+            <i class="fas fa-info-circle"></i> About</a>
+        <a href="#browse"><i class="fas fa-search"></i> Browse</a>
+        <a href="#features"><i class="fas fa-star"></i> Features</a>
+        <a href="#contact"><i class="fas fa-envelope"></i> Contact</a>
+        <span class="project-title"></span>
     </nav>
     <section id="about">
         <h2>About the Project</h2>
@@ -718,6 +745,42 @@
         // Initialize and start the interval
         updateSlogan();
         setInterval(updateSlogan, 3000); // Change slogan every 3 seconds
+    });
+
+
+    //
+    // title in nav bar
+    //
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const header = document.querySelector("header");
+        const headerBottom = header.getBoundingClientRect().bottom;
+        const navProjectTitle = document.querySelector(".project-title");
+        const projectTitle = "fayf - Fakt Farming Project";
+        const mediaQuery = window.matchMedia("(min-width: 768px)"); // Adjust width as needed
+
+
+        window.addEventListener("scroll", function () {
+            const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+
+            if (!mediaQuery.matches) {
+                navProjectTitle.textContent = "fayf";
+                return;
+            }
+            if (currentScroll < headerBottom) {
+                // Above header bottom - set title to empty
+                navProjectTitle.textContent = "";
+            } else if (navProjectTitle.textContent === "") {
+                // Below header bottom - set title if not already set
+                navProjectTitle.textContent = projectTitle;
+                navProjectTitle.style.transition = "opacity 0.5s";
+                navProjectTitle.style.opacity = 1;
+                navProjectTitle.style.paddingLeft = "1rem";
+                navProjectTitle.style.paddingRight = "1rem";
+            }
+
+            lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; // For mobile or negative scrolling
+        });
     });
 
 </script>
