@@ -248,17 +248,23 @@
                 </select>
             </div>
             <button id="toggleTypeFilter" style="display: block">Erweiterte Filter</button>
-            <div id="typeFilterContainer" class="filter-row" style="display: none;">
-                <label for="typeFilter" style="display: none" >Filter&nbsp;nach&nbsp;Type:</label>
-                <select id="typeFilter">
-                    <option value="all">All Types</option>
-                    <option value=".">Meinung</option>
-                    <option value="!">Fakt</option>
-                    <option value="!-">Falschaussage</option>
-                    <option value="?">Frage</option>
-                    <option value="??">Gegenfrage</option>
-                    <option value="@">Reference</option>
-                </select>
+            <div id="typeFilterContainer"  style="display: none;">
+                <div class="filter-row">
+                    <label for="typeFilter" style="display: none" >Filter&nbsp;nach&nbsp;Type:</label>
+                    <select id="typeFilter">
+                        <option value="all">All Types</option>
+                        <option value=".">Meinung</option>
+                        <option value="!">Fakt</option>
+                        <option value="!-">Falschaussage</option>
+                        <option value="?">Frage</option>
+                        <option value="??">Gegenfrage</option>
+                        <option value="@">Reference</option>
+                    </select>
+                </div> <!-- filter-row  -->
+                <div class="filter-row">
+                    <label for="textFilter" style="display: none" >Search by Text:</label>
+                    <input type="text" id="textFilter" placeholder="Enter text to search...">
+                </div>
             </div>
         </div>
         <table border="0" style="width:100%; border-collapse: collapse; text-align: left; margin-top: 1rem;">
@@ -567,17 +573,23 @@
         //  returns filtered data    -> topic direct entries and
         //                              entries leading to children with that type
         //
-        function getFilteredData(data, selectedTopic, selectedType) {
-            console.log("Filtering by topic: " + selectedTopic);
+        function getFilteredData(data, selectedTopic, selectedType, textFilterValue="") {
+            console.log("Filtering by  " + selectedTopic + " and type '" + selectedType
+                + "' and text '" + textFilterValue + "'");
             let filteredData = data.filter((row) => row.topic === selectedTopic );
             console.log(filteredData);
-            if ("all" !== selectedType){
+            if ("all" !== selectedType || textFilterValue.trim() !== "") {
                 // keep only if at least one (grand)*child with that type exists
                 filteredData = filteredData.filter((row) => {
-                    return row.message.endsWith(selectedType)
+                    return
+                        ((selectedType === "all" || row.message.endsWith(selectedType))
+                            && (textFilterValue.trim() === "" || row.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
+                        )
                         || data.some((childRow) =>
                             childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
-                            && childRow.message.endsWith(selectedType)
+                            && (( selectedType === "all" ||  childRow.message.endsWith(selectedType))
+                                && (textFilterValue.trim() === "" || childRow.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
+                            )
                     );
                 });
                 console.log(filteredData);
@@ -652,7 +664,7 @@
             assertExists(msg, items["/migration"]);
             assertExists(msg, items["/clima"]);
             assertExists(msg, items["/support"]);
-            assertEq('size', Object.keys(items).length, 4);
+            assertEq('size', 4, Object.keys(items).length);
             console.debug(items);
 
             msg = testBlock( "War + ALL -> none (no children)");
@@ -664,14 +676,14 @@
 
             items = lookupById(getFilteredData(mockData, "/clima", "all"));
             assertExists(msg, items["/clima/changes"]);
-            assertEq('size', Object.keys(items).length, 1);
+            assertEq('size', 1, Object.keys(items).length);
 
             msg = testBlock( "Migration + ALL -> clima topic with 2 child messages");
 
             items = lookupById( getFilteredData(mockData, "/clima/changes", "all"));
             assertExists(msg, items["/clima/changes/real"]);
             assertExists(msg, items["/clima/changes/biz"]);
-            assertEq('size', Object.keys(items).length, 2);
+            assertEq('size', 2, Object.keys(items).length);
 
             //
             // by topic and type
@@ -683,21 +695,21 @@
             items = lookupById( getFilteredData(mockData, "/", "."));
             assertExists(msg + "(direct)", items["/migration"]);
             assertExists(msg + "(nested)", items["/clima"]);
-            assertEq('size', Object.keys(items).length, 2);
+            assertEq('size', 2, Object.keys(items).length);
 
             //
             msg = testBlock( "Clima + Meinung -> only topics with Meinung messages");
 
             items = lookupById( getFilteredData(mockData, "/clima", "."));
             assertExists(msg + "(topic and nested)", items["/clima/changes"]);
-            assertEq('size', Object.keys(items).length, 1);
+            assertEq('size', 1, Object.keys(items).length);
 
             //
             msg = testBlock( "Clima changes + Meinung -> messages with Meinung");
 
             items = lookupById( getFilteredData(mockData, "/clima/changes", "."));
             assertExists(msg + "(direct)", items["/clima/changes/biz"]);
-            assertEq('size', Object.keys(items).length, 1);
+            assertEq('size', 1, Object.keys(items).length);
 
 
         }
@@ -719,6 +731,11 @@
 
         typeFilter.addEventListener("change", () => {
             console.log("Type filter changed");
+            updateFilteredData();
+        });
+
+        textFilter.addEventListener("input", () => {
+            console.log("Text filter changed");
             updateFilteredData();
         });
 
