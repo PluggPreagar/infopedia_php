@@ -63,6 +63,25 @@ if (file_exists($cacheFile)
     exit;
 }
 
+// if ts-mode, check last modified time of org file - wait 1 minute for the file to change
+// add 2 seconds to let file write finish
+if ($last_timestamp !== '' && file_exists($googleSheetUrl)) {
+    $fileModTime = filemtime($googleSheetUrl);
+    // wait max 50 seconds for file to change
+    while ( (time() - $fileModTime) < ($cacheTime + 50) ) {
+        sleep(2); // wait 2 seconds
+        clearstatcache(); // clear file stat cache
+        $fileModTime = filemtime($googleSheetUrl);
+    }
+    if ( (time() - $fileModTime) >= ($cacheTime + 50 - 1) ) {
+        log_warn("Timeout waiting for file to change for timestamp mode.");
+        http_response_code(404);
+        log_return( "404 - no new data found" ); // client will periodically retry anyway
+        exit;
+    }
+    sleep(1); // wait 1 second to let file write finish
+}
+
 
 // function to sort csv data
 //    timestamp, topic | node | message indicator
