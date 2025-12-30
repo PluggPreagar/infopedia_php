@@ -23,6 +23,8 @@
         die("Invalid tenant ID.");
     }
 
+    $last_timestamp = ($_GET['ts'] ?? $_POST['ts'] ?? '') ; // last timestamp from GET or POST
+
 
     // Set the default timezone to Central European Time (CET)
     date_default_timezone_set('Europe/Berlin');

@@ -222,8 +222,10 @@
             color: #fff;
         }
     </style>
-    <title>Fakt Farming Project | fayf.info</title>
+    <!-- Add this script to include the QRCode.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Fakt Farming Project | fayf.info</title>
 </head>
 <body>
     <header>
@@ -321,6 +323,12 @@
         <p>Haben Sie Fragen oder möchten Sie beitragen?
             Kontaktieren Sie uns unter <a href="mailto:info@fayf.info">info@fayf.info</a>.</p>
     </section>
+    <section id="qr-code-section" style="display: none;">
+        <h2>QR Code</h2>
+        <p>Scan the QR code to share the tenant ID.</p>
+        <div id="qrcode"></div>
+        <p  id="tenant-info" style="font-size: 0.9rem; color: #555;">Tenant ID: <span id="tenantIdDisplay"></span></p>
+    </section>
     <footer>
         <p>&copy; 2025 Fakt Farming Project | fayf.info</p>
         <div id="timestamp" style="font-size: 0.9rem; color: #fff; margin-top: 0.5rem;"><!-- timestamp --> version: 0.0.24</div>
@@ -335,7 +343,7 @@
         const urlParams = new URLSearchParams(window.location.search);
 
         // Retrieve the tenantId parameter or default to "tst" if not provided
-        const tenantId = urlParams.get('tenantId') || 'tst';
+        const tenantId = urlParams.get('tenantId') || urlParams.get('tid') || 'tst';
         // Validate tenantId (alphanumeric, underscores, hyphens, max length 30)
         if (!/^[a-zA-Z0-9_-]+$/.test(tenantId) || tenantId.length > 30) {
             console.error("Invalid tenant ID.");
@@ -360,6 +368,8 @@
             url = "entries_local_"+ encodeURIComponent(tenantId) +".csv";
             console.log("Running from localhost, using local CSV file( " + url + " )");
         }
+
+        showQRCode(tenantId);
 
         const tableBody = document.querySelector("#browse tbody");
         const topicFilter = document.getElementById("topicFilter");
@@ -881,4 +891,24 @@
         });
     });
 
+    /*
+        -- QR Code Generation --
+    */
+    function showQRCode(tenantId) {
+        const qrCodeContainer = document.getElementById("qrcode");
+        const qrCodeUrl = window.location.origin + "?tenantId=" + encodeURIComponent(tenantId);
+        new QRCode(qrCodeContainer, {
+            text: qrCodeUrl,
+            width: 128,
+            height: 128,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        let tenantInfo = document.getElementById("tenant-info");
+        tenantInfo.textContent = qrCodeUrl;
+        // display the QR code section
+        document.getElementById("qr-code-section").style.display = "block";
+
+    }
 </script>

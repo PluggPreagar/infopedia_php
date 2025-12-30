@@ -22,6 +22,7 @@ $cacheOutdated= false;
 $cacheOutdatedFile = $config['cacheOutdatedFile'] ?? null;
 $cache_time_delay = $config['cache_time_delay'] ?? 10; // default 60 seconds
 
+
 // use local file for tenant specific data
 if ($tenant_id !== '') {
     // modify cache file and google sheet url to include tenant id
@@ -53,6 +54,7 @@ if (file_exists($cacheFile)
             && (time() - filemtime($cacheFile)) < $cacheTime
             && !$cacheOutdated
             && $format !== 'txt.0.2'
+            && $last_timestamp === '' // no timestamp filtering
         ) {
     // serve the cached file
     readfile($cacheFile);
@@ -247,6 +249,34 @@ if ($response === false) {
         }
     }
 
+    // KLUDGE - cut off by timestamp - $last_timestamp =
+    if ($last_timestamp) {
+        $lines = explode("\n", $response);
+        $last_timestamp_a = $last_timestamp . 'a'; // append "a" to make sure we get all entries after the timestamp
+        $newLines = []; // lines start with timestamp - so we can compare directly the whole line with $last_timestamp
+        foreach($lines as $line) {
+            // skipp line contain /_/menu/Most-Recent-Entry
+            if (strpos($line, '/_/menu/Most-Recent-Entry') !== false) {
+                continue;
+            }
+            // fix timestamp if DD/MM/YYYY format - convert to YYYY-MM-DD
+            if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4}) /', $line, $matches)) {
+                $line = $matches[3] . '-' . $matches[2] . '-' . $matches[1] . substr($line, 10);
+            }
+            // fix timestamp if YYYY-DD-MM format - convert to YYYY-MM-DD
+            if (preg_match('/^(\d{4})-(\d{2})-(\d{2}) /', $line, $matches)) {
+                if (intval($matches[2]) > 12) {
+                    $line = $matches[1] . '-' . $matches[3] . '-' . $matches[2] . substr($line, 10);
+                }
+            }
+            if (strcmp($line, $last_timestamp_a) > 0 && strpos($line, 'Timestamp,') !== 0) {
+                $newLines[] = $line;
+            }
+        }
+        log_warn("Cutting off entries after timestamp: $last_timestamp , remaining lines: " . count($newLines) );
+        $response = implode("\n", $newLines);
+    }
+
     if ($format === 'txt.0.2') {
         // convert csv to txt v0.2
         // target: <path>/<node> | <date> | <message>
@@ -268,7 +298,11 @@ if ($response === false) {
                 $leftoverLine = "";
             }
             if (strpos($line, 'Timestamp,') !== 0) {
-                [$timestamp, $rest] = explode(',', $line, 2);
+                [$timestamp, $rest] = array_pad(explode(',', $line, 2), 2, '');
+                if ($timestamp === '' || $rest === '') {
+                    log_warn("Skipping malformed line for txt.0.2: $line");
+                    continue;
+                }
                 // handle <ts>,"/path | node | message | votes
                 $rest = trim($rest, '"');
                 [$path, $node, $message, $votes] = array_pad(explode(' | ', $rest, 4), 4, '');
