@@ -17,12 +17,48 @@ $cacheFile = $config['cacheFile']; // Path to the cache file
 $dryRun = isset($config['dryRun']) && $config['dryRun'] ; // Check if dry run is requested
 $format = $_GET['format'] ?? ''; // default format is csv
 #$dryRun = true;
+// if cacheOutdatedFile exists and is newer than cacheFile then delete cacheFile
+$cacheOutdated= false;
+$cacheOutdatedFile = $config['cacheOutdatedFile'] ?? null;
+$cache_time_delay = $config['cache_time_delay'] ?? 10; // default 60 seconds
 
 // use local file for tenant specific data
 if ($tenant_id !== '') {
     // modify cache file and google sheet url to include tenant id
     $cacheFile = str_replace('.cache', "_{$tenant_id}.cache", $cacheFile);
     $googleSheetUrl = str_replace('.cache', ".csv", $cacheFile); // local file for tenant specific data
+    // cahe time reduced for tenant specific data
+    $cache_time_delay = 5; // 5 seconds cache for tenant specific data
+}
+
+$cacheOutdated = $cacheOutdatedFile
+    && file_exists($cacheOutdatedFile) && file_exists($cacheFile)
+    && (filemtime($cacheOutdatedFile) > filemtime($cacheFile) + $cache_time_delay) ;
+
+
+// return csv if format is not txt
+if ($format === 'txt' || $format === 'txt.0.2') {
+    header('Content-Type: text/plain');
+} else {
+
+    // Proxy script to fetch and serve Google Sheet content with caching
+    header('Content-Type: text/csv');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+}
+
+// Check if the cache is valid
+if (file_exists($cacheFile)
+            && (time() - filemtime($cacheFile)) < $cacheTime
+            && !$cacheOutdated
+            && $format !== 'txt.0.2'
+        ) {
+    // serve the cached file
+    readfile($cacheFile);
+    // get file size from cache file
+    log_return( filesize($cacheFile) . " bytes from cache" );
+    exit;
 }
 
 
@@ -143,38 +179,9 @@ function sortCsvData($csvData) {
     return trim($sortedCsv);
 }
 
-// return csv if format is not txt
-if ($format === 'txt' || $format === 'txt.0.2') {
-    header('Content-Type: text/plain');
-} else {
 
-    // Proxy script to fetch and serve Google Sheet content with caching
-    header('Content-Type: text/csv');
-    header('Cache-Control: no-cache, no-store, must-revalidate');
-    header('Pragma: no-cache');
-    header('Expires: 0');
-}
 
-// if cacheOutdatedFile exists and is newer than cacheFile then delete cacheFile
-$cacheOutdated= false;
-$cacheOutdatedFile = $config['cacheOutdatedFile'] ?? null;
-$cache_time_delay = $config['cache_time_delay'] ?? 10; // default 60 seconds
-$cacheOutdated = $cacheOutdatedFile
-    && file_exists($cacheOutdatedFile) && file_exists($cacheFile)
-    && (filemtime($cacheOutdatedFile) > filemtime($cacheFile) + $cache_time_delay) ;
 
-// Check if the cache is valid
-if (file_exists($cacheFile)
-            && (time() - filemtime($cacheFile)) < $cacheTime
-            && !$cacheOutdated
-            && $format !== 'txt.0.2'
-        ) {
-    // serve the cached file
-    readfile($cacheFile);
-    // get file size from cache file
-    log_return( filesize($cacheFile) . " bytes from cache" );
-    exit;
-}
 
 // Fetch the content from the Google Sheet
 $response = @file_get_contents($googleSheetUrl);
