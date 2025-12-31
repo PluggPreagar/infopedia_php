@@ -65,7 +65,7 @@ if (file_exists($cacheFile)
 
 // if ts-mode, check last modified time of org file - wait 1 minute for the file to change
 // add 2 seconds to let file write finish
-if ($last_timestamp !== '' && file_exists($googleSheetUrl)) {
+if ($last_timestamp !== '' && file_exists($googleSheetUrl) && $format !== 'txt.0.2' && $format !== 'txt') {
     $fileModTime = filemtime($googleSheetUrl);
     // wait max 50 seconds for file to change
     while ( (time() - $fileModTime) < ($cacheTime + 50) ) {
