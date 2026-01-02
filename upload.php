@@ -33,7 +33,6 @@ if (strpos($data, '/_/bug | bug_') === 0) {
     // append tenant_id to end of first line of data, only first line
     // remove "/_/" prefix - shift to visible part
     $data = preg_replace('/^\/_(.+?)(\r?\n|$)/', '$1 ' . $tenant_id . ' $2', $data, 1);
-
     $tenant_id = 'fayfBug__1754128928';
 }
 
