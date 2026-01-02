@@ -28,6 +28,16 @@ $cacheFile = $config['cacheFile']; // Path to the cache file
 $url = "{$googlePostUrl}" ; // "?{$googlePostEntryId}=".urlencode($data); // Construct the Google Sheet export URL
 // dump config
 
+// if data starts with "/_/bug | bug_" then set tenant_id to "bug"
+if (strpos($data, '/_/bug | bug_') === 0) {
+    // append tenant_id to end of first line of data, only first line
+    // remove "/_/" prefix - shift to visible part
+    $data = preg_replace('/^\/_(.+?)(\r?\n|$)/', '$1 ' . $tenant_id . ' $2', $data, 1);
+
+    $tenant_id = 'fayfBug__1754128928';
+}
+
+
 // use local file for tenant specific data
 if ($tenant_id == '') {
 

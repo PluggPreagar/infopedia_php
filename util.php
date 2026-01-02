@@ -23,7 +23,6 @@
         die("Invalid tenant ID.");
     }
 
-
     $last_timestamp = ($_GET['ts'] ?? $_POST['ts'] ?? '') ; // last timestamp from GET or POST
     // convert timestamp to int  YYYYY/MM/DD HH:MM:SS or YYYY-MM-DD HH:MM:SS or YYYYMMDDHHMMSS or DD-MM-YYYY HH:MM:SS
     // 1767351121 == 2025-02-01 12:12:01
