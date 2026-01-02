@@ -67,8 +67,8 @@ if ($tenant_id == '') {
             || ($config['tenantAutoCreationEnabled'] ?? false)) {
         // behave like google sheet - prefix timestamp, delimiter "," and quote data (if needed)
         $timestamp = date('Y-m-d H:i:s');
-        // check if data contains comma or quote
-        if (strpos($data, ',') !== false || strpos($data, '"') !== false) {
+        // check if data contains comma or quote or newline
+        if (strpos($data, ',') !== false || strpos($data, '"') !== false || strpos($data, "\n") !== false || strpos($data, "\r") !== false) {
             // escape quotes by doubling them
             $data_escaped = str_replace('"', '""', $data);
             $data = '"' . $data_escaped . '"';
