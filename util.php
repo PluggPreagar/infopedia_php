@@ -23,7 +23,33 @@
         die("Invalid tenant ID.");
     }
 
+
     $last_timestamp = ($_GET['ts'] ?? $_POST['ts'] ?? '') ; // last timestamp from GET or POST
+    // convert timestamp to int  YYYYY/MM/DD HH:MM:SS or YYYY-MM-DD HH:MM:SS or YYYYMMDDHHMMSS or DD-MM-YYYY HH:MM:SS
+    // 1767351121 == 2025-02-01 12:12:01
+    $last_timestamp_int = 0;
+    if (!empty($last_timestamp)) {
+        $last_timestamp_orginal = $last_timestamp;
+        if (is_numeric($last_timestamp)) {
+            $last_timestamp_int = (int)$last_timestamp;
+            $last_timestamp = date("Y-m-d H:i:s", $last_timestamp_int);
+        } else {
+            // try to parse various formats YYYY/MM/DD HH:MM:SS or YYYY-MM-DD HH:MM:SS or YYYYMMDDHHMMSS
+            $tmp = $last_timestamp;
+            // handle YYYY-MM-DD HH:MM:SS or YYYY/MM/DD HH:MM:SS
+            $tmp = preg_replace('/(\d{4})[-\/](\d{2})[-\/](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/', '$1-$2-$3 $4:$5:$6', $tmp);
+            // handle DD-MM-YYYY HH:MM:SS
+            $tmp = preg_replace('/(\d{2})[-\/](\d{2})[-\/](\d{4})[ T](\d{2}):(\d{2}):(\d{2})/', '$3-$2-$1 $4:$5:$6', $tmp);
+            // handle YYYYMMDDHHMMSS
+            $tmp = preg_replace('/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/', '$1-$2-$3 $4:$5:$6', $tmp);
+            $last_timestamp_int = strtotime($tmp);
+            $last_timestamp = $tmp;
+        }
+        if ($last_timestamp === false) {
+            log_error("Invalid timestamp format (" . $last_timestamp_orginal . ")");
+            die("Invalid timestamp format.");
+        }
+    }
 
 
     // Set the default timezone to Central European Time (CET)

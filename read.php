@@ -66,17 +66,29 @@ if (file_exists($cacheFile)
 // if ts-mode, check last modified time of org file - wait 1 minute for the file to change
 // add 2 seconds to let file write finish
 if ($last_timestamp !== '' && file_exists($googleSheetUrl) && $format !== 'txt.0.2' && $format !== 'txt') {
+    // last_timestamp == time of last read
+    // a) already changed - if file modification time is new then last_timestamp
+    // b) no changed yet - wait until max 50 seconds for file to change
+    $timeStopWaiting = time() + 50; // wait max cacheTime + 50 seconds
     $fileModTime = filemtime($googleSheetUrl);
+    // KLUDGE - must use VersionID - not good to compare file-modification-time with timestamp from data
+    //  --> V1 ) add artificial data set with current timestamp
+    //  --> V2 ) ensure data send is always in past ... all timestamps send are older than file modification time
+    //             --> wait 1 second after data added
+    //             --> send only data with timestamp < file modification time on initial-trigger
+    //                      (may skipp the recent recent ones .. very unlikely, will be caught on next read)
     // wait max 50 seconds for file to change
-    while ( (time() - $fileModTime) < ($cacheTime + 50) ) {
+    while ( time() < $timeStopWaiting && $last_timestamp_int < $fileModTime ) {
         sleep(2); // wait 2 seconds
         clearstatcache(); // clear file stat cache
         $fileModTime = filemtime($googleSheetUrl);
     }
     if ( (time() - $fileModTime) >= ($cacheTime + 50 - 1) ) {
-        log_warn("Timeout waiting for file to change for timestamp mode.");
-        http_response_code(404);
-        log_return( "404 - no new data found" ); // client will periodically retry anyway
+        log_info("Timeout waiting for file to change for timestamp mode.");
+        //http_response_code(404);
+        //log_return( "404 - no new data found" ); // client will periodically retry anyway
+        // just no data
+        http_response_code(200);
         exit;
     }
     sleep(1); // wait 1 second to let file write finish
@@ -203,7 +215,8 @@ function sortCsvData($csvData) {
 
 
 
-
+// timestamp from 1 second ago - ensure data integrity
+$timestamp_max_allowed = date('Y-m-d H:i:s', time() - 1);
 // Fetch the content from the Google Sheet
 $response = @file_get_contents($googleSheetUrl);
 
@@ -228,6 +241,8 @@ if ($response === false) {
             file_put_contents($cacheFile, $response);
         }
     }
+
+    // check for vote aggregation
 
 
     if ($type == 'vote') {
@@ -289,7 +304,14 @@ if ($response === false) {
                 }
             }
             if (strcmp($line, $last_timestamp_a) > 0 && strpos($line, 'Timestamp,') !== 0) {
-                $newLines[] = $line;
+                // skipp lines with exact current timestamp
+                // - as we can't garantee that other entries are added right now, with very same timestamp
+                //   that would lead to missing entries on next read using last_timestamp
+                if (strcmp($line, $timestamp_max_allowed) > 0) {
+                    log_warn("Skipping line with current or future timestamp: $line");
+                } else {
+                    $newLines[] = $line;
+                }
             }
         }
         log_warn("Cutting off entries after timestamp: $last_timestamp , remaining lines: " . count($newLines) );
