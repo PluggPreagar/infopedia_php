@@ -60,6 +60,17 @@
             color : #358600;
             padding-bottom: 0.5rem;
         }
+
+        /* Hide edit icon by default */
+        .edit-button {
+            visibility: hidden;
+        }
+
+        /* Show edit icon when hovering over the row */
+        tr:hover .edit-button {
+            visibility: visible;
+        }
+
         section {
             padding: 1rem;
             max-width: 800px;
@@ -186,6 +197,71 @@
             min-height: 2.5rem;
         }
 
+
+        #add-edit-section h2 {
+            font-size: 1.5rem;
+            color: #4CAF50;
+            margin-bottom: 1rem;
+        }
+
+        #add-edit-section label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        #add-edit-section input[type="text"],
+        #add-edit-section textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        #add-edit-section textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        #add-edit-section .send-button {
+            background-color: #4CAF50;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 1rem;
+        }
+
+        #add-edit-section .send-button:hover {
+            background-color: #45a049;
+        }
+
+        #add-edit-section .send-button:not(:last-child) {
+            margin-right: 0.5rem;
+        }
+
+        #add-edit-section .send-button[data-type="!"] {
+            background-color: #2196F3;
+        }
+
+        #add-edit-section .send-button[data-type="!-"] {
+            background-color: #f44336;
+        }
+
+        #add-edit-section .send-button[data-type="?"] {
+            background-color: #FF9800;
+        }
+
+
+
         @media (max-width: 600px) {
             #cinema-slogans {
                 overflow-x: auto;
@@ -221,6 +297,14 @@
             margin-left: 1rem;
             color: #fff;
         }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+
     </style>
     <!-- Add this script to include the QRCode.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -309,6 +393,21 @@
             </tbody>
         </table>
     </section>
+    <section id="add-edit-section" style="display: none;">
+        <form id="addEditForm">
+            <label for="entryMessage">add Message:</label>
+            <textarea id="entryMessage" name="message" placeholder="Enter message..." required style="width: 100%; margin-bottom: 1rem; padding: 0.5rem;"></textarea>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Send as:</span>
+                <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
+                <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
+                <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
+                <button type="button" class="send-button" data-type="!" style="background: #2196F3; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Fakt</button>
+                <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch-Aussage</button>
+            </div>
+        </form>
+    </section>
     <section id="features">
         <h2>Key Features</h2>
         <ul>
@@ -333,9 +432,484 @@
         <p>&copy; 2025 Fakt Farming Project | fayf.info</p>
         <div id="timestamp" style="font-size: 0.9rem; color: #fff; margin-top: 0.5rem;"><!-- timestamp --> version: 0.0.24</div>
     </footer>
+    <div id="toast-container" style="position: fixed; top: 1rem; right: 1rem; z-index: 1000;"></div>
 </body>
 </html>
+
+
+
+
+
+
 <script>
+    let tenantId = "";
+    let data = {}; // Store the retrieved data
+    let topicMap = {}; // Map of topicId to topic name
+    let selectedTopic = "/";
+
+    const tableBody = document.querySelector("#browse tbody");
+    const topicFilter = document.getElementById("topicFilter");
+    const typeFilter = document.getElementById("typeFilter");
+    const textFilter = document.getElementById("textFilter");
+    const sendButtons = document.querySelectorAll(".send-button");
+    const toggleButton = document.getElementById("toggleTypeFilter");
+    const typeFilterContainer = document.getElementById("typeFilterContainer");
+
+    // init
+    textFilter.value = ""; // reset text filter
+    typeFilter.value = "!"; // reset type filter
+
+
+    //
+    //   -- cinema slogans animation (optional,deutsch) --
+    //
+
+    const slogans = [
+        "Welcome to fayf.info - Cultivating Knowledge.",
+        "Welcome to fayf.info - 'Fakt' on time.",
+        "Welcome to fayf.info - 'Fakt' everywhere.",
+        "Fakt Farming - Fakten pflegen, als wäre es Wissen.",
+        "Widersprüche sind für alle widersprüchlich.",
+        "Fakt Farming macht Wissen leicht zugänglich.",
+        "Der Nutri-Score für Fakten.",
+        "Fakt Farming - deine Quelle für Gegenfragen.",
+        "Differenzierte Sicht - ganz persönlich, für dich."
+    ];
+
+    /*
+        BASE DATA
+    */
+
+
+    function addData(topic, nodeId, message, votes, timestamp) {
+        if (!data[topic]) {
+            data[topic] = {};
+        }
+        data[topic][nodeId] = {
+            topic: topic,           // allow to work on data - flat structure
+            nodeId: nodeId,         // ease to identifying node
+            timestamp: timestamp,
+            message: message,
+            votes: votes
+        };
+        checkData(topic, nodeId, message);
+        updateFilteredData(topic, nodeId, message);
+    }
+
+    function fullKey(topic, nodeId) {
+        return topic + ("/" == topic ? "" : "/") + nodeId;
+    }
+
+    function splitKey(fullKey) {
+        const lastSlashIndex = fullKey.lastIndexOf("/");
+        if (lastSlashIndex === -1) {
+            return ["", fullKey];
+        } else {
+            const topic = fullKey.substring(0, lastSlashIndex);
+            const nodeId = fullKey.substring(lastSlashIndex + 1);
+            return [topic, nodeId];
+        }
+    }
+
+
+    function checkData(topic, nodeId, message) {
+        console.log("Checking data for topic:", topic, "nodeId:", nodeId, "message:", message);
+        if (!topic) { // check all
+            if (data[""]) { // root key => "/"
+                data["/"] = data[""];
+                delete data[""];
+            }
+            // if topic has children only than append ">" to topic - message
+            Object.keys(data).forEach((topic) => {
+                Object.keys(data[topic]).forEach((nodeId) => {
+                    checkData(topic, nodeId, data[topic][nodeId].message);
+                });
+            });
+        } else if (topic && nodeId) {
+            // check if topic has children
+            const topicNode = data[topic][nodeId];
+            const topicChildren = data[fullKey(topic, nodeId)];
+            if (topicChildren && Object.keys(topicChildren).length > 0) {
+                if (!topicNode.message.endsWith(">")) {
+                    topicNode.message += " >";
+                }
+            } else {
+                if (topicNode.message.endsWith(">")) {
+                    topicNode.message = topicNode.message.slice(0, -1).trim();
+                }
+            }
+        }
+    }
+
+    function initializeTopicMap() {
+        // lookup topic names to paths
+        Object.keys(data).forEach((topic) => {
+            [parentTopic, nodeId] = splitKey(topic);
+            if (nodeId && data[parentTopic] && data[parentTopic][nodeId]) {
+                topicMap[topic] = data[parentTopic][nodeId].message;
+            }
+        });
+    }
+
+
+
+    function getFilteredData(data, selectedTopic, selectedType, textFilterValue="") {
+        //
+        //  selectedTopic:  "/clima" -> focus on topic (and its children to search in)
+        //  selectedType:   "."      -> filter by type (search in topic and its children)
+        //  returns filtered data    -> topic direct entries and
+        //                              entries leading to children with that type
+        //
+        console.log("Filtering by  " + selectedTopic + " and type '" + selectedType
+            + "' and text '" + textFilterValue + "'");
+        let filteredData = [];
+        if ("IGNORE" === selectedTopic){
+            // treat all entries as in relevant topic ... or put it different: ignore topics ...
+            filteredData = data;
+        } else {
+            filteredData = data.filter((row) => row.topic === selectedTopic );
+        }
+        console.log(filteredData);
+        //  data
+        //      "/" ->  ---  Topic ---
+        //              "a" -> "Topic A >"       ( a.k.a "/a" )
+        //              "b" -> "Topic B >"       ( a.k.a "/b" )
+        //              "c" -> "Message C.!"     ( a.k.a "/c" )
+        //      "/a" ->  ---  Topic A ---
+        //              "a1" -> "Message A1.!"   ( a.k.a "/a/a1" )
+        //              "a2" -> "Message A2.?"   ( a.k.a "/a/a2" )
+        //              "a3" -> "Topic A3 >"     ( a.k.a "/a/a3" )
+        //      "/b" ->  ---  Topic B ---
+        //                ...
+        //      "/a/a3" ->  ---  Topic A3 ---
+        //                ...
+        //
+
+
+
+
+
+
+
+        if ("all" !== selectedType || textFilterValue.trim() !== "") {
+            // keep only if at least one (grand)*child with that type exists
+            filteredData = filteredData.filter((row) => {
+                return ((selectedType === "all" || row.message.endsWith(selectedType))
+                        && (textFilterValue.trim() === "" || row.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
+                    )
+                    || /* or if child is matching */
+                    ( "IGNORE" !== selectedTopic
+                        &&
+                            data.some((childRow) =>
+                                childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
+                                && (selectedType === "all" ||  childRow.message.endsWith(selectedType))
+                                && (textFilterValue.trim() === "" || childRow.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
+                   )
+                );
+            });
+            //filteredData = filteredData2; // KLUDGE - does not work as expected ..
+            console.log(filteredData);
+        }
+        return filteredData;
+    }
+
+
+
+
+
+    /*
+
+        DATA -> GUI
+
+    */
+
+
+
+
+    // Populate filter dropdown with unique topics
+    function populateFilterOptions() {
+        const topics = [];
+        Object.keys(data).forEach((topic) => {
+            // indent level based on slashes
+            let indent = topic.split("/").length - 2;
+            let indentStr = "                      ".substring(0, indent < 10 ? indent * 2 : 10);
+            topics.push({ topicId: topic, name: indentStr . (topicMap[topic] || topic)  });
+        });
+        //
+        topics.forEach((topic) => {
+            const option = document.createElement("option");
+            option.value = topic.topicId;
+            option.textContent = topic.name;
+            topicFilter.appendChild(option);
+        });
+    }
+
+
+
+    // Display data in the table
+    function displayData(filteredData) {
+        tableBody.innerHTML = "";
+        // inject parent topic link
+        console.log("Displaying data:", filteredData);
+        //
+        // add parent topic link if not root
+        //
+        let topicId = topicFilter.value;
+        if (topicId !== "/" && topicId !== "") {
+            let parentTopic = splitKey(topicId)[0];
+            console.log("Parent topic link would be added for topic:", topicId, "->", parentTopic);
+            //
+            // parentDummy = { topic: parentTopic, nodeId: "", message: "zurück", votes: 0, timestamp: "" };
+            // filteredData = { topicId: parentDummy, ...filteredData};
+            //
+            const parentRow = document.createElement("tr");
+            parentRow.innerHTML = `
+                <td colspan="4" style="text-align: left;">
+                    <a href="#" class="parent-topic-link" data-topic="${parentTopic}">
+                    <i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>zurück
+                    </a>
+                </td>
+            `;
+            tableBody.appendChild(parentRow);
+        }
+        //
+        //
+        if (filteredData.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Keine Daten - hilf uns Sie zu ergänzen!</td></tr>`;
+        } else {
+            //
+            Object.keys(filteredData).forEach((key) => {
+                const row = filteredData[key];
+                const tr = document.createElement("tr");
+                const fullNodeId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
+                let messageContent = row.message;
+                if (row.message.endsWith(">")) {
+                    messageContent = `<a href="#" class="topic-link" data-topic="${fullNodeId}">${row.message}</a>`;
+                }
+                tr.innerHTML = `
+                    <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
+                    <td>${messageContent}</td>
+                    <td>${row.votes >0 ? row.votes : ""}</td>
+                    <td>${row.timestamp.replace(" ","&nbsp;")}</td>
+                    <td>
+                        <button class="edit-button" data-id="${fullNodeId}" style="background: none; border: none; cursor: pointer;">
+                            <i class="fas fa-edit" style="color: #4CAF50;"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        } // filteredData.length > 0
+        //
+    }
+
+
+
+
+    /*
+        UTIL
+    */
+
+
+
+
+    function formatTimestamp(timestamp) {
+        const [datePart, timePart] = timestamp.split(" ");
+        const [day, month, year] = datePart.split("/").map(Number);
+        const [hours, minutes, seconds] = timePart.split(":").map(Number);
+        // Create a Date object
+        const date = new Date(year, month - 1, day, hours, minutes, seconds);
+
+        if (isNaN(date.getTime())) {
+            return "";
+        }
+        const now = new Date();
+
+        // Check if the date is today
+        const isToday = date.toDateString() === now.toDateString();
+
+        if (isToday) {
+            // Format as hour:minute (e.g., 14:30)
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (date.getFullYear() === now.getFullYear()) {
+            // If the year matches the current year, format as "Month Day" (e.g., "October 1")
+            return date.toLocaleDateString([], { month: 'long', day: 'numeric' });
+        } else {
+            // If the year is different, format as just the year (e.g., "2022")
+            return date.getFullYear().toString();
+        }
+    }
+
+
+
+    /*
+
+        TODO
+
+    */
+
+
+
+
+        // Add click event for "Edit" buttons
+        document.querySelectorAll(".edit-button").forEach((button) => {
+            button.addEventListener("click", (event) => {
+                const nodeId = event.target.dataset.id;
+                const row = data.find((row) => row.topic + ("/" == row.topic ? "" : "/") + row.nodeId === nodeId);
+                if (row) {
+                    populateEditForm(row);
+                }
+            });
+        });
+
+
+        // Add click event for topic links
+        document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
+            link.addEventListener("click", (event) => {
+                console.log("Topic link clicked");
+                event.preventDefault();
+                selectedTopic = event.target.dataset.topic;
+                console.log("Topic link clicked: '" + selectedTopic+"'");
+                topicFilter.value = selectedTopic; // run updates ..
+                updateFilteredData();
+            });
+        });
+
+
+    function updateFilteredData() {
+        console.log("updateFilteredData: Updating filtered data...");
+        console.log(data);
+        const selectedTopic = topicFilter.value; // "" == all topics, "/" == root topics
+        const selectedType = typeFilter.value;
+        const textFilterValue = textFilter.value || "";
+        displayData(getFilteredData(data,  selectedTopic, selectedType, textFilterValue));
+        console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType + "')");
+    }
+
+
+    /*
+        test
+    */
+
+
+    function assertExists(m,e){
+        const e_ = typeof e === "object" ? JSON.stringify(e) : e;
+        if (!e){
+            console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got none");
+        } else {
+            console.log("ASSERTION PASSED in test #"+m+": '"+e_+"' exists");
+        }
+    }
+
+    function assertEq(m,e,i){
+        const e_ = typeof e === "object" ? JSON.stringify(e) : e;
+        const i_ = typeof i === "object" ? JSON.stringify(i) : i;
+        if (e!==i){
+            console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got '"+i_+"'");
+        } else {
+            console.log("ASSERTION PASSED in test #"+m+": '"+e_+"'");
+        }
+    }
+
+    function testBlock(msg){
+        console.log("---- TEST BLOCK: "+msg+" ----");
+        return msg;
+    }
+
+    function lookupById(filteredData){
+        let lookup = {};
+        Object.keys( filteredData ).forEach((key) => {
+            const row = filteredData[key];
+            const fullPath = fullKey(row.topic, row.nodeId);
+            lookup[fullPath] = row;
+        });
+        return lookup;
+    }
+
+    function test() {
+        mockData = {};
+
+        function addMockRow(topic, nodeId, message){
+            mockData[topic] = mockData[topic] || {};
+            mockData[topic][nodeId] = { topic: topic, nodeId: nodeId, message: message, votes: "0", timestamp: "2023-10-01 12:00:00" } ;
+        }
+
+        addMockRow("/",               "war",      "War >");
+        addMockRow("/",               "migration","Migration >");
+        addMockRow("/migration",      "eu",       "Migration in EU is complex.");
+        addMockRow("/",               "clima",    "Clima >");
+        addMockRow("/clima",          "changes",  "Clima changes >");
+        addMockRow("/clima/changes",  "real",     "Climate change is real!");
+        addMockRow("/clima/changes",  "biz",      "Climate discussion kills business.");
+        addMockRow("/",               "support",  "Support us!");
+
+        //
+        // by topic
+        //
+
+        let msg = testBlock( "Root + ALL -> all Topics");
+
+        let filteredData = getFilteredData( mockData, "/", "all");
+        console.debug(filteredData);
+        let items = lookupById( filteredData );
+        assertExists(msg, items["/war"]);
+        assertExists(msg, items["/migration"]);
+        assertExists(msg, items["/clima"]);
+        assertExists(msg, items["/support"]);
+        assertEq('size', 4, Object.keys(items).length);
+        console.debug(items);
+
+        msg = testBlock( "War + ALL -> none (no children)");
+
+        items = lookupById(getFilteredData(mockData, "/war", "all"));
+        assertEq('size', Object.keys(items).length, 0);
+
+        msg = testBlock( "Migration + ALL -> clima topic with 1 child topic");
+
+        items = lookupById(getFilteredData(mockData, "/clima", "all"));
+        assertExists(msg, items["/clima/changes"]);
+        assertEq('size', 1, Object.keys(items).length);
+
+        msg = testBlock( "Migration + ALL -> clima topic with 2 child messages");
+
+        items = lookupById( getFilteredData(mockData, "/clima/changes", "all"));
+        assertExists(msg, items["/clima/changes/real"]);
+        assertExists(msg, items["/clima/changes/biz"]);
+        assertEq('size', 2, Object.keys(items).length);
+
+        //
+        // by topic and type
+        //   - topics with message of type (maybe in nested topics)
+        //
+
+        msg = testBlock( "All + Meinung -> only topics with Meinung messages");
+
+        items = lookupById( getFilteredData(mockData, "/", "."));
+        assertExists(msg + "(direct)", items["/migration"]);
+        assertExists(msg + "(nested)", items["/clima"]);
+        assertEq('size', 2, Object.keys(items).length);
+
+        //
+        msg = testBlock( "Clima + Meinung -> only topics with Meinung messages");
+
+        items = lookupById( getFilteredData(mockData, "/clima", "."));
+        assertExists(msg + "(topic and nested)", items["/clima/changes"]);
+        assertEq('size', 1, Object.keys(items).length);
+
+        //
+        msg = testBlock( "Clima changes + Meinung -> messages with Meinung");
+
+        items = lookupById( getFilteredData(mockData, "/clima/changes", "."));
+        assertExists(msg + "(direct)", items["/clima/changes/biz"]);
+        assertEq('size', 1, Object.keys(items).length);
+
+
+    }
+
+
+
+
+
     document.addEventListener("DOMContentLoaded", function () {
 
         // choose tenant and topic
@@ -343,7 +917,7 @@
         const urlParams = new URLSearchParams(window.location.search);
 
         // Retrieve the tenantId parameter or default to "tst" if not provided
-        const tenantId = urlParams.get('tenantId') || urlParams.get('tid') || 'tst';
+        tenantId = urlParams.get('tenantId') || urlParams.get('tid') || 'tst';
         // Validate tenantId (alphanumeric, underscores, hyphens, max length 30)
         if (!/^[a-zA-Z0-9_-]+$/.test(tenantId) || tenantId.length > 30) {
             console.error("Invalid tenant ID.");
@@ -371,44 +945,6 @@
 
         showQRCode(tenantId);
 
-        const tableBody = document.querySelector("#browse tbody");
-        const topicFilter = document.getElementById("topicFilter");
-        const typeFilter = document.getElementById("typeFilter");
-        const textFilter = document.getElementById("textFilter");
-        let data = []; // Store the retrieved data
-        let topicMap = {}; // Map of topicId to topic name
-        let selectedTopic = "/";
-        // init
-        textFilter.value = ""; // reset text filter
-        typeFilter.value = "all"; // reset type filter
-
-
-        function formatTimestamp(timestamp) {
-            const [datePart, timePart] = timestamp.split(" ");
-            const [day, month, year] = datePart.split("/").map(Number);
-            const [hours, minutes, seconds] = timePart.split(":").map(Number);
-            // Create a Date object
-            const date = new Date(year, month - 1, day, hours, minutes, seconds);
-
-            if (isNaN(date.getTime())) {
-                return "";
-            }
-            const now = new Date();
-
-            // Check if the date is today
-            const isToday = date.toDateString() === now.toDateString();
-
-            if (isToday) {
-                // Format as hour:minute (e.g., 14:30)
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } else if (date.getFullYear() === now.getFullYear()) {
-                // If the year matches the current year, format as "Month Day" (e.g., "October 1")
-                return date.toLocaleDateString([], { month: 'long', day: 'numeric' });
-            } else {
-                // If the year is different, format as just the year (e.g., "2022")
-                return date.getFullYear().toString();
-            }
-        }
 
         // Function to fetch and display CSV data
         async function loadCsvData() {
@@ -471,299 +1007,7 @@
             }
         }
 
-        function checkData() {
-            // ensure topic ends with ">", and topics must have children
-            // collect all topics
-            const topicsWithChildren = new Set(data.map(row => row.topic));
-            // if datas topic+nodeId is in topicsWithChildren, then append ">" to topic, else remove ">" if exists
-            data = data.map(row => {
-                if (topicsWithChildren.has(row.topic + ("/" == row.topic ? "" : "/") + row.nodeId)) {
-                    if (!row.message.endsWith(">")) {
-                        row.message += " >";
-                    }
-                } else {
-                    if (row.message.endsWith(">")) {
-                        row.message = row.message.slice(0, -1).trim();
-                    }
-                }
-                return row;
-            });
-            // root topic is "/"
-            data = data.map(row => {
-                if (row.topic === "") {
-                    row.topic = "/";
-                }
-                return row;
-            });
-
-        }
-
-        function initializeTopicMap() {
-            var mapTopicIdToRow = [];
-            data.forEach((row) => {
-                const topicId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
-                if (row.message.endsWith(">")) {
-                    mapTopicIdToRow[topicId] = row;
-                }
-                if (!topicMap[topicId]) {
-                    topicMap[topicId] = row.message;
-                }
-            });
-            // add full paths to topicMap
-            // iterate over mapTopicIdToRow
-            Object.keys(mapTopicIdToRow).forEach((topicId) => {
-                const parts = topicId.split("/");
-                const path = parts.map((part) => topicMap[part] || part).join(" > ");
-                // add path to mapTopicIdToRow row
-                mapTopicIdToRow[topicId].path = path;
-            });
-            console.log("Topic Map mapTopicIdToRow:", mapTopicIdToRow);
-        }
-
-        // Populate filter dropdown with unique topics
-        function populateFilterOptions() {
-            const topics = [...new Set(data
-                    .filter(row => row.message.endsWith(">"))
-                    .map((row) => ({topicId: row.topic + ("/" == row.topic ? "" : "/") + row.nodeId, name: row.message}) ))];
-            // expand paths to include parent topics
-
-            topics.forEach((topic) => {
-                const option = document.createElement("option");
-                option.value = topic.topicId;
-                option.textContent = topic.name;
-                topicFilter.appendChild(option);
-            });
-        }
-
-        // Display data in the table
-        function displayData(filteredData) {
-           tableBody.innerHTML = "";
-
-           // Add a link to the parent topic
-            if (topicFilter.value !== "/") {
-                console.log("Adding parent topic link");
-                console.log("Current topic:", topicFilter.value);
-                console.log("Parent topic:", topicFilter.value.split("/").slice(0, -1).join("/") );
-                let parentTopic = topicFilter.value.split("/").slice(0, -1).join("/") ;
-                if ("" == parentTopic){
-                    parentTopic="/";
-                }
-                const parentRow = document.createElement("tr");
-                parentRow.innerHTML = `
-                    <td colspan="4" style="text-align: left;">
-                        <a href="#" class="parent-topic-link" data-topic="${parentTopic}">
-                        <i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>zurück
-                        </a>
-                    </td>
-                `;
-                tableBody.appendChild(parentRow);
-            }
-
-            if (filteredData.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Keine Daten - hilf uns Sie zu ergänzen!</td></tr>`;
-                return;
-            }
-            filteredData.forEach((row) => {
-                const tr = document.createElement("tr");
-                const fullNodeId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
-                let messageContent = row.message;
-                if (row.message.endsWith(">")) {
-                    messageContent = `<a href="#" class="topic-link" data-topic="${fullNodeId}">${topicMap[fullNodeId] || row.message}</a>`;
-                }
-                tr.innerHTML = `
-                    <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
-                    <td>${messageContent}</td>
-                    <td>${row.votes >0 ? row.votes : ""}</td>
-                    <td>${row.timestamp.replace(" ","&nbsp;")}</td>
-                `;
-                tableBody.appendChild(tr);
-            });
-
-            // Add click event for topic links
-            document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
-                link.addEventListener("click", (event) => {
-                    console.log("Topic link clicked");
-                    event.preventDefault();
-                    selectedTopic = event.target.dataset.topic;
-                    console.log("Topic link clicked: '" + selectedTopic+"'");
-                    topicFilter.value = selectedTopic; // run updates ..
-                    updateFilteredData();
-                });
-            });
-
-        }
-
-        function updateFilteredData() {
-            console.log("updateFilteredData: Updating filtered data...");
-            console.log(data);
-            let selectedTopic = topicFilter.value;
-            if (selectedTopic === "") {
-                selectedTopic = "/";
-                topicFilter.value = selectedTopic;
-            }
-            const selectedType = typeFilter.value;
-            const textFilterValue = textFilter.value || "";
-            displayData(getFilteredData(data,  selectedTopic, selectedType, textFilterValue));
-            console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType + "')");
-        }
-
-        //
-        //  selectedTopic:  "/clima" -> focus on topic (and its children to search in)
-        //  selectedType:   "."      -> filter by type (search in topic and its children)
-        //  returns filtered data    -> topic direct entries and
-        //                              entries leading to children with that type
-        //
-        function getFilteredData(data, selectedTopic, selectedType, textFilterValue="") {
-            console.log("Filtering by  " + selectedTopic + " and type '" + selectedType
-                + "' and text '" + textFilterValue + "'");
-            let filteredData = [];
-            if ("IGNORE" === selectedTopic){
-                // treat all entries as in relevant topic ... or put it different: ignore topics ...
-                filteredData = data;
-            } else {
-                filteredData = data.filter((row) => row.topic === selectedTopic );
-            }
-            console.log(filteredData);
-            if ("all" !== selectedType || textFilterValue.trim() !== "") {
-                // keep only if at least one (grand)*child with that type exists
-                filteredData = filteredData.filter((row) => {
-                    return ((selectedType === "all" || row.message.endsWith(selectedType))
-                            && (textFilterValue.trim() === "" || row.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
-                        )
-                        || /* or if child is matching */
-                        ( "IGNORE" !== selectedTopic
-                            &&
-                                data.some((childRow) =>
-                                    childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
-                                    && (selectedType === "all" ||  childRow.message.endsWith(selectedType))
-                                    && (textFilterValue.trim() === "" || childRow.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
-                       )
-                    );
-                });
-                //filteredData = filteredData2; // KLUDGE - does not work as expected ..
-                console.log(filteredData);
-            }
-            return filteredData;
-        }
-
-        /*
-            test
-        */
-
-
-        function assertExists(m,e){
-            const e_ = typeof e === "object" ? JSON.stringify(e) : e;
-            if (!e){
-                console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got none");
-            } else {
-                console.log("ASSERTION PASSED in test #"+m+": '"+e_+"' exists");
-            }
-        }
-
-        function assertEq(m,e,i){
-            const e_ = typeof e === "object" ? JSON.stringify(e) : e;
-            const i_ = typeof i === "object" ? JSON.stringify(i) : i;
-            if (e!==i){
-                console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got '"+i_+"'");
-            } else {
-                console.log("ASSERTION PASSED in test #"+m+": '"+e_+"'");
-            }
-        }
-
-        function testBlock(msg){
-            console.log("---- TEST BLOCK: "+msg+" ----");
-            return msg;
-        }
-
-        function lookupById(filteredData){
-            let lookup = {};
-            filteredData.forEach((row) => {
-                const key = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
-                lookup[key] = row;
-            });
-            return lookup;
-        }
-
-        function test() {
-            mockData =  [];
-
-            function addMockRow(topic, nodeId, message){
-                mockData.push( { topic: topic, nodeId: nodeId, message: message, votes: "0", timestamp: "2023-10-01 12:00:00" } );
-            }
-
-            addMockRow("/",               "war",      "War >");
-            addMockRow("/",               "migration","Migration >");
-            addMockRow("/migration",      "eu",       "Migration in EU is complex.");
-            addMockRow("/",               "clima",    "Clima >");
-            addMockRow("/clima",          "changes",  "Clima changes >");
-            addMockRow("/clima/changes",  "real",     "Climate change is real!");
-            addMockRow("/clima/changes",  "biz",      "Climate discussion kills business.");
-            addMockRow("/",               "support",  "Support us!");
-
-            //
-            // by topic
-            //
-
-            let msg = testBlock( "Root + ALL -> all Topics");
-
-            let filteredData = getFilteredData( mockData, "/", "all");
-            console.debug(filteredData);
-            let items = lookupById( filteredData );
-            assertExists(msg, items["/war"]);
-            assertExists(msg, items["/migration"]);
-            assertExists(msg, items["/clima"]);
-            assertExists(msg, items["/support"]);
-            assertEq('size', 4, Object.keys(items).length);
-            console.debug(items);
-
-            msg = testBlock( "War + ALL -> none (no children)");
-
-            items = lookupById(getFilteredData(mockData, "/war", "all"));
-            assertEq('size', Object.keys(items).length, 0);
-
-            msg = testBlock( "Migration + ALL -> clima topic with 1 child topic");
-
-            items = lookupById(getFilteredData(mockData, "/clima", "all"));
-            assertExists(msg, items["/clima/changes"]);
-            assertEq('size', 1, Object.keys(items).length);
-
-            msg = testBlock( "Migration + ALL -> clima topic with 2 child messages");
-
-            items = lookupById( getFilteredData(mockData, "/clima/changes", "all"));
-            assertExists(msg, items["/clima/changes/real"]);
-            assertExists(msg, items["/clima/changes/biz"]);
-            assertEq('size', 2, Object.keys(items).length);
-
-            //
-            // by topic and type
-            //   - topics with message of type (maybe in nested topics)
-            //
-
-            msg = testBlock( "All + Meinung -> only topics with Meinung messages");
-
-            items = lookupById( getFilteredData(mockData, "/", "."));
-            assertExists(msg + "(direct)", items["/migration"]);
-            assertExists(msg + "(nested)", items["/clima"]);
-            assertEq('size', 2, Object.keys(items).length);
-
-            //
-            msg = testBlock( "Clima + Meinung -> only topics with Meinung messages");
-
-            items = lookupById( getFilteredData(mockData, "/clima", "."));
-            assertExists(msg + "(topic and nested)", items["/clima/changes"]);
-            assertEq('size', 1, Object.keys(items).length);
-
-            //
-            msg = testBlock( "Clima changes + Meinung -> messages with Meinung");
-
-            items = lookupById( getFilteredData(mockData, "/clima/changes", "."));
-            assertExists(msg + "(direct)", items["/clima/changes/biz"]);
-            assertEq('size', 1, Object.keys(items).length);
-
-
-        }
-
-        test();
+        //test();
 
         /*
             events ...
@@ -779,7 +1023,15 @@
         });
 
         typeFilter.addEventListener("change", () => {
-            console.log("Type filter changed");
+            const selectedType = typeFilter.value;
+            console.log("Type filter changed to '" + selectedType + "'");
+
+            sendButtons.forEach((button) => {
+                const buttonType = button.getAttribute("data-type");
+                button.disabled = selectedType !== "all" && buttonType !== selectedType;
+                button.style.opacity = button.disabled ? "0.25" : "1"; // Optional: Dim disabled buttons
+            });
+
             updateFilteredData();
         });
 
@@ -787,9 +1039,6 @@
             console.log("Text filter changed");
             updateFilteredData();
         });
-
-        const toggleButton = document.getElementById("toggleTypeFilter");
-        const typeFilterContainer = document.getElementById("typeFilterContainer");
 
         toggleButton.addEventListener("click", () => {
             textFilter.value = ""; // reset text filter
@@ -815,25 +1064,12 @@
 
         // Load data on page load
         loadCsvData();
-    });
 
-    //
-    //   -- cinema slogans animation (optional,deutsch) --
-    //
 
-    const slogans = [
-        "Welcome to fayf.info - Cultivating Knowledge.",
-        "Welcome to fayf.info - 'Fakt' on time.",
-        "Welcome to fayf.info - 'Fakt' everywhere.",
-        "Fakt Farming - Fakten pflegen, als wäre es Wissen.",
-        "Widersprüche sind für alle widersprüchlich.",
-        "Fakt Farming macht Wissen leicht zugänglich.",
-        "Der Nutri-Score für Fakten.",
-        "Fakt Farming - deine Quelle für Gegenfragen.",
-        "Differenzierte Sicht - ganz persönlich, für dich."
-    ];
+    /*
+        Cinema slogans
+    */
 
-    document.addEventListener("DOMContentLoaded", function () {
 
         const sloganContainer = document.getElementById("cinema-slogans");
         let index = 0;
@@ -846,14 +1082,15 @@
         // Initialize and start the interval
         updateSlogan();
         setInterval(updateSlogan, 3000); // Change slogan every 3 seconds
-    });
+        // Trigger the filter logic on page load to ensure buttons are in the correct state
+        console.log("Initial type filter dispatch");
+        typeFilter.dispatchEvent(new Event("change"));
 
 
     //
     // title in nav bar
     //
 
-    document.addEventListener("DOMContentLoaded", function () {
         const header = document.querySelector("header");
         const headerBottom = header.getBoundingClientRect().bottom;
         const navProjectTitle = document.querySelector(".project-title");
@@ -889,6 +1126,31 @@
 
             lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; // For mobile or negative scrolling
         });
+
+
+        /*
+           Edit Button - only visible on hover or focus
+        */
+        const tableRows = document.querySelectorAll("tbody tr");
+
+        tableRows.forEach((row) => {
+            row.addEventListener("click", () => {
+                // Hide all other edit buttons
+                document.querySelectorAll(".edit-button").forEach((btn) => {
+                    btn.style.visibility = "hidden";
+                });
+
+                // Show the edit button for the clicked row
+                const editButton = row.querySelector(".edit-button");
+                if (editButton) {
+                    editButton.style.visibility = "visible";
+                }
+            });
+        });
+
+
+
+
     });
 
     /*
@@ -911,4 +1173,102 @@
         document.getElementById("qr-code-section").style.display = "block";
 
     }
+
+    /*
+        -- Edit-Section Toggle (optional) --
+    */
+
+        const addEditSection = document.getElementById("add-edit-section");
+        const toggleEditSection = true; // set to false to hide the section
+
+        if (toggleEditSection) {
+            addEditSection.style.display = "block";
+        } else {
+            addEditSection.style.display = "none";
+        }
+
+        // Handle send button clicks
+        document.querySelectorAll(".send-button").forEach((button) => {
+            button.addEventListener("click", () => {
+                const topic = document.getElementById("topicFilter").value;
+                const message = document.getElementById("entryMessage").value.trim();
+                const type = button.getAttribute("data-type");
+
+                // type must match one of the type filter options
+                if (typeFilter.value !== "all" && typeFilter.value !== type) {
+                    showToast("Selected type does not match filter type. Please adjust the type filter or select a different type.", "error");
+                    return;
+                }
+
+                if (topic === "/" || topic === "" || topic === null || topic == "all" ) {
+                    showToast("Cannot add entry to root topic. Please select a specific topic.");
+                    return;
+                }
+                if (topic.startsWith("/_/")) {
+                    showToast("Cannot add entry to hidden topics. Please select a different topic.");
+                    return;
+                }
+                if (message === "") {
+                    showToast("Message cannot be empty.");
+                    return;
+                }
+
+                // send entry/add?sid=www&tid={tenantId}&topic={topic}&data={message}{type}
+                // generate nodeId as timestamp + random
+                const nodeId = Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
+                const entry = topic + " | " + nodeId + " | " + message + type;
+                addData(topic, nodeId, message + type, "0", new Date().toLocaleDateString("de-DE") + " " + new Date().toLocaleTimeString("de-DE"));
+                const sendUrl = `entry/add?sid=www&tid=${encodeURIComponent(tenantId)}&entry=${encodeURIComponent(entry)}`;
+                fetch(sendUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                    .then(data => {
+                        showToast("Entry submitted successfully!");
+                    })
+                    .catch(error => {
+                        console.error("Error submitting entry:", error);
+                        showToast("Failed to submit entry.");
+                    });
+
+                // Clear the form
+                document.getElementById("addEditForm").reset();
+            });
+        });
+
+    /*
+            SHOW TOAST MESSAGES
+    */
+    function showToast(message, type = "info", duration = 3000) {
+        const toastContainer = document.getElementById("toast-container");
+
+        // Create the toast element
+        const toast = document.createElement("div");
+        toast.textContent = message;
+        toast.className = `toast toast-${type}`;
+        toast.style.cssText = `
+            background-color: ${type === "success" ? "#4CAF50" : type === "error" ? "#f44336" : "#333"};
+            color: white;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            animation: fadeInOut ${duration / 1000}s ease-in-out;
+        `;
+
+        // Append the toast to the container
+        toastContainer.appendChild(toast);
+
+        // Remove the toast after the specified duration
+        setTimeout(() => {
+            toastContainer.removeChild(toast);
+        }, duration);
+    }
+
+    // init
+
+
 </script>

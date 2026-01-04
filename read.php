@@ -40,6 +40,8 @@ $cacheOutdated = $cacheOutdatedFile
 // return csv if format is not txt
 if ($format === 'txt' || $format === 'txt.0.2') {
     header('Content-Type: text/plain');
+} else if ($format === 'json.0.3') {
+    header('Content-Type: application/json');
 } else {
 
     // Proxy script to fetch and serve Google Sheet content with caching
@@ -53,7 +55,7 @@ if ($format === 'txt' || $format === 'txt.0.2') {
 if (file_exists($cacheFile)
             && (time() - filemtime($cacheFile)) < $cacheTime
             && !$cacheOutdated
-            && $format !== 'txt.0.2'
+            && $format !== 'txt.0.2' && $format !== 'json.0.3'
             && $last_timestamp === '' // no timestamp filtering
         ) {
     // serve the cached file
@@ -65,7 +67,8 @@ if (file_exists($cacheFile)
 
 // if ts-mode, check last modified time of org file - wait 1 minute for the file to change
 // add 2 seconds to let file write finish
-if ($last_timestamp !== '' && file_exists($googleSheetUrl) && $format !== 'txt.0.2' && $format !== 'txt') {
+if ($last_timestamp !== '' && file_exists($googleSheetUrl)
+        && $format !== 'txt.0.2' && $format !== 'txt' && $format !== 'json.0.3') {
     // last_timestamp == time of last read
     // a) already changed - if file modification time is new then last_timestamp
     // b) no changed yet - wait until max 50 seconds for file to change
@@ -363,6 +366,65 @@ if ($response === false) {
         sort($newLines);
         $response = implode("\n", $newLines);
         log_warn("Converted csv to txt.0.2 format with " . count($newLines) . " lines");
+    }
+
+    if ($format == "json.0.3"){
+        // convert csv to json v0.3
+        // target: { "<path>": { "nodeId": { "timestamp": "<date>", "message": "<message>" } } }
+        // from  : <date>,<path> | <node> | <message> | <votes>
+        $lines = explode("\n", $response);
+        $lines_tmp = [];
+        $leftoverLine = "";
+        foreach($lines as $line) {
+            // check quotes for wrapped lines
+            $quoteCount = substr_count($line, '"');
+            if ($quoteCount % 2 != 0) {
+                // odd number of quotes, line is wrapped
+                $leftoverLine .= $line . "\\n"; // preserve newline in message
+            } else {
+                // even number of quotes, line is complete
+                $line = $leftoverLine . $line;
+                $leftoverLine = "";
+                if (strpos($line, 'Timestamp,') !== 0) {
+                    // ensure 1 lines by replacing inner newlines with \n
+                    $line = str_replace("\n", "\\n", $line);
+                    $line = str_replace("\r", "", $line);
+                    $lines_tmp[] = $line;
+                }
+            }
+        }
+        $jsonArray = [];
+        foreach($lines_tmp as $line) {
+            [$timestamp, $rest] = array_pad(explode(',', $line, 2), 2, '');
+            if ($timestamp === '' || $rest === '') {
+                log_warn("Skipping malformed line for json.0.3: $line");
+                continue;
+            }
+            // handle <ts>,"/path | node | message | votes
+            $rest = trim($rest, '"');
+            [$path, $node, $message, $votes] = array_pad(explode(' | ', $rest, 4), 4, '');
+            $message = trim($message, '"'); // remove quotes around message
+            $path = preg_replace('#/+#','/',$path); // fix multiple "/"
+            if (trim($node) !== '' && trim($message) !== '') {
+                if (!isset($jsonArray[$path])) {
+                    $jsonArray[$path] = [];
+                }
+                $jsonArray[$path][$node] = [
+                    "timestamp" => $timestamp,
+                    "message" => str_replace("\\n", "\n", $message) // restore newlines
+                ];
+                // add votes if present
+                if (trim($votes) !== '') {
+                    $jsonArray[$path][$node]["votes"] = intval($votes);
+                }
+            } else {
+                log_warn("Skipping malformed line for json.0.3: $line");
+            }
+        }
+
+        // output json
+        $response = json_encode($jsonArray, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        log_warn("Converted csv to json.0.3 format with " . count($jsonArray) . " entries");
     }
 
     // Output the content
