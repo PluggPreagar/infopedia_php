@@ -61,6 +61,21 @@
             padding-bottom: 0.5rem;
         }
 
+        .new-row-highlight {
+            background-color: #d4edda; /* Light green background */
+            animation: fadeOut 3s forwards;
+        }
+
+        @keyframes fadeOut {
+            0% {
+                background-color: #d4edda;
+            }
+            100% {
+                background-color: transparent;
+            }
+        }
+
+
         /* Hide edit icon by default */
         .edit-button {
             visibility: hidden;
@@ -165,6 +180,8 @@
         button#toggleTypeFilter:hover {
             background-color: none;
         }
+
+
 
         .textInput {
             padding: 0.25rem 0.25rem;
@@ -384,7 +401,7 @@
         <p id="browse_comment">Explore the data collected by the Fakt Farming Project.</p>
         <div class="filter-container">
             <div class="filter-row">
-                <label for="topicFilter">Filter&nbsp;nach&nbsp;Thema:</label>
+                <label for="childRow.topic">Filter&nbsp;nach&nbsp;Thema:</label>
                 <select id="topicFilter">
                     <option value="/">alle Basis-Themen</option>
                 </select>
@@ -441,7 +458,7 @@
             </div>
         </form>
     </section>
-    <section id="utils-send-buttons" style="position: fixed; bottom: 5rem; right: 2rem; z-index: 1000;">
+    <section id="utils-send-buttons" style="">
         <!-- floating send button near input field -->
         <div id="send_buttons" style="display: none; justify-content: space-between; align-items: center;">
             <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
@@ -494,6 +511,7 @@
     let topicMap = {}; // Map of topicId to topic name
     let selectedTopic = "/";
     let latestTimestamp = null;
+    let latestDisplayTs = null;
 
     const tableBody = document.querySelector("#browse tbody");
     const topicFilter = document.getElementById("topicFilter");
@@ -561,11 +579,11 @@
     function splitKey(fullKey) {
         const lastSlashIndex = fullKey.lastIndexOf("/");
         if (lastSlashIndex === -1) {
-            return ["", fullKey];
+            return ["/", fullKey];
         } else {
             const topic = fullKey.substring(0, lastSlashIndex);
             const nodeId = fullKey.substring(lastSlashIndex + 1);
-            return [topic, nodeId];
+            return [topic || "/", nodeId];
         }
     }
 
@@ -651,9 +669,9 @@
             return [];
         }
         filteredData = filteredData.filter((row) =>
-                row.message.endsWith(">") || // allow topics in first filtering
-                (selectedType === "all" || row.message.startsWith(selectedType)) && // type filter
-                (textFilterValue === "" || row.message.toLowerCase().includes(textFilterValue.toLowerCase())) // text filter
+            row.message.endsWith(">") // allow topics in first filtering
+            || ((selectedType === "all" || row.message.endsWith(selectedType)) // type filter
+                 && (textFilterValue === "" || row.message.toLowerCase().includes(textFilterValue.toLowerCase()))) // text filter
             );
         console.log("After type/text filtering:");
         console.log(filteredData);
@@ -662,7 +680,8 @@
             filteredData = filteredData.filter((row) => // (no-topic) entry exists those topicId is a child of row (<parentTopic>/...)
                     !row.message.endsWith(">")
                     || filteredData.some((childRow) =>
-                        !childRow.message.endsWith(">") && childRow.topic.startsWith(row.topic + "/")
+                        !childRow.message.endsWith(">")
+                        && (childRow.topic + "/").startsWith( ("/" === row.topic ? "" : row.topic ) + "/" + row.nodeId + "/")
                     )
             );
             console.log("After removing topics without matching children:");
@@ -702,13 +721,18 @@
             // indent level based on slashes
             let indent = topic.split("/").length - 2;
             let indentStr = "                      ".substring(0, indent < 10 ? indent * 2 : 10);
-            topics.push({ topicId: topic, name: indentStr + (topicMap[topic] || topic)  });
+            if (topicMap[topic]){
+                topics.push({ topicId: topic, name: indentStr + (topicMap[topic] || topic)  });
+            } else {
+                console.warn("SKIPP - Topic name not found for topicId:", topic);
+            }
         });
         //
         topics.forEach((topic) => {
             const option = document.createElement("option");
             option.value = topic.topicId;
-            option.textContent = topic.name;
+            // allow indentation in option text
+            option.textContent = topic.name.replace(/ /g, "\u00A0");
             topicFilter.appendChild(option);
         });
     }
@@ -767,10 +791,29 @@
                     </td>
                 `;
                 tableBody.appendChild(tr);
+                //
+                // Check if the row is new (based on timestamp)
+                if (row.timestamp > latestDisplayTs) {
+                    highlightNewRow(tr);
+                }
             });
         } // filteredData.length > 0
         //
+        // Add click event for topic links
+        document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
+            link.addEventListener("click", (event) => {
+                console.log("Topic link clicked");
+                event.preventDefault();
+                selectedTopic = event.target.dataset.topic;
+                console.log("Topic link clicked: '" + selectedTopic+"'");
+                topicFilter.value = selectedTopic; // run updates ..
+                updateFilteredData();
+            });
+        });
+        //
         enableInlineEditing();
+        //
+        latestDisplayTs = latestTimestamp; // for display only
     }
 
 
@@ -841,9 +884,14 @@
                 console.info("No data loaded from URL:", url);
             } else {
                 //
+                let foundSelectedTopic = false;
+                //
                 Object.entries(dataLoaded).forEach(([topic, nodes]) => {
                     Object.entries(nodes).forEach(([nodeId, entry]) => {
                         addDataWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
+                        if (topic === selectedTopic) {
+                            foundSelectedTopic = true;
+                        }
                         // robust: if pattern YYYY-MM-DD HH:MM:SS
                         if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
                             if (!latestTimestamp || entry.timestamp > latestTimestamp) {
@@ -858,8 +906,14 @@
                     initializeTopicMap();
                     populateFilterOptions();
                 }
-                updateFilteredData();
-            }
+                // only display data for selected topic is changed
+                if (foundSelectedTopic) {
+                    updateFilteredData();
+                    showToast( "Topic updated (" + Object.keys(dataLoaded).length + " entries loaded)");
+                } else {
+                    showToast( "Data updated (" + Object.keys(dataLoaded).length + " entries)");
+                }
+            } // dataLoaded not empty
             //
         } catch (error) {
             console.error("Error loading data:", error);
@@ -903,6 +957,23 @@
             return date.getFullYear().toString();
         }
     }
+
+    /*
+        EFFECTS
+    */
+
+
+
+    function highlightNewRow(rowElement) {
+        // Add the highlight class
+        rowElement.classList.add("new-row-highlight");
+
+        // Remove the highlight class after 3 seconds
+        setTimeout(() => {
+            rowElement.classList.remove("new-row-highlight");
+        }, 3000);
+    }
+
 
 
 
@@ -966,91 +1037,21 @@
 
 
 
-    function sendButtonsInCell( targetCell, input ){
-        input.addEventListener("focus", () => {
-            const sendButton = document.createElement("button");
-            sendButton.textContent = "Send";
-            sendButton.style.marginLeft = "5px";
-            sendButton.style.cursor = "pointer";
-
-            targetCell.appendChild(sendButton);
-
-            sendButton.addEventListener("click", () => {
-                targetCell.textContent = input.value.trim();
-            });
-
-            input.addEventListener("blur", () => {
-                sendButton.remove(); // Remove button on blur
-            });
-        });
-    }
-
-    function sendButtonsNearCell( targetCell, input ){
-        input.addEventListener("focus", () => {
-            const sendButton = document.createElement("button");
-            sendButton.textContent = "Send";
-            sendButton.style.position = "absolute";
-            //sendButton.style.left = `${targetCell.offsetLeft + targetCell.offsetWidth}px`;
-            //sendButton.style.top = `${targetCell.offsetTop}px`;
-            const rect = targetCell.getBoundingClientRect();
-            sendButton.style.left = `${rect.right + 5 + window.scrollX}px`;
-            sendButton.style.top = `${rect.top + window.scrollY}px`;
-
-            document.body.appendChild(sendButton);
-
-            sendButton.addEventListener("click", () => {
-                targetCell.textContent = input.value.trim();
-                sendButton.remove();
-            });
-
-            input.addEventListener("blur", () => {
-                sendButton.remove();
-            });
-        });
-    }
-
-
-    function sendButtonsFloatingCell( targetCell, input ){
-        input.addEventListener("focus", () => {
-            const toolbar = document.createElement("div");
-            toolbar.style.position = "absolute";
-            //toolbar.style.left = `${targetCell.offsetLeft}px`;
-            //toolbar.style.top = `${targetCell.offsetTop + targetCell.offsetHeight}px`;
-            const rect = targetCell.getBoundingClientRect();
-            toolbar.style.left = `${rect.left + window.scrollX}px`;
-            toolbar.style.top = `${rect.bottom + 5 + window.scrollY}px`;
-            //
-            toolbar.style.background = "#f9f9f9";
-            toolbar.style.border = "1px solid #ccc";
-            toolbar.style.padding = "5px";
-
-            const sendButton = document.createElement("button");
-            sendButton.textContent = "Send";
-            toolbar.appendChild(sendButton);
-
-            document.body.appendChild(toolbar);
-
-            sendButton.addEventListener("click", () => {
-                targetCell.textContent = input.value.trim();
-                toolbar.remove();
-            });
-        });
-    }
-
 
     function sendButtonsFloatDiv( targetDiv, input ){
         const toolbar = document.getElementById("send_buttons");
-        input.addEventListener("focus", () => {
+        //input.addEventListener("focus", () => {
             toolbar.style.display = "flex";
             toolbar.style.position = "absolute";
             // blur background
-            toolbar.style.background = "rgba(255, 255, 255, 0.9)";
-            toolbar.style.padding = "0px 200px 50px 0px";
+            // toolbar.style.background = "rgba(255, 255, 255, 0.9)";
+            toolbar.style.background = "linear-gradient(to bottom, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%)";
+            toolbar.style.padding = "0px 400px 200px 0px";
             //
             const rect = targetDiv.getBoundingClientRect();
             toolbar.style.left = `${rect.left + window.scrollX}px`;
             toolbar.style.top = `${rect.bottom + 5 + window.scrollY}px`;
-        });
+        //});
         return toolbar;
     }
 
@@ -1069,18 +1070,6 @@
         });
 
 
-        // Add click event for topic links
-        document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
-            link.addEventListener("click", (event) => {
-                console.log("Topic link clicked");
-                event.preventDefault();
-                selectedTopic = event.target.dataset.topic;
-                console.log("Topic link clicked: '" + selectedTopic+"'");
-                topicFilter.value = selectedTopic; // run updates ..
-                updateFilteredData();
-            });
-        });
-
 
     function updateFilteredData() {
         console.log("updateFilteredData: Updating filtered data...");
@@ -1088,8 +1077,10 @@
         const selectedTopic = topicFilter.value; // "" == all topics, "/" == root topics
         const selectedType = typeFilter.value;
         const textFilterValue = textFilter.value || "";
-        displayData(getFilteredData(data,  selectedTopic, selectedType, textFilterValue));
-        console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType + "')");
+        const filteredData = getFilteredData(data, selectedTopic, selectedType, textFilterValue);
+        displayData(filteredData);
+        console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType
+            + "' -> " + Object.keys(filteredData).length + " of " + Object.keys(data).length + " entries)");
     }
 
 
@@ -1262,7 +1253,7 @@
 
         toggleButton.addEventListener("click", () => {
             textFilter.value = ""; // reset text filter
-            typeFilter.value = "all"; // reset type filter
+            typeFilter.value = "!"; // reset type filter
             const ignoreOption = topicFilter.querySelector('option[value="IGNORE"]');
             if (typeFilterContainer.style.display === "none") {
                 toggleButton.textContent = "Einfache Filter";
@@ -1280,6 +1271,7 @@
                     ignoreOption.remove();
                 }
             }
+            updateFilteredData();
         });
 
 
@@ -1462,7 +1454,7 @@
     */
     function showToast(message, type = "info", duration = 3000) {
         const toastContainer = document.getElementById("toast-container");
-
+        console.log("Showing toast message:", message);
         // Create the toast element
         const toast = document.createElement("div");
         toast.textContent = message;
@@ -1506,21 +1498,26 @@
 
     // init
 
-    // polling every 60 seconds
-    loadData(url);
-    setInterval(() => {
-        console.log("Polling data... (ts=" + latestTimestamp +")");
-        // use ts minus 20 seconds to avoid caching issues
-        // let ts = new Date().getTime() - 20000;
-        let pollUrl = url ;
-        if (url.endsWith(".json")) {
-            console.log("Local JSON file detected - inject ts in filename");
-            pollUrl = url.replace(".json", "_ts" + encodeURIComponent(latestTimestamp.replaceAll(/[^a-zA-Z0-9]/g, "")) + ".json");
-        } else {
-            pollUrl += "&ts=" + encodeURIComponent(latestTimestamp);
-        }
-        loadData(pollUrl);
-    }, 60000); // 60000 ms = 60 seconds
+    if (false) {
+        test();
+    } else {
+        // polling every 60 seconds
+        loadData(url);
+        setInterval(() => {
+            console.log("Polling data... (ts=" + latestTimestamp +")");
+            // use ts minus 20 seconds to avoid caching issues
+            // let ts = new Date().getTime() - 20000;
+            let pollUrl = url ;
+            if (url.endsWith(".json")) {
+                console.log("Local JSON file detected - inject ts in filename");
+                pollUrl = url.replace(".json", "_ts" + encodeURIComponent(latestTimestamp.replaceAll(/[^a-zA-Z0-9]/g, "")) + ".json");
+            } else {
+                pollUrl += "&ts=" + encodeURIComponent(latestTimestamp);
+            }
+            loadData(pollUrl);
+        }, 60000); // 60000 ms = 60 seconds
+    }
+
 
 
 </script>
