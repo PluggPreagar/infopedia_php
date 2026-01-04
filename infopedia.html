@@ -565,10 +565,19 @@
         let filteredData = [];
         if ("IGNORE" === selectedTopic){
             // treat all entries as in relevant topic ... or put it different: ignore topics ...
-            filteredData = data;
+            // flatten data
+            filteredData = [];
+            Object.keys(data).forEach((topic) => {
+                Object.keys(data[topic]).forEach((nodeId) => {
+                    const row = data[topic][nodeId];
+                    const fullPath = fullKey(topic, nodeId);
+                    filteredData.push( row);
+                });
+            });
         } else {
-            filteredData = data.filter((row) => row.topic === selectedTopic );
+            filteredData = Object.values(data[selectedTopic] || {});
         }
+        console.log("After topic filtering:");
         console.log(filteredData);
         //  data
         //      "/" ->  ---  Topic ---
@@ -584,32 +593,33 @@
         //      "/a/a3" ->  ---  Topic A3 ---
         //                ...
         //
-
-
-
-
-
-
-
-        if ("all" !== selectedType || textFilterValue.trim() !== "") {
-            // keep only if at least one (grand)*child with that type exists
-            filteredData = filteredData.filter((row) => {
-                return ((selectedType === "all" || row.message.endsWith(selectedType))
-                        && (textFilterValue.trim() === "" || row.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
+        filteredData = filteredData.filter((row) =>
+                row.message.endsWith(">") || // allow topics in first filtering
+                (selectedType === "all" || row.message.startsWith(selectedType)) && // type filter
+                (textFilterValue === "" || row.message.toLowerCase().includes(textFilterValue.toLowerCase())) // text filter
+            );
+        console.log("After type/text filtering:");
+        console.log(filteredData);
+        // remove topics w/o matching children - only if type or text filter is active
+        if (selectedType !== "all" || textFilterValue !== "") {
+            filteredData = filteredData.filter((row) => // (no-topic) entry exists those topicId is a child of row (<parentTopic>/...)
+                    !row.message.endsWith(">")
+                    ||  Object.values(filteredData).some((childRow) =>
+                        !childRow.message.endsWith(">") && childRow.topic.startsWith(row.topic + "/")
                     )
-                    || /* or if child is matching */
-                    ( "IGNORE" !== selectedTopic
-                        &&
-                            data.some((childRow) =>
-                                childRow.topic.startsWith(selectedTopic + ("/" == selectedTopic ? "" : "/") + row.nodeId)
-                                && (selectedType === "all" ||  childRow.message.endsWith(selectedType))
-                                && (textFilterValue.trim() === "" || childRow.message.toLowerCase().includes(textFilterValue.trim().toLowerCase()))
-                   )
-                );
-            });
-            //filteredData = filteredData2; // KLUDGE - does not work as expected ..
+            );
+            console.log("After removing topics without matching children:");
             console.log(filteredData);
         }
+        // hard filter topics
+        if (selectedTopic !== "") {
+            filteredData = filteredData.filter((row) =>
+                row.topic === selectedTopic
+            );
+            console.log("After hard filtering topics:");
+            console.log(filteredData);
+        }
+
         return filteredData;
     }
 
@@ -633,7 +643,7 @@
             // indent level based on slashes
             let indent = topic.split("/").length - 2;
             let indentStr = "                      ".substring(0, indent < 10 ? indent * 2 : 10);
-            topics.push({ topicId: topic, name: indentStr . (topicMap[topic] || topic)  });
+            topics.push({ topicId: topic, name: indentStr + (topicMap[topic] || topic)  });
         });
         //
         topics.forEach((topic) => {
@@ -702,6 +712,40 @@
         } // filteredData.length > 0
         //
     }
+
+
+    /*
+        IO -
+
+    */
+
+
+    // Function to fetch and display CSV data
+    async function loadCsvData() {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const csvText = await response.text();
+            const rows = csvText.trim().split("\n");
+
+            // Clear existing rows
+            tableBody.innerHTML = "";
+
+
+            checkData();
+            initializeTopicMap();
+            populateFilterOptions();
+            updateFilteredData();
+
+        } catch (error) {
+            console.error("Error loading CSV data:", error);
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
+        }
+    }
+
+
 
 
 
@@ -907,6 +951,9 @@
     }
 
 
+    test();
+
+
 
 
 
@@ -946,66 +993,6 @@
         showQRCode(tenantId);
 
 
-        // Function to fetch and display CSV data
-        async function loadCsvData() {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const csvText = await response.text();
-                const rows = csvText.trim().split("\n");
-
-                // Clear existing rows
-                tableBody.innerHTML = "";
-                line_left = "";
-                // Parse and populate rows
-                rows.forEach((row, index) => {
-                    // header / empty -- skip
-                    if (row.startsWith("Timestamp") && index === 0) return; // Skip header row
-                    if (row.trim() === "") return; // Skip empty rows
-                    countQuotes = (row.match(/"/g) || []).length;
-                    // multi line -- Handle multi-line fields
-                    if (countQuotes % 2 !== 0) {
-                        line_left += row + "\n";
-                        return;
-                    }
-                    row = line_left + row;
-                    line_left = "";
-                    // quotes -- remove last character if it is a quote
-                    if (row.endsWith('"')) {
-                        // remove starting quote (after timestamp and comma)
-                        row = row.replace(/,"/, ",");
-                        row = row.slice(0, -1);
-                    }
-                    // delimiter -- tricky: replace only first comma (between timestamp and data) with internal delimiter " | "
-                    row = row.replace(/,/, " | ");
-                    //
-                    const columns = row.split(/ \| /);
-                    // hidden topics -- skipp hidden topics - starting with "/_/"
-                    if (columns[1].startsWith("/_/")) {
-                        return;
-                    }
-                    data.push({
-                        timestamp: formatTimestamp(columns[0]),
-                        topic: columns[1], // TODO use topicId to get topic name
-                        nodeId: columns[2],
-                        message: columns[3],
-                        votes: columns[4] ? columns[4] : "0"
-                    });
-                });
-
-                typeFilter.value = "!"; // default to facts
-                checkData();
-                initializeTopicMap();
-                populateFilterOptions();
-                updateFilteredData();
-
-            } catch (error) {
-                console.error("Error loading CSV data:", error);
-                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
-            }
-        }
 
         //test();
 

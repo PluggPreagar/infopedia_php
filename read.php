@@ -405,6 +405,10 @@ if ($response === false) {
             [$path, $node, $message, $votes] = array_pad(explode(' | ', $rest, 4), 4, '');
             $message = trim($message, '"'); // remove quotes around message
             $path = preg_replace('#/+#','/',$path); // fix multiple "/"
+            // empty path -> "/"
+            if (trim($path) === '') {
+                $path = '/';
+            }
             if (trim($node) !== '' && trim($message) !== '') {
                 if (!isset($jsonArray[$path])) {
                     $jsonArray[$path] = [];
