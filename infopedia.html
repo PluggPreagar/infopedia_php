@@ -166,9 +166,8 @@
             background-color: none;
         }
 
-        #textFilter {
-            padding: 0.5rem 1rem;
-            font-size: 1rem;
+        .textInput {
+            padding: 0.25rem 0.25rem;
             border-color: #4CAF50;
             border-radius: 5px;
             background-color: #f9f9f9;
@@ -177,6 +176,12 @@
             cursor: pointer;
             width: 100%; /* Ensure it matches the width of the button */
             box-sizing: border-box; /* Include padding and border in the element's width */
+            font-size: 1rem;
+        }
+
+        #textFilter {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
         }
 
         #textFilter:hover {
@@ -260,7 +265,35 @@
             background-color: #FF9800;
         }
 
+        /* Floating Action Button (FAB) Styling */
+        #fab-add {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 3.5rem;
+            height: 3.5rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            z-index: 1000;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
 
+        #fab-add:hover {
+            background-color: #45a049;
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        #fab-add:focus {
+            outline: none;
+        }
 
         @media (max-width: 600px) {
             #cinema-slogans {
@@ -372,7 +405,7 @@
                 </div> <!-- filter-row  -->
                 <div class="filter-row" style="padding-top: 0.5rem;">
                     <label for="textFilter" style="display: none" >Search by Text:</label>
-                    <input type="text" id="textFilter" placeholder="Enter text to search...">
+                    <input type="text" id="textFilter" class="textInput" placeholder="Enter text to search...">
                 </div>
             </div>
         </div>
@@ -407,6 +440,20 @@
                 <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch-Aussage</button>
             </div>
         </form>
+    </section>
+    <section id="utils-send-buttons" style="position: fixed; bottom: 5rem; right: 2rem; z-index: 1000;">
+        <!-- floating send button near input field -->
+        <div id="send_buttons" style="display: none; justify-content: space-between; align-items: center;">
+            <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
+            <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
+            <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
+            <button type="button" class="send-button" data-type="!" style="background: #2196F3; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Fakt</button>
+            <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch-Aussage</button>
+        </div>
+        <!-- fab button to show/hide send buttons -->
+        <button id="fab-add" title="Add Data">
+            <i class="fas fa-plus"></i>
+        </button>
     </section>
     <section id="features">
         <h2>Key Features</h2>
@@ -446,6 +493,7 @@
     let data = {}; // Store the retrieved data
     let topicMap = {}; // Map of topicId to topic name
     let selectedTopic = "/";
+    let latestTimestamp = null;
 
     const tableBody = document.querySelector("#browse tbody");
     const topicFilter = document.getElementById("topicFilter");
@@ -480,10 +528,15 @@
         BASE DATA
     */
 
-
-    function addData(topic, nodeId, message, votes, timestamp) {
+    function addDataWoCheck(topic, nodeId, message, votes, timestamp) {
+        if (!topic || topic === "") {
+            topic = "/";
+        }
         if (!data[topic]) {
             data[topic] = {};
+        }
+        if (!timestamp) {
+            timestamp = formatTimestamp(new Date().toLocaleString("de-DE"));
         }
         data[topic][nodeId] = {
             topic: topic,           // allow to work on data - flat structure
@@ -492,6 +545,11 @@
             message: message,
             votes: votes
         };
+    }
+
+
+    function addData(topic, nodeId, message, votes, timestamp) {
+        addDataWoCheck(topic, nodeId, message, votes, timestamp);
         checkData(topic, nodeId, message);
         updateFilteredData(topic, nodeId, message);
     }
@@ -513,10 +571,11 @@
 
 
     function checkData(topic, nodeId, message) {
-        console.log("Checking data for topic:", topic, "nodeId:", nodeId, "message:", message);
+        // console.log("Checking data for topic:", topic, "nodeId:", nodeId, "message:", message);
         if (!topic) { // check all
+            console.log("Checking data for topic:", topic, "nodeId:", nodeId, "message:", message);
             if (data[""]) { // root key => "/"
-                data["/"] = data[""];
+                data["/"] = data[""]; // TODO merge ??
                 delete data[""];
             }
             // if topic has children only than append ">" to topic - message
@@ -563,20 +622,14 @@
         console.log("Filtering by  " + selectedTopic + " and type '" + selectedType
             + "' and text '" + textFilterValue + "'");
         let filteredData = [];
-        if ("IGNORE" === selectedTopic){
-            // treat all entries as in relevant topic ... or put it different: ignore topics ...
-            // flatten data
-            filteredData = [];
-            Object.keys(data).forEach((topic) => {
-                Object.keys(data[topic]).forEach((nodeId) => {
-                    const row = data[topic][nodeId];
-                    const fullPath = fullKey(topic, nodeId);
-                    filteredData.push( row);
-                });
+        // flatten data of topic and its children
+        Object.keys(data).filter( topic => selectedTopic === 'IGNORE' || topic.startsWith(selectedTopic) )
+            .forEach((topic) => {
+                Object.keys(data[topic])
+                    .forEach((nodeId) => {
+                        filteredData.push( data[topic][nodeId]);
             });
-        } else {
-            filteredData = Object.values(data[selectedTopic] || {});
-        }
+        });
         console.log("After topic filtering:");
         console.log(filteredData);
         //  data
@@ -593,6 +646,10 @@
         //      "/a/a3" ->  ---  Topic A3 ---
         //                ...
         //
+        if (!filteredData || filteredData.length === 0) {
+            console.log("No data after topic filtering.");
+            return [];
+        }
         filteredData = filteredData.filter((row) =>
                 row.message.endsWith(">") || // allow topics in first filtering
                 (selectedType === "all" || row.message.startsWith(selectedType)) && // type filter
@@ -604,7 +661,7 @@
         if (selectedType !== "all" || textFilterValue !== "") {
             filteredData = filteredData.filter((row) => // (no-topic) entry exists those topicId is a child of row (<parentTopic>/...)
                     !row.message.endsWith(">")
-                    ||  Object.values(filteredData).some((childRow) =>
+                    || filteredData.some((childRow) =>
                         !childRow.message.endsWith(">") && childRow.topic.startsWith(row.topic + "/")
                     )
             );
@@ -612,7 +669,9 @@
             console.log(filteredData);
         }
         // hard filter topics
-        if (selectedTopic !== "") {
+        if (selectedTopic === "IGNORE") {
+            console.log("Global Search - no topic filtering applied.");
+        } else if (selectedTopic !== "") {
             filteredData = filteredData.filter((row) =>
                 row.topic === selectedTopic
             );
@@ -711,6 +770,7 @@
             });
         } // filteredData.length > 0
         //
+        enableInlineEditing();
     }
 
 
@@ -720,32 +780,92 @@
     */
 
 
+    // choose tenant and topic
+    // Get the current URL's query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Retrieve the tenantId parameter or default to "tst" if not provided
+    tenantId = urlParams.get('tenantId') || urlParams.get('tid') || '';
+    // localhost fallback
+    if (tenantId === "" && window.location.hostname === "localhost") {
+        console.log("No tenantId provided, running on localhost - using default tenant 'tst'.");
+        tenantId = "tst"; // default tenant
+    }
+    // Validate tenantId (alphanumeric, underscores, hyphens, max length 30)
+    if (!/^[a-zA-Z0-9_-]+$/.test(tenantId) || tenantId.length > 30) {
+        console.error("Invalid tenant ID.");
+        tenantId = "tst"; // fallback to default
+    } else {
+        console.log("Valid tenant ID:", tenantId);
+        if  (tenantId !== 'tst') {
+            document.getElementById("browse_comment").innerText =
+                "Explore the data collected for tenant '" + tenantId + "'.";
+        }
+    }
+
+    let url = "entry/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
+    // for local testing, use local CSV file
+    // check if running from file://
+    if (window.location.protocol === "file:") {
+        url = "entries_local_"+ encodeURIComponent(tenantId) +".json";
+        console.log("Running from file://, using local CSV file( " + url + " )");
+    }
+    // if localhost, use local CSV file
+    if (window.location.hostname === "localhost") {
+        url = "entries_local_"+ encodeURIComponent(tenantId) +".json";
+        console.log("Running from localhost, using local CSV file( " + url + " )");
+    }
+
+
+
+
     // Function to fetch and display CSV data
-    async function loadCsvData() {
+    async function loadData(url) {
         try {
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const csvText = await response.text();
-            const rows = csvText.trim().split("\n");
-
-            // Clear existing rows
-            tableBody.innerHTML = "";
-
-
-            checkData();
-            initializeTopicMap();
-            populateFilterOptions();
-            updateFilteredData();
-
+            let jsonText = await response.text();
+            let dataLoaded = JSON.parse(jsonText);
+            // only first 20 entries for testing
+            if (false) {
+                dataLoaded = Object.fromEntries(
+                    Object.entries(dataLoaded).slice(0, 4)
+                );
+            }
+            //
+            console.log("Data loaded:", dataLoaded);
+            console.log("Latest timestamp:", latestTimestamp);
+            if (!dataLoaded || Object.keys(dataLoaded).length === 0) {
+                console.info("No data loaded from URL:", url);
+            } else {
+                //
+                Object.entries(dataLoaded).forEach(([topic, nodes]) => {
+                    Object.entries(nodes).forEach(([nodeId, entry]) => {
+                        addDataWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
+                        // robust: if pattern YYYY-MM-DD HH:MM:SS
+                        if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
+                            if (!latestTimestamp || entry.timestamp > latestTimestamp) {
+                                latestTimestamp = entry.timestamp;
+                            }
+                        }
+                    });
+                });
+                checkData();
+                // FIXME KLUDGE delta contains ts=
+                if (!url.includes("&ts=") || url.includes("entries_local_tst_ts")) {
+                    initializeTopicMap();
+                    populateFilterOptions();
+                }
+                updateFilteredData();
+            }
+            //
         } catch (error) {
-            console.error("Error loading CSV data:", error);
+            console.error("Error loading data:", error);
             tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
         }
     }
-
-
 
 
 
@@ -791,6 +911,148 @@
         TODO
 
     */
+
+    function enableInlineEditing() {
+        document.querySelectorAll("tbody tr").forEach((row) => {
+            let timer;
+
+            row.addEventListener("mousedown", (event) => {
+                timer = setTimeout(() => {
+                    const targetCell = event.target.closest("td");
+                    if (targetCell && !targetCell.querySelector("input")) {
+                        const originalText = targetCell.textContent.trim();
+                        const input = document.createElement("input");
+                        input.type = "text";
+                        input.value = originalText;
+                        input.style.width = "100%";
+                        input.classList.add("textInput");
+                        targetCell.textContent = ""; // Clear the cell content
+                        targetCell.appendChild(input);
+                        //sendButtonsInCell( targetCell, input );
+                        //sendButtonsNearCell( targetCell, input );
+                        //sendButtonsFloatingCell( targetCell, input );
+                        const toolbar = sendButtonsFloatDiv( targetCell, input );
+                        input.focus();
+
+                        // Save changes on Enter
+                        input.addEventListener("keydown", (e) => {
+                            if (e.key === "Enter") {
+                                targetCell.textContent = input.value.trim();
+                            } else if (e.key === "Escape") {
+                                targetCell.textContent = originalText; // Revert changes on Escape
+                            }
+                        });
+
+                        //
+                        input.addEventListener("blur", () => {
+                            setTimeout(() => {
+                                targetCell.textContent = input.value.trim();
+                                toolbar.style.display = "none";
+                            }, 1000); // slight delay to allow button click
+                        });
+                    }
+                }, 500); // Long press duration (500ms)
+            });
+
+            row.addEventListener("mouseup", () => {
+                clearTimeout(timer); // Cancel long press if mouse is released early
+            });
+
+            row.addEventListener("mouseleave", () => {
+                clearTimeout(timer); // Cancel long press if mouse leaves the row
+            });
+        });
+    }
+
+
+
+    function sendButtonsInCell( targetCell, input ){
+        input.addEventListener("focus", () => {
+            const sendButton = document.createElement("button");
+            sendButton.textContent = "Send";
+            sendButton.style.marginLeft = "5px";
+            sendButton.style.cursor = "pointer";
+
+            targetCell.appendChild(sendButton);
+
+            sendButton.addEventListener("click", () => {
+                targetCell.textContent = input.value.trim();
+            });
+
+            input.addEventListener("blur", () => {
+                sendButton.remove(); // Remove button on blur
+            });
+        });
+    }
+
+    function sendButtonsNearCell( targetCell, input ){
+        input.addEventListener("focus", () => {
+            const sendButton = document.createElement("button");
+            sendButton.textContent = "Send";
+            sendButton.style.position = "absolute";
+            //sendButton.style.left = `${targetCell.offsetLeft + targetCell.offsetWidth}px`;
+            //sendButton.style.top = `${targetCell.offsetTop}px`;
+            const rect = targetCell.getBoundingClientRect();
+            sendButton.style.left = `${rect.right + 5 + window.scrollX}px`;
+            sendButton.style.top = `${rect.top + window.scrollY}px`;
+
+            document.body.appendChild(sendButton);
+
+            sendButton.addEventListener("click", () => {
+                targetCell.textContent = input.value.trim();
+                sendButton.remove();
+            });
+
+            input.addEventListener("blur", () => {
+                sendButton.remove();
+            });
+        });
+    }
+
+
+    function sendButtonsFloatingCell( targetCell, input ){
+        input.addEventListener("focus", () => {
+            const toolbar = document.createElement("div");
+            toolbar.style.position = "absolute";
+            //toolbar.style.left = `${targetCell.offsetLeft}px`;
+            //toolbar.style.top = `${targetCell.offsetTop + targetCell.offsetHeight}px`;
+            const rect = targetCell.getBoundingClientRect();
+            toolbar.style.left = `${rect.left + window.scrollX}px`;
+            toolbar.style.top = `${rect.bottom + 5 + window.scrollY}px`;
+            //
+            toolbar.style.background = "#f9f9f9";
+            toolbar.style.border = "1px solid #ccc";
+            toolbar.style.padding = "5px";
+
+            const sendButton = document.createElement("button");
+            sendButton.textContent = "Send";
+            toolbar.appendChild(sendButton);
+
+            document.body.appendChild(toolbar);
+
+            sendButton.addEventListener("click", () => {
+                targetCell.textContent = input.value.trim();
+                toolbar.remove();
+            });
+        });
+    }
+
+
+    function sendButtonsFloatDiv( targetDiv, input ){
+        const toolbar = document.getElementById("send_buttons");
+        input.addEventListener("focus", () => {
+            toolbar.style.display = "flex";
+            toolbar.style.position = "absolute";
+            // blur background
+            toolbar.style.background = "rgba(255, 255, 255, 0.9)";
+            toolbar.style.padding = "0px 200px 50px 0px";
+            //
+            const rect = targetDiv.getBoundingClientRect();
+            toolbar.style.left = `${rect.left + window.scrollX}px`;
+            toolbar.style.top = `${rect.bottom + 5 + window.scrollY}px`;
+        });
+        return toolbar;
+    }
 
 
 
@@ -951,7 +1213,7 @@
     }
 
 
-    test();
+    // test();
 
 
 
@@ -959,36 +1221,7 @@
 
     document.addEventListener("DOMContentLoaded", function () {
 
-        // choose tenant and topic
-        // Get the current URL's query parameters
-        const urlParams = new URLSearchParams(window.location.search);
 
-        // Retrieve the tenantId parameter or default to "tst" if not provided
-        tenantId = urlParams.get('tenantId') || urlParams.get('tid') || 'tst';
-        // Validate tenantId (alphanumeric, underscores, hyphens, max length 30)
-        if (!/^[a-zA-Z0-9_-]+$/.test(tenantId) || tenantId.length > 30) {
-            console.error("Invalid tenant ID.");
-            tenantId = "tst"; // fallback to default
-        } else {
-            console.log("Valid tenant ID:", tenantId);
-            if  (tenantId !== 'tst') {
-                document.getElementById("browse_comment").innerText =
-                    "Explore the data collected for tenant '" + tenantId + "'.";
-            }
-        }
-
-        let url = "entry/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/";
-        // for local testing, use local CSV file
-        // check if running from file://
-        if (window.location.protocol === "file:") {
-            url = "entries_local_"+ encodeURIComponent(tenantId) +".csv";
-            console.log("Running from file://, using local CSV file( " + url + " )");
-        }
-        // if localhost, use local CSV file
-        if (window.location.hostname === "localhost") {
-            url = "entries_local_"+ encodeURIComponent(tenantId) +".csv";
-            console.log("Running from localhost, using local CSV file( " + url + " )");
-        }
 
         showQRCode(tenantId);
 
@@ -1048,9 +1281,6 @@
                 }
             }
         });
-
-        // Load data on page load
-        loadCsvData();
 
 
     /*
@@ -1166,7 +1396,7 @@
     */
 
         const addEditSection = document.getElementById("add-edit-section");
-        const toggleEditSection = true; // set to false to hide the section
+        const toggleEditSection = false; // set to false to hide the section
 
         if (toggleEditSection) {
             addEditSection.style.display = "block";
@@ -1180,6 +1410,7 @@
                 const topic = document.getElementById("topicFilter").value;
                 const message = document.getElementById("entryMessage").value.trim();
                 const type = button.getAttribute("data-type");
+                console.log("Send button clicked:", button, " for topic:", topic, " with type:", type);
 
                 // type must match one of the type filter options
                 if (typeFilter.value !== "all" && typeFilter.value !== type) {
@@ -1255,7 +1486,41 @@
         }, duration);
     }
 
+        // Add event listener to the FAB button
+    document.getElementById("fab-add").addEventListener("click", () => {
+        // Example: Open the add/edit section or trigger a function
+        const addEditSection = document.getElementById("add-edit-section");
+        if (addEditSection) {
+            addEditSection.style.display = "block"; // Show the add/edit section
+            // ensure the page scrolls to the add/edit section
+            addEditSection.scrollIntoView({ behavior: 'smooth' });
+            // Optionally, you can focus on the first input field
+            const firstInput = addEditSection.querySelector("input, textarea, select");
+            if (firstInput) {
+                firstInput.focus();
+            }
+        } else {
+            console.log("Add/Edit section not found. Implement your logic here.");
+        }
+    });
+
     // init
+
+    // polling every 60 seconds
+    loadData(url);
+    setInterval(() => {
+        console.log("Polling data... (ts=" + latestTimestamp +")");
+        // use ts minus 20 seconds to avoid caching issues
+        // let ts = new Date().getTime() - 20000;
+        let pollUrl = url ;
+        if (url.endsWith(".json")) {
+            console.log("Local JSON file detected - inject ts in filename");
+            pollUrl = url.replace(".json", "_ts" + encodeURIComponent(latestTimestamp.replaceAll(/[^a-zA-Z0-9]/g, "")) + ".json");
+        } else {
+            pollUrl += "&ts=" + encodeURIComponent(latestTimestamp);
+        }
+        loadData(pollUrl);
+    }, 60000); // 60000 ms = 60 seconds
 
 
 </script>

@@ -375,6 +375,10 @@ if ($response === false) {
         $lines = explode("\n", $response);
         $lines_tmp = [];
         $leftoverLine = "";
+        // repair
+        // - multiline
+        // - invalid timestamp
+        // - different date formats
         foreach($lines as $line) {
             // check quotes for wrapped lines
             $quoteCount = substr_count($line, '"');
@@ -389,6 +393,24 @@ if ($response === false) {
                     // ensure 1 lines by replacing inner newlines with \n
                     $line = str_replace("\n", "\\n", $line);
                     $line = str_replace("\r", "", $line);
+                    // extract timestamp and fix format if needed
+                    [$timestamp, $rest] = array_pad(explode(',', $line, 2), 2, '');
+                    // skipp malformed lines, or timestamp uses invalid char
+                    if ($timestamp === '' || $rest === '' || $timestamp =~ /[^\d\-\/ :]/) {
+                        log_warn("Skipping malformed line for json.0.3: $line");
+                        continue;
+                    }
+                    // fix timestamp if DD/MM/YYYY HH:MM:SS format - convert to YYYY-MM-DD HH:MM:SS
+                    if (preg_match('/^(\d{2})[-\/](\d{2})[-\/](\d{4}) (\d{2}):(\d{2}):(\d{2})$/', $timestamp, $matches)) {
+                        $timestamp = $matches[3] . '-' . $matches[2] . '-' . $matches[1] . ' ' . $matches[4] . ':' . $matches[5] . ':' . $matches[6];
+                        $line = $timestamp . ',' . $rest;
+                    }
+                    if (preg_match('/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/', $timestamp, $matches)) {
+                        if (intval($matches[2]) > 12) { // check if MM and DD are swapped
+                            $timestamp = $matches[1] . '-' . $matches[3] . '-' . $matches[2] . ' ' . $matches[4] . ':' . $matches[5] . ':' . $matches[6];
+                            $line = $timestamp . ',' . $rest;
+                        }
+                    }
                     $lines_tmp[] = $line;
                 }
             }
