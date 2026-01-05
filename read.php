@@ -395,8 +395,8 @@ if ($response === false) {
                     $line = str_replace("\r", "", $line);
                     // extract timestamp and fix format if needed
                     [$timestamp, $rest] = array_pad(explode(',', $line, 2), 2, '');
-                    // skipp malformed lines, or timestamp uses invalid char
-                    if ($timestamp === '' || $rest === '' || $timestamp =~ /[^\d\-\/ :]/) {
+                    // skipp malformed lines, or timestamp uses - only digits, spaces, :, -, /
+                    if ($timestamp === '' || $rest === '' || !preg_match('/^[0-9\s:\-\/]+$/', $timestamp)) {
                         log_warn("Skipping malformed line for json.0.3: $line");
                         continue;
                     }

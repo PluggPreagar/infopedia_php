@@ -458,20 +458,6 @@
             </div>
         </form>
     </section>
-    <section id="utils-send-buttons" style="">
-        <!-- floating send button near input field -->
-        <div id="send_buttons" style="display: none; justify-content: space-between; align-items: center;">
-            <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
-            <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
-            <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
-            <button type="button" class="send-button" data-type="!" style="background: #2196F3; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Fakt</button>
-            <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch-Aussage</button>
-        </div>
-        <!-- fab button to show/hide send buttons -->
-        <button id="fab-add" title="Add Data">
-            <i class="fas fa-plus"></i>
-        </button>
-    </section>
     <section id="features">
         <h2>Key Features</h2>
         <ul>
@@ -485,6 +471,34 @@
         <h2>Get in Touch</h2>
         <p>Haben Sie Fragen oder möchten Sie beitragen?
             Kontaktieren Sie uns unter <a href="mailto:info@fayf.info">info@fayf.info</a>.</p>
+    </section>
+    <section id="utils-send-buttons" style="">
+        <!-- Overlay Div -->
+        <div id="edit-overlay" style="display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000;">
+            <div id="edit-overlay-content" style="position: relative; width: 90%; max-width: 600px; margin: 5% auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);" >
+                <h2 style="margin-top: 0;">Edit Entry</h2>
+                <form id="edit-form">
+                    <textarea id="edit-message" name="message"
+                              style="width: 100%; box-sizing: border-box; min-height: 150px; resize: none; padding: 0.5rem; border: 1px solid #ccc; border-radius: 5px;"
+                              required>
+                    </textarea>
+                    <div style="display: flex; padding-top: 0.5rem; justify-content: space-between; align-items: center;">
+                        <button id="cancel-edit" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; color: #f44336; cursor: pointer;" onclick="closeEditOverlay();">&times;</button>
+                        <div id="send-buttons" style="display: flex; gap: 0.5rem;">
+                            <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
+                            <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
+                            <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
+                            <button type="button" class="send-button" data-type="!" style="background: #2196F3; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Fakt</button>
+                            <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch-Aussage</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- fab button to show/hide send buttons -->
+        <button id="fab-add" title="Add Data">
+            <i class="fas fa-plus"></i>
+        </button>
     </section>
     <section id="qr-code-section" style="display: none;">
         <h2>QR Code</h2>
@@ -983,7 +997,75 @@
 
     */
 
+    function openEditOverlay(message = "", topicId = "", nodeId = "") {
+        const overlay = document.getElementById("edit-overlay");
+        const messageInput = document.getElementById("edit-message");
+        const topicInput = document.getElementById("edit-topic-id");
+        const nodeInput = document.getElementById("edit-node-id");
+
+        messageInput.value = message; // Pre-fill the message if provided
+        // topicInput.value = topicId;   // Set the topicId
+        // nodeInput.value = nodeId;     // Set the nodeId
+
+        overlay.style.display = "block";
+    }
+
+    // Close the overlay
+    function closeEditOverlay() {
+        const overlay = document.getElementById("edit-overlay");
+        overlay.style.display = "none";
+    }
+
+
     function enableInlineEditing() {
+        document.querySelectorAll("tbody tr").forEach((row) => {
+            let timer;
+
+            row.addEventListener("mousedown", (event) => {
+                timer = setTimeout(() => {
+                    const targetCell = event.target.closest("td");
+                    if (targetCell) {
+                        const originalText = targetCell.textContent.trim();
+                        openEditOverlay(originalText, row.dataset.topic || "", row.dataset.nodeId || "" );
+
+                    }
+                }, 500); // Long press duration (500ms)
+            });
+
+            row.addEventListener("mouseup", () => {
+                clearTimeout(timer); // Cancel long press if mouse is released early
+            });
+
+            row.addEventListener("mouseleave", () => {
+                clearTimeout(timer); // Cancel long press if mouse leaves the row
+            });
+        });
+    }
+
+/*
+    // Adjust overlay size when the textarea is resized
+const textarea = document.getElementById("edit-message");
+const overlayContent = textarea.closest("div[style*='position: relative']");
+
+if (overlayContent) {
+    const observer = new MutationObserver(() => {
+        const textareaHeight = textarea.offsetHeight;
+        const textareaWidth = textarea.offsetWidth;
+
+        overlayContent.style.height = `${textareaHeight + 100}px`; // Add padding for other elements
+        overlayContent.style.width = `${textareaWidth + 50}px`; // Add padding for width
+    });
+
+    // Observe changes in the textarea's attributes (e.g., style changes)
+    observer.observe(textarea, { attributes: true, attributeFilter: ['style'] });
+}
+
+*/
+
+
+
+
+    function enableInlineEditing__() {
         document.querySelectorAll("tbody tr").forEach((row) => {
             let timer;
 
