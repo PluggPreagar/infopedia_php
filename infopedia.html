@@ -640,6 +640,12 @@
                     topicNode.message = topicNode.message.slice(0, -1).trim();
                 }
             }
+            // check parent topic - might have got children now
+            const [parentTopic, parentNodeId] = splitKey(topic);
+            if (parentTopic && parentNodeId && data[parentTopic] && data[parentTopic][parentNodeId]
+                    && !data[parentTopic][parentNodeId].message.endsWith(">")) {
+                checkData(parentTopic, parentNodeId, data[parentTopic][parentNodeId].message);
+            }
         }
     }
 
@@ -1647,16 +1653,16 @@ if (overlayContent) {
             this.errors = []; // Store errors
         }
 
-        check(condition, msg, msgFail = null) {
+        check(condition, msgOk, msgFail = null, msg = null) {
             if (this.stopOnError && this.errors.length > 0) {
                 return false; // Skip further checks if stopping on error - silently
             }
             if (condition) {
-                if (msg) {
+                if (msgOk) {
                     console.log(`OK : ${msg}`);
                 }
             } else {
-                const errorMsg = "FAIL: " + (msgFail || `CHECK FAILED (${msg})`);
+                const errorMsg = "FAIL: " + (msgFail || `CHECK FAILED (${msgOk})`) + (msg ? ` - ${msg}` : "");
                 console.error(errorMsg);
                 this.errors.push(errorMsg);
                 if (this.stopOnError) { // allow to check error manually
@@ -1667,10 +1673,10 @@ if (overlayContent) {
             return condition;
         }
 
-        set(selector, value) {
+        set(selector, value, msg = null) {
             this.chain = this.chain.then(() => {
                 const element = document.querySelector(selector);
-                if (this.check(element, `Set value of ${selector} to ${value}`, `Element not found: ${selector}`) ) {
+                if (this.check(element, `Set value of ${selector} to ${value}`, `Element not found: ${selector}`), msg ) {
                     element.value = value;
                     element.dispatchEvent(new Event("change")); // Trigger change event
                 }
@@ -1697,35 +1703,48 @@ if (overlayContent) {
             return true; // No parent has display: none
         }
 
-        isVisible(selector, expectedText = null) {
+        getElementText(selector, text = null) {
+            const elements = document.querySelectorAll(selector);
+            for (const element of elements) {
+                if (text === null || element.textContent.includes(text)) {
+                    return element;
+                }
+            }
+            return null;
+        }
+
+        isVisible(selector, expectedText = null, msg = null) {
             this.chain = this.chain.then(() => {
-                const element = document.querySelector(selector);
+                const element = this.getElementText(selector, expectedText);
                 if ( this.check( element && this.isElementVisible(element)
                         , null
-                        , `Element ${selector} is not visible`) ) {
+                        , `Element ${selector} is not visible`)
+                        , msg ) {
                     this.check (!expectedText || element.textContent.includes(expectedText)
                         , `Element ${selector} is visible${expectedText ? ` and contains text: ${expectedText}` : ""}`
-                        , `Element ${selector} is visible but does not contain expected text: ${expectedText}`);
+                        , `Element ${selector} is visible but does not contain expected text: ${expectedText}`
+                        , msg);
                 }
             });
             return this;
         }
 
-        isNotVisible(selector) {
+        isNotVisible(selector, expectedText = null, msg = null) {
             this.chain = this.chain.then(() => {
-                const element = document.querySelector(selector);
+                const element = this.getElementText(selector, expectedText);
                 this.check( !element || this.isElementVisible(element) === false
                     , `Element ${selector} is not visible`
-                    , `Element ${selector} is visible`);
+                    , `Element ${selector} is visible`
+                    , msg);
             });
             return this;
         }
 
 
-        click(selector) {
+        click(selector, expectedText = null, msg = null) {
             this.chain = this.chain.then(() => {
-                const element = document.querySelector(selector);
-                if (this.check( element, `Click on ${selector}`, `Element not found: ${selector}` )) {
+                const element = this.getElementText(selector, expectedText);
+                if (this.check( element, `Click on ${selector}`, `Element not found: ${selector}` ), msg ) {
                     element.click();
                 }
             });
@@ -1805,6 +1824,7 @@ if (overlayContent) {
     addEntry("/", "corona", "CoronaTST >", 5, "2023-10-01 12:00:00");
     addEntry("/corona", "msg1", "Fakten zur Pandemie.", 3, "2023-10-01 12:05:00");
     addEntry("/corona", "msg2", "Maßnahmen sind übertrieben.?", 1, "2023-10-01 12:10:00");
+    addEntry("/corona", "msg3", "Impfungen helfen!", 4, "2023-10-01 12:15:00");
     updateFilteredData();
 
 
@@ -1823,8 +1843,8 @@ if (overlayContent) {
             .wait(500)
             .isVisible("#topicFilter", "alle Basis-Themen")
             .isNotVisible("#typeFilter", "Fakt")
-            .isVisible("td", "Bahn-TST")
-            .isVisible("td", "CoronaTST >")
+            .isVisible("td", "CoronaTST >", "has facts, should be visible")
+            .isNotVisible("td", "Bahn-TST", "Bahn has no facts, should be hidden")
             ;
     });
 
