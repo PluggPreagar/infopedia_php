@@ -535,11 +535,6 @@
     const toggleButton = document.getElementById("toggleTypeFilter");
     const typeFilterContainer = document.getElementById("typeFilterContainer");
 
-    // init
-    textFilter.value = ""; // reset text filter
-    typeFilter.value = "!"; // reset type filter
-
-
     //
     //   -- cinema slogans animation (optional,deutsch) --
     //
@@ -560,7 +555,23 @@
         BASE DATA
     */
 
-    function addDataWoCheck(topic, nodeId, message, votes, timestamp) {
+
+    function resetData(msg="") {
+        console.log("-----------    Resetting data. " + ( msg ? "( "+ msg + " )" : "" ) + "    -----------");
+        data = {};
+        topicMap = {};
+        tenantId = ""; // reset tenant
+        selectedTopic = "/";
+        latestTimestamp = null;
+        latestDisplayTs = null;
+        textFilter.value = ""; // reset text filter
+        typeFilter.value = "!"; // reset type filter
+    }
+
+    resetData("init");
+
+
+    function addEntryWoCheck(topic, nodeId, message, votes, timestamp) {
         if (!topic || topic === "") {
             topic = "/";
         }
@@ -580,8 +591,8 @@
     }
 
 
-    function addData(topic, nodeId, message, votes, timestamp) {
-        addDataWoCheck(topic, nodeId, message, votes, timestamp);
+    function addEntry(topic, nodeId, message, votes, timestamp) {
+        addEntryWoCheck(topic, nodeId, message, votes, timestamp);
         checkData(topic, nodeId, message);
         updateFilteredData(topic, nodeId, message);
     }
@@ -878,6 +889,10 @@
 
     // Function to fetch and display CSV data
     async function loadData(url) {
+        if (tenantId === "MOCK") {
+            console.log("Mock tenant - skipping loading data from URL:", url);
+            return;
+        }
         try {
             const response = await fetch(url);
             if (!response.ok) {
@@ -885,54 +900,64 @@
             }
             let jsonText = await response.text();
             let dataLoaded = JSON.parse(jsonText);
-            // only first 20 entries for testing
-            if (false) {
-                dataLoaded = Object.fromEntries(
-                    Object.entries(dataLoaded).slice(0, 4)
-                );
-            }
-            //
-            console.log("Data loaded:", dataLoaded);
-            console.log("Latest timestamp:", latestTimestamp);
-            if (!dataLoaded || Object.keys(dataLoaded).length === 0) {
-                console.info("No data loaded from URL:", url);
+            // recheck for MOCK - due to async run
+            if (tenantId !== "MOCK") {
+                addData(dataLoaded);
             } else {
-                //
-                let foundSelectedTopic = false;
-                //
-                Object.entries(dataLoaded).forEach(([topic, nodes]) => {
-                    Object.entries(nodes).forEach(([nodeId, entry]) => {
-                        addDataWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
-                        if (topic === selectedTopic) {
-                            foundSelectedTopic = true;
-                        }
-                        // robust: if pattern YYYY-MM-DD HH:MM:SS
-                        if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
-                            if (!latestTimestamp || entry.timestamp > latestTimestamp) {
-                                latestTimestamp = entry.timestamp;
-                            }
-                        }
-                    });
-                });
-                checkData();
-                // FIXME KLUDGE delta contains ts=
-                if (!url.includes("&ts=") || url.includes("entries_local_tst_ts")) {
-                    initializeTopicMap();
-                    populateFilterOptions();
-                }
-                // only display data for selected topic is changed
-                if (foundSelectedTopic) {
-                    updateFilteredData();
-                    showToast( "Topic updated (" + Object.keys(dataLoaded).length + " entries loaded)");
-                } else {
-                    showToast( "Data updated (" + Object.keys(dataLoaded).length + " entries)");
-                }
-            } // dataLoaded not empty
-            //
+                console.log("Mock tenant - skipping data addition after fetch.");
+            }
         } catch (error) {
             console.error("Error loading data:", error);
-            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
+           tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
         }
+    }
+
+
+    function addData(dataLoaded) {
+        // only first 20 entries for testing
+        if (false) {
+            dataLoaded = Object.fromEntries(
+                Object.entries(dataLoaded).slice(0, 4)
+            );
+        }
+        //
+        console.log("Data loaded:", dataLoaded);
+        console.log("Latest timestamp:", latestTimestamp);
+        if (!dataLoaded || Object.keys(dataLoaded).length === 0) {
+            console.info("No data loaded from URL:", url);
+        } else {
+            //
+            let foundSelectedTopic = false;
+            //
+            Object.entries(dataLoaded).forEach(([topic, nodes]) => {
+                Object.entries(nodes).forEach(([nodeId, entry]) => {
+                    addEntryWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
+                    if (topic === selectedTopic) {
+                        foundSelectedTopic = true;
+                    }
+                    // robust: if pattern YYYY-MM-DD HH:MM:SS
+                    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
+                        if (!latestTimestamp || entry.timestamp > latestTimestamp) {
+                            latestTimestamp = entry.timestamp;
+                        }
+                    }
+                });
+            });
+            checkData();
+            // FIXME KLUDGE delta contains ts=
+            if (!url.includes("&ts=") || !url.includes("entries_local_tst_ts")) {
+                initializeTopicMap();
+                populateFilterOptions();
+            }
+            // only display data for selected topic is changed
+            if (foundSelectedTopic) {
+                updateFilteredData();
+                showToast( "Topic updated (" + Object.keys(dataLoaded).length + " entries loaded)");
+            } else {
+                showToast( "Data updated (" + Object.keys(dataLoaded).length + " entries)");
+            }
+        } // dataLoaded not empty
+        //
     }
 
 
@@ -1509,7 +1534,7 @@ if (overlayContent) {
                 // generate nodeId as timestamp + random
                 const nodeId = Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
                 const entry = topic + " | " + nodeId + " | " + message + type;
-                addData(topic, nodeId, message + type, "0", new Date().toLocaleDateString("de-DE") + " " + new Date().toLocaleTimeString("de-DE"));
+                addEntry(topic, nodeId, message + type, "0", new Date().toLocaleDateString("de-DE") + " " + new Date().toLocaleTimeString("de-DE"));
                 const sendUrl = `entry/add?sid=www&tid=${encodeURIComponent(tenantId)}&entry=${encodeURIComponent(entry)}`;
                 fetch(sendUrl)
                     .then(response => {
@@ -1586,19 +1611,202 @@ if (overlayContent) {
         // polling every 60 seconds
         loadData(url);
         setInterval(() => {
-            console.log("Polling data... (ts=" + latestTimestamp +")");
-            // use ts minus 20 seconds to avoid caching issues
-            // let ts = new Date().getTime() - 20000;
-            let pollUrl = url ;
-            if (url.endsWith(".json")) {
-                console.log("Local JSON file detected - inject ts in filename");
-                pollUrl = url.replace(".json", "_ts" + encodeURIComponent(latestTimestamp.replaceAll(/[^a-zA-Z0-9]/g, "")) + ".json");
+            if (latestTimestamp) {
+                console.log("Polling data... (ts=" + latestTimestamp +")");
+                // use ts minus 20 seconds to avoid caching issues
+                // let ts = new Date().getTime() - 20000;
+                let pollUrl = url ;
+                if (url.endsWith(".json")) {
+                    console.log("Local JSON file detected - inject ts in filename");
+                    pollUrl = url.replace(".json", "_ts" + encodeURIComponent(latestTimestamp.replaceAll(/[^a-zA-Z0-9]/g, "")) + ".json");
+                } else {
+                    pollUrl += "&ts=" + encodeURIComponent(latestTimestamp);
+                }
+                loadData(pollUrl);
             } else {
-                pollUrl += "&ts=" + encodeURIComponent(latestTimestamp);
+                console.log("SKIPP Polling data... (no latest timestamp yet)");
             }
-            loadData(pollUrl);
         }, 60000); // 60000 ms = 60 seconds
     }
+
+
+    /*
+
+        TESTING
+
+
+    */
+
+    class TestRunner {
+        constructor( ) {
+            this.chain = Promise.resolve();
+            this.blocks = {}; // Store test blocks
+            this.errors = []; // Store errors
+        }
+
+        set(selector, value) {
+            this.chain = this.chain.then(() => {
+                console.log(`Setting value for selector: ${selector}`);
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.value = value;
+                    element.dispatchEvent(new Event("change")); // Trigger change event
+                    console.log(`Set value of ${selector} to ${value}`);
+                } else {
+                    const error = `Element not found: ${selector}`;
+                    console.error(error);
+                    this.errors.push(error);
+                }
+            });
+            return this;
+        }
+
+        wait(ms, msg = null) {
+            this.chain = this.chain.then(() => {
+                console.log(`Waiting for ${ms}ms${msg ? ` - ${msg}` : ""}`);
+                return new Promise(resolve => setTimeout(resolve, ms));
+            });
+            return this;
+        }
+
+        isVisible(selector, expectedText = null) {
+            this.chain = this.chain.then(() => {
+                console.log(`Checking visibility of selector: ${selector}`);
+                const element = document.querySelector(selector);
+                if (element && window.getComputedStyle(element).display !== "none") {
+                    if (expectedText && !element.textContent.includes(expectedText)) {
+                        const error = `Element ${selector} is visible but does not contain expected text: ${expectedText}`;
+                        console.error(error);
+                        this.errors.push(error);
+                    } else {
+                        console.log(`Element ${selector} is visible${expectedText ? ` and contains text: ${expectedText}` : ""}`);
+                    }
+                } else {
+                    const error = `Element ${selector} is not visible`;
+                    console.error(error);
+                    this.errors.push(error);
+                }
+            });
+            return this;
+        }
+
+        click(selector) {
+            this.chain = this.chain.then(() => {
+                console.log(`Clicking on selector: ${selector}`);
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.click();
+                    console.log(`Clicked on ${selector}`);
+                } else {
+                    const error = `Element not found: ${selector}`;
+                    console.error(error);
+                    this.errors.push(error);
+                }
+            });
+            return this;
+        }
+
+        start(name) {
+            this.chain = this.chain.then(() => {
+                if (name === "showStart") {
+                    console.log("---------------------------------------------- ");
+                    console.log("Starting test sequence...              ------- ");
+                } else if (name === "showSummary") {
+                    this.showSummary();
+                    console.log("Test sequence completed.               ------ ");
+                    console.log("--------------------------------------------- ");
+                } else {
+                    console.log(`--- Starting test block: ${name}  --- `);
+                }
+            });
+            return this;
+        }
+
+        addBlock(name, block) {
+            if (typeof block === "function") {
+                console.log(`Adding test block: ${name}`);
+                this.blocks[name] = block;
+            } else {
+                const error = `Block must be a function for block: ${name}`;
+                console.error(error);
+                this.errors.push(error);
+            }
+        }
+
+        runBlocks() {
+            this.blocks = { "showStart": (runner) => {}, ...this.blocks, "showSummary": (runner) => {} };
+
+            Object.entries(this.blocks).forEach(([name, block]) => {
+                this.chain = this.chain.then(() => {
+                    return block(this.start(name)); // Ensure the block returns a Promise
+                });
+            });
+
+            // Chain the summary to ensure it runs last
+            this.chain = this.chain
+                .catch((error) => {
+                    console.error("Error during test execution:", error);
+                });
+
+            return this.chain;
+        }
+
+        showSummary() {
+            console.log("Test Summary:");
+            if (this.errors.length === 0) {
+                console.log("All tests passed successfully!");
+            } else {
+                console.error(`Total Errors: ${this.errors.length}`);
+                this.errors.forEach((error, index) => {
+                    console.error(`${index + 1}. ${error}`);
+                });
+            }
+        }
+
+        clearBlocks() {
+            this.blocks = {};
+            console.log("All test blocks cleared");
+        }
+    }
+
+    // Example usage:
+    const tr = new TestRunner();
+    resetData("TESTING");
+    tenantId = "MOCK"; // for testing, disable polling
+
+    addEntry("/", "corona", "Corona >", 5, "2023-10-01 12:00:00");
+    addEntry("/corona", "msg1", "Fakten zur Pandemie.", 3, "2023-10-01 12:05:00");
+    addEntry("/corona", "msg2", "Maßnahmen sind übertrieben.?", 1, "2023-10-01 12:10:00");
+    updateFilteredData();
+
+
+    // Define test blocks
+    tr.addBlock("Block init", (runner) => {
+        runner
+            .wait(1000, "Starting tests...5")
+            .wait(1000, "Starting tests...4")
+            .wait(1000, "Starting tests...3")
+            .wait(1000, "Starting tests...2")
+            .wait(1000, "Starting tests...1");
+    });
+    tr.addBlock("Block 1", (runner) => {
+        runner
+            .set("#topicFilter", "/")
+            .wait(500)
+            .isVisible("td", "Corona >")
+            .click("#toggleTypeFilter");
+    });
+
+    tr.addBlock("Block 2", (runner) => {
+        runner
+            .wait(500)
+            .isVisible(".filter-row", "Fakt")
+            .set("#typeFilter", ".");
+    });
+
+    // Run all test blocks
+
+    tr.runBlocks();
 
 
 
