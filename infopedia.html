@@ -474,7 +474,7 @@
     </section>
     <section id="utils-send-buttons" style="">
         <!-- Overlay Div -->
-        <div id="edit-overlay" style="display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000;">
+        <div id="edit-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000;">
             <div id="edit-overlay-content" style="position: relative; width: 90%; max-width: 600px; margin: 5% auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);" >
                 <h2 style="margin-top: 0;">Edit Entry</h2>
                 <form id="edit-form">
@@ -1611,7 +1611,9 @@ if (overlayContent) {
         // polling every 60 seconds
         loadData(url);
         setInterval(() => {
-            if (latestTimestamp) {
+            if (tenantId === "MOCK") {
+                console.log("Mock tenant - skipping polling.");
+            } else if (latestTimestamp) {
                 console.log("Polling data... (ts=" + latestTimestamp +")");
                 // use ts minus 20 seconds to avoid caching issues
                 // let ts = new Date().getTime() - 20000;
@@ -1638,24 +1640,39 @@ if (overlayContent) {
     */
 
     class TestRunner {
-        constructor( ) {
+        constructor( stopOnError = false ) {
+            this.stopOnError = stopOnError;
             this.chain = Promise.resolve();
             this.blocks = {}; // Store test blocks
             this.errors = []; // Store errors
         }
 
+        check(condition, msg, msgFail = null) {
+            if (this.stopOnError && this.errors.length > 0) {
+                return false; // Skip further checks if stopping on error - silently
+            }
+            if (condition) {
+                if (msg) {
+                    console.log(`OK : ${msg}`);
+                }
+            } else {
+                const errorMsg = "FAIL: " + (msgFail || `CHECK FAILED (${msg})`);
+                console.error(errorMsg);
+                this.errors.push(errorMsg);
+                if (this.stopOnError) { // allow to check error manually
+                    console.log("Stopping test execution due to error. !!!!!! ");
+                    throw new Error(errorMsg);
+                }
+            }
+            return condition;
+        }
+
         set(selector, value) {
             this.chain = this.chain.then(() => {
-                console.log(`Setting value for selector: ${selector}`);
                 const element = document.querySelector(selector);
-                if (element) {
+                if (this.check(element, `Set value of ${selector} to ${value}`, `Element not found: ${selector}`) ) {
                     element.value = value;
                     element.dispatchEvent(new Event("change")); // Trigger change event
-                    console.log(`Set value of ${selector} to ${value}`);
-                } else {
-                    const error = `Element not found: ${selector}`;
-                    console.error(error);
-                    this.errors.push(error);
                 }
             });
             return this;
@@ -1669,38 +1686,47 @@ if (overlayContent) {
             return this;
         }
 
+        isElementVisible(element) {
+            while (element) { // Traverse up the DOM tree
+                const style = window.getComputedStyle(element);
+                if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+                    return false; // Element or one of its parents is hidden
+                }
+                element = element.parentElement; // Move to the parent element
+            }
+            return true; // No parent has display: none
+        }
+
         isVisible(selector, expectedText = null) {
             this.chain = this.chain.then(() => {
-                console.log(`Checking visibility of selector: ${selector}`);
                 const element = document.querySelector(selector);
-                if (element && window.getComputedStyle(element).display !== "none") {
-                    if (expectedText && !element.textContent.includes(expectedText)) {
-                        const error = `Element ${selector} is visible but does not contain expected text: ${expectedText}`;
-                        console.error(error);
-                        this.errors.push(error);
-                    } else {
-                        console.log(`Element ${selector} is visible${expectedText ? ` and contains text: ${expectedText}` : ""}`);
-                    }
-                } else {
-                    const error = `Element ${selector} is not visible`;
-                    console.error(error);
-                    this.errors.push(error);
+                if ( this.check( element && this.isElementVisible(element)
+                        , null
+                        , `Element ${selector} is not visible`) ) {
+                    this.check (!expectedText || element.textContent.includes(expectedText)
+                        , `Element ${selector} is visible${expectedText ? ` and contains text: ${expectedText}` : ""}`
+                        , `Element ${selector} is visible but does not contain expected text: ${expectedText}`);
                 }
             });
             return this;
         }
 
+        isNotVisible(selector) {
+            this.chain = this.chain.then(() => {
+                const element = document.querySelector(selector);
+                this.check( !element || this.isElementVisible(element) === false
+                    , `Element ${selector} is not visible`
+                    , `Element ${selector} is visible`);
+            });
+            return this;
+        }
+
+
         click(selector) {
             this.chain = this.chain.then(() => {
-                console.log(`Clicking on selector: ${selector}`);
                 const element = document.querySelector(selector);
-                if (element) {
+                if (this.check( element, `Click on ${selector}`, `Element not found: ${selector}` )) {
                     element.click();
-                    console.log(`Clicked on ${selector}`);
-                } else {
-                    const error = `Element not found: ${selector}`;
-                    console.error(error);
-                    this.errors.push(error);
                 }
             });
             return this;
@@ -1733,7 +1759,8 @@ if (overlayContent) {
             }
         }
 
-        runBlocks() {
+        runBlocks( stopOnError = null ) {
+            this.stopOnError = stopOnError !== null ? stopOnError : this.stopOnError;
             this.blocks = { "showStart": (runner) => {}, ...this.blocks, "showSummary": (runner) => {} };
 
             Object.entries(this.blocks).forEach(([name, block]) => {
@@ -1774,7 +1801,8 @@ if (overlayContent) {
     resetData("TESTING");
     tenantId = "MOCK"; // for testing, disable polling
 
-    addEntry("/", "corona", "Corona >", 5, "2023-10-01 12:00:00");
+    addEntry("/", "bahn", "Bahn-TST", 5, "2023-10-01 12:00:00");
+    addEntry("/", "corona", "CoronaTST >", 5, "2023-10-01 12:00:00");
     addEntry("/corona", "msg1", "Fakten zur Pandemie.", 3, "2023-10-01 12:05:00");
     addEntry("/corona", "msg2", "Maßnahmen sind übertrieben.?", 1, "2023-10-01 12:10:00");
     updateFilteredData();
@@ -1789,24 +1817,33 @@ if (overlayContent) {
             .wait(1000, "Starting tests...2")
             .wait(1000, "Starting tests...1");
     });
+
+    tr.addBlock("Block 0 settings", (runner) => {
+        runner
+            .wait(500)
+            .isVisible("#topicFilter", "alle Basis-Themen")
+            .isNotVisible("#typeFilter", "Fakt")
+            .isVisible("td", "Bahn-TST")
+            .isVisible("td", "CoronaTST >")
+            ;
+    });
+
     tr.addBlock("Block 1", (runner) => {
         runner
             .set("#topicFilter", "/")
             .wait(500)
-            .isVisible("td", "Corona >")
-            .click("#toggleTypeFilter");
+            .click("#toggleTypeFilter")
+            .wait(500)
+            .isVisible("#typeFilter", "Fakt")
+            .set("#typeFilter", "all")
+            ;
     });
 
-    tr.addBlock("Block 2", (runner) => {
-        runner
-            .wait(500)
-            .isVisible(".filter-row", "Fakt")
-            .set("#typeFilter", ".");
-    });
+
 
     // Run all test blocks
 
-    tr.runBlocks();
+    tr.runBlocks( true );
 
 
 
