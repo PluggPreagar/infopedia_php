@@ -1665,12 +1665,14 @@ if (overlayContent) {
             this.blocks = {}; // Store test blocks
             this.errors = []; // Store errors
             this.timeout = null; // time to wait to meet condition
+            this.checkCount = 0;
         }
 
         check(condition, msgOk, msgFail = null, msg = null) {
             if (this.stopOnError && this.errors.length > 0) {
                 return false; // Skip further checks if stopping on error - silently
             }
+            this.checkCount += 1;
             if (condition) {
                 if (msgOk) { // allow internal checks without messages (msgOK===null) otherwise set msgOk=""
                     console.log(`OK : ${msgOk}` + (msg && msgOk ? ` - ` : "") + (msg|| '') );
@@ -1891,16 +1893,30 @@ if (overlayContent) {
                 if (name === "showStart") {
                     console.log("---------------------------------------------- ");
                     console.log("Starting test sequence...              ------- ");
-                } else if (name === "showSummary") {
-                    this.showSummary();
-                    console.log("Test sequence completed.               ------ ");
-                    console.log("--------------------------------------------- ");
-                } else {
+                } else if (name !== "showSummary") {
                     console.log(`--- Starting test block: ${name}  --- `);
+                } else {
+                    console.log("--------------------------------------------- ");
+                    this.showSummary();
+                    console.log("|  Test sequence completed.                     ");
+                    console.log("--------------------------------------------- ");
                 }
             });
             return this;
         }
+
+        showSummary() {
+            console.log("|  Test Summary:  " + this.checkCount + " checks performed.");
+            if (this.errors.length === 0) {
+                console.log("|  All " + this.checkCount + " tests passed successfully!");
+            } else {
+                console.error(`|  Total Errors: ${this.errors.length}`);
+                this.errors.forEach((error, index) => {
+                    console.error(`|  ${index + 1}. ${error}`);
+                });
+            }
+        }
+
 
         addBlock(name, block) {
             if (typeof block === "function") {
@@ -1932,17 +1948,6 @@ if (overlayContent) {
             return this.chain;
         }
 
-        showSummary() {
-            console.log("Test Summary:");
-            if (this.errors.length === 0) {
-                console.log("All tests passed successfully!");
-            } else {
-                console.error(`Total Errors: ${this.errors.length}`);
-                this.errors.forEach((error, index) => {
-                    console.error(`${index + 1}. ${error}`);
-                });
-            }
-        }
 
         clearBlocks() {
             this.blocks = {};
@@ -2037,6 +2042,11 @@ if (overlayContent) {
             .isNotVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
             .set("#textFilter", "")
             .isVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
+            .set("#textFilter", "pandemie")
+            .set("#topicFilter", "/corona")
+            .isVisible("td", "Fakten zur Pandemie.", "should - reverse filter set order")
+            .isNotVisible("td", "Maßnahmen sind übertrieben.?", "hide - reverse filter set order")
+            .set("#textFilter", "")
             .set("#topicFilter", "/")
             .isVisible("td", "Bahn-TST", "should show Bahn again")
             ;
