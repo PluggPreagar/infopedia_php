@@ -1763,7 +1763,7 @@ if (overlayContent) {
             return true; // No parent has display: none
         }
 
-        getElementText(selector, text = null) {
+        getElementWText(selector, text = null) {
             const elements = document.querySelectorAll(selector);
             for (const element of elements) {
                 if (text === null || element.textContent.includes(text)) {
@@ -1773,9 +1773,9 @@ if (overlayContent) {
             return null;
         }
 
-        isVisible(selector, expectedText = null, msg = null) {
+        isVisible(selector, expectedText = null, msg = null, allowOption = false) {
             this.chain = this.chain.then(() => {
-                const element = this.getElementText(selector, expectedText) || this.getElementText(selector);
+                const element = this.getElementWText(selector, expectedText) || this.getElementWText(selector);
                 if (this.check( element && this.isElementVisible(element)
                         , null
                         , `Element ${selector} is not visible`
@@ -1783,6 +1783,10 @@ if (overlayContent) {
                     let text = "" + element.textContent;
                     if (element.tagName === "SELECT") {
                         text = element.options[element.selectedIndex] ? element.options[element.selectedIndex].text : "";
+                        if (allowOption && expectedText) { // aggregate options to 1 joined text
+                            text = "| " + Array.from(element.options).map(opt => opt.text).join(" | ") + " |";
+                            expectedText = "| " + expectedText + " |";
+                        }
                     }
                     this.check (!expectedText || text.includes(expectedText)
                         , `Element ${selector} is visible${expectedText ? ` and contains text: '${expectedText}'` : ""}`
@@ -1801,9 +1805,13 @@ if (overlayContent) {
             return this;
         }
 
+        isAvailable(selector, expectedText, msg = null) { // for options only
+            return this.isVisible(selector, expectedText, msg, true);
+        }
+
         isNotVisible(selector, expectedText = null, msg = null) {
             this.chain = this.chain.then(() => {
-                const element = this.getElementText(selector, expectedText);
+                const element = this.getElementWText(selector, expectedText);
                 this.check( !element || this.isElementVisible(element) === false
                     , `Element ${selector} is not visible`
                     , `Element ${selector} is visible`
@@ -1819,9 +1827,14 @@ if (overlayContent) {
             return this;
         }
 
+        isNotAvailable(selector, expectedText, msg = null) { // for options only
+            return this.isNotVisible(selector, expectedText, msg);
+        }
+
+
         click(selector, expectedText = null, msg = null) {
             this.chain = this.chain.then(() => {
-                const element = this.getElementText(selector, expectedText);
+                const element = this.getElementWText(selector, expectedText);
                 if (this.check( element, `Click on ${selector}`, `Element not found: ${selector}`, msg)) {
                     element.click();
                 }
@@ -1916,6 +1929,12 @@ if (overlayContent) {
             .assertEq( "!", typeFilter.value, "initial type filter should be facts" )
             .assertEq( "", textFilter.value, "initial text filter should be empty" )
             .assertEq( 0, () => Object.keys(data).length , "data should be loaded" )
+            // check filter options
+            .isAvailable("#topicFilter", "alle Basis-Themen", "topic filter has all topics")
+            .assertEq( 1, topicFilter.options.length , "only 'all topics' option initially" )
+            .isNotVisible("#typeFilter", null, "type filter is hidden initially")
+            .isNotVisible("#textFilter", null, "text filter is hidden initially")
+            // no entries yet
             .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!")
             .execute( () => {
                 addEntry("/", "bahn", "Bahn-TST", 5, "2023-10-01 12:00:00") }
