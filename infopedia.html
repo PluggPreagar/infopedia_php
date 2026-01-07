@@ -1702,6 +1702,13 @@ if (overlayContent) {
                 const element = document.querySelector(selector);
                 if (this.check(element, `Set value of ${selector} to ${value}`, `Element not found: ${selector}`, msg)) {
                     element.value = value;
+                    if (element.value !== value) { // If value doesn't match, try matching by text
+                        const option = Array.from(element.options).find(opt => opt.text === value);
+                        if (this.check(option, `Found option with text '${value}' in ${selector}`
+                                , `Option with text '${value}' not found in ${selector}`, msg)) {
+                            element.value = option.value;
+                        }
+                    }
                     element.dispatchEvent(new Event("change")); // Trigger change event
                 }
             });
@@ -1945,6 +1952,19 @@ if (overlayContent) {
             .set("#typeFilter", "all")
             .isVisible("#typeFilter", "All Types")
             .isVisible("td", "Bahn-TST", "show all - even non-facts")
+            ;
+    });
+
+    tr.addBlock("Block 2 Topic/Text Filter ... ", (runner) => {
+        runner
+            .set("#textFilter", "pandemie")
+            .set("#topicFilter", "/corona")
+            .wait(500)
+            .isVisible("td", "Fakten zur Pandemie.", "should show facts about Pandemie")
+            .isNotVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
+            .set("#textFilter", "")
+            .wait(500)
+            .isVisible("td", "Bahn-TST", "should show Bahn again")
             ;
     });
 
