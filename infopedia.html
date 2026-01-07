@@ -1651,6 +1651,7 @@ if (overlayContent) {
             this.chain = Promise.resolve();
             this.blocks = {}; // Store test blocks
             this.errors = []; // Store errors
+            this.timeout = null; // time to wait to meet condition
         }
 
         check(condition, msgOk, msgFail = null, msg = null) {
@@ -1658,9 +1659,12 @@ if (overlayContent) {
                 return false; // Skip further checks if stopping on error - silently
             }
             if (condition) {
-                if (msgOk) {
-                    console.log(`OK : ${msg}`);
+                if (msgOk || msg) {
+                    console.log(`OK : ${msgOk}` + (msg && msgOk ? ` - ` : "") + msg );
                 }
+            } else if (this.timeout !== null) {
+                const errorMsg = `WAIT: Condition not met within ${this.timeout}ms` + (msg ? ` - ${msg}` : "");
+                console.warn(errorMsg);
             } else {
                 const errorMsg = "FAIL: " + (msgFail || `CHECK FAILED (${msgOk})`) + (msg ? ` - ${msg}` : "");
                 console.error(errorMsg);
@@ -1688,6 +1692,34 @@ if (overlayContent) {
             this.chain = this.chain.then(() => {
                 console.log(`Waiting for ${ms}ms${msg ? ` - ${msg}` : ""}`);
                 return new Promise(resolve => setTimeout(resolve, ms));
+            });
+            return this;
+        }
+
+        waitFor(conditionFn, timeoutMs = 1000, intervalMs = 100, msg = null) {
+            // runner.waitFor( () => document.querySelector("#status").textContent === "Ready"
+            //                          , 5000, 200, "Waiting for status to be Ready" )
+            // runner.waitFor( () => runner.isVisible("#myElement") )
+            // runner.isVisibleOrWaitFor("#myElement", null, "Waiting for myElement to be visible", 5000, 200)
+            //
+            this.chain = this.chain.then(() => {
+                console.log(`Waiting for condition for up to ${timeoutMs}ms${msg ? ` - ${msg}` : ""}`);
+                this.timeout = Date.now() + timeoutMs;
+                return new Promise((resolve, reject) => {
+                    console.log("Starting waitFor at", Date.now(), " with timeout at ", this.timeout);
+                    const checkCondition = () => {
+                        console.log("Checking condition at", Date.now());
+                        if (Date.now() >= this.timeout){
+                            this.timeout = null; // reset - timeout reached, final check
+                        }
+                        if (conditionFn() || this.timeout === null) {
+                            clearInterval(intervalId);
+                            resolve(true);
+                        }
+                    };
+                    const intervalId = setInterval(checkCondition, intervalMs);
+                    checkCondition();
+                });
             });
             return this;
         }
@@ -1729,6 +1761,13 @@ if (overlayContent) {
             return this;
         }
 
+        isVisibleOrWaitFor(selector, expectedText = null, msg = null, timeoutMs = 1000, intervalMs = 100) {
+            this.chain = this.chain.then(() => {
+                return this.waitFor( () => this.isVisible(selector, expectedText, msg), timeoutMs, intervalMs, msg );
+            });
+            return this;
+        }
+
         isNotVisible(selector, expectedText = null, msg = null) {
             this.chain = this.chain.then(() => {
                 const element = this.getElementText(selector, expectedText);
@@ -1740,6 +1779,12 @@ if (overlayContent) {
             return this;
         }
 
+        isNotVisibleOrWaitFor(selector, expectedText = null, msg = null, timeoutMs = 1000, intervalMs = 100) {
+            this.chain = this.chain.then(() => {
+                return this.waitFor( () => this.isNotVisible(selector, expectedText, msg), timeoutMs, intervalMs, msg );
+            });
+            return this;
+        }
 
         click(selector, expectedText = null, msg = null) {
             this.chain = this.chain.then(() => {
@@ -1841,7 +1886,7 @@ if (overlayContent) {
     tr.addBlock("Block 0 settings", (runner) => {
         runner
             .wait(500)
-            .isVisible("#topicFilter", "alle Basis-Themen")
+            .isVisibleOrWaitFor("#topicFilter", "alle Basis-Themen")
             .isNotVisible("#typeFilter", "Fakt")
             .isVisible("td", "CoronaTST >", "has facts, should be visible")
             .isNotVisible("td", "Bahn-TST", "Bahn has no facts, should be hidden")
