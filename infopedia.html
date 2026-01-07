@@ -648,16 +648,30 @@
                 checkData(parentTopic, parentNodeId, data[parentTopic][parentNodeId].message);
             }
         }
+        //
+        if (initializeTopicMap(topic)){
+            populateFilterOptions();
+        }
     }
 
-    function initializeTopicMap() {
+    function initializeTopicMap(topic = null) {
         // lookup topic names to paths
-        Object.keys(data).forEach((topic) => {
-            [parentTopic, nodeId] = splitKey(topic);
-            if (nodeId && data[parentTopic] && data[parentTopic][nodeId]) {
-                topicMap[topic] = data[parentTopic][nodeId].message;
-            }
-        });
+        changed = false;
+        if (!topic){
+            topicMap = {};
+            Object.keys(data).forEach((topic) => {
+                initializeTopicMap(topic);
+            });
+            changed = true;
+            console.log("Initialized topic map with topic names( " + Object.keys(topicMap).length + " entries ).");
+        } else if (!topicMap[topic] && topic !== "/") {
+            changed = true;
+            const [parentTopic, nodeId] = splitKey(topic);
+            topicMap[topic] = (nodeId && data[parentTopic] && data[parentTopic][nodeId])
+                                ? data[parentTopic][nodeId].message : "";
+            console.log("Added topic name for topic:", topic, "->", topicMap[topic] || "(n/a)");
+        }
+        return changed;
     }
 
 
@@ -749,17 +763,15 @@
     // Populate filter dropdown with unique topics
     function populateFilterOptions() {
         const topics = [];
-        Object.keys(data).forEach((topic) => {
-            // indent level based on slashes
+        Object.keys(topicMap).sort().forEach((topic) => {
             let indent = topic.split("/").length - 2;
             let indentStr = "                      ".substring(0, indent < 10 ? indent * 2 : 10);
             if (topicMap[topic]){
                 topics.push({ topicId: topic, name: indentStr + (topicMap[topic] || topic)  });
-            } else {
-                console.warn("SKIPP - Topic name not found for topicId:", topic);
             }
         });
         //
+        topicFilter.innerHTML = `<option value="/">alle Basis-Themen</option>`;
         topics.forEach((topic) => {
             const option = document.createElement("option");
             option.value = topic.topicId;
@@ -1660,7 +1672,7 @@ if (overlayContent) {
                 return false; // Skip further checks if stopping on error - silently
             }
             if (condition) {
-                if (msgOk || msg) {
+                if (msgOk) { // allow internal checks without messages (msgOK===null) otherwise set msgOk=""
                     console.log(`OK : ${msgOk}` + (msg && msgOk ? ` - ` : "") + (msg|| '') );
                 }
             } else if (this.timeout !== null) {
@@ -1709,7 +1721,13 @@ if (overlayContent) {
                             element.value = option.value;
                         }
                     }
-                    element.dispatchEvent(new Event("change")); // Trigger change event
+                    if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
+                        console.log(`Triggering 'input' event for ${selector}`);
+                        element.dispatchEvent(new Event("input")); // Trigger input event
+                    } else {
+                        console.log(`Triggering 'change' event for ${selector}`);
+                        element.dispatchEvent(new Event("change")); // Trigger change event
+                    }
                 }
             });
             return this;
@@ -1777,22 +1795,38 @@ if (overlayContent) {
             this.chain = this.chain.then(() => {
                 const element = this.getElementWText(selector, expectedText) || this.getElementWText(selector);
                 if (this.check( element && this.isElementVisible(element)
-                        , null
+                        , `Element ${selector} is visible`
                         , `Element ${selector} is not visible`
                         , msg )) {
                     let text = "" + element.textContent;
                     if (element.tagName === "SELECT") {
                         text = element.options[element.selectedIndex] ? element.options[element.selectedIndex].text : "";
                         if (allowOption && expectedText) { // aggregate options to 1 joined text
-                            text = "| " + Array.from(element.options).map(opt => opt.text).join(" | ") + " |";
-                            expectedText = "| " + expectedText + " |";
+                            // gather valid values for debug
+                            text = "<" + Array.from(element.options).map(opt => opt.text).join(">, <") + ">";
+                            for(let i=0; i<element.options.length; i++) {
+                                if (element.options[i].text === expectedText) {
+                                    text = element.options[i].text;
+                                    break;
+                                } else if (element.options[i].text == expectedText.replace(/ /g, "\u00A0")) {
+                                    console.warn("Matching option with non-breaking space");
+                                    text = element.options[i].text.replace(/\u00A0/g, " ");
+                                    break; // non-breaking space
+                                }
+                            }
                         }
+                        this.check (!expectedText || text == expectedText
+                            , `Element ${selector} is visible${expectedText ? ` and text: '${expectedText}'` : ""}`
+                            , `Element ${selector} is visible but has not expected text: '${expectedText}'`
+                                    + ` (actual text: '${text}')`
+                            , msg);
+                    } else {
+                        this.check (!expectedText || text.includes(expectedText) // includes for partial match
+                            , `Element ${selector} is visible${expectedText ? ` and contains text: '${expectedText}'` : ""}`
+                            , `Element ${selector} is visible but does not contain expected text: '${expectedText}'`
+                                    + ` (actual text: '${text}')`
+                            , msg);
                     }
-                    this.check (!expectedText || text.includes(expectedText)
-                        , `Element ${selector} is visible${expectedText ? ` and contains text: '${expectedText}'` : ""}`
-                        , `Element ${selector} is visible but does not contain expected text: '${expectedText}'`
-                                + ` (actual text: '${text}')`
-                        , msg);
                 }
             });
             return this;
@@ -1921,7 +1955,7 @@ if (overlayContent) {
     resetData("MOCK", "TESTING"); // MOCK - for testing, disable polling
 
     // Define test blocks
-    tr.addBlock("Block init", (runner) => {
+    tr.addBlock("Block 0 init", (runner) => {
         runner
             .wait(500, "Starting")
             .assertEq( "MOCK", () => tenantId, "tenantId should be MOCK" )
@@ -1936,33 +1970,54 @@ if (overlayContent) {
             .isNotVisible("#textFilter", null, "text filter is hidden initially")
             // no entries yet
             .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!")
+            // add 1st (non-)topic without messages
             .execute( () => {
                 addEntry("/", "bahn", "Bahn-TST", 5, "2023-10-01 12:00:00") }
             )
+            .isNotAvailable("#topicFilter", "Bahn-TST", "w/o children - it is no topic")
+            .isNotAvailable("#topicFilter", "Bahn-TST >", "w/o children - it is no topic")
+            .assertEq( 1, () => topicFilter.options.length , "still only 'all topics' option")
             .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet")
+            // add 2nd topic with messages
             .execute( () => {
                 addEntry("/", "corona", "CoronaTST >", 5, "2023-10-01 12:00:00");
+            })
+            .isNotAvailable("#topicFilter", "CoronaTST >", "w/o child - it is no topic")
+            .execute( () => {
                 addEntry("/corona", "msg1", "Fakten zur Pandemie.", 3, "2023-10-01 12:05:00");
+            })
+            .isAvailable("#topicFilter", "alle Basis-Themen", "topic filter has all topics")
+            .isAvailable("#topicFilter", "CoronaTST >", "topic filter has Corona topic now - first child")
+            .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
+            .execute( () => {
                 addEntry("/corona", "msg2", "Maßnahmen sind übertrieben.?", 1, "2023-10-01 12:10:00");
             })
+            .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
             .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet-2")
             .execute( () =>
                 addEntry("/corona", "msg3", "Impfungen helfen!", 4, "2023-10-01 12:15:00")
             )
+            .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
             .isVisible("td", "CoronaTST >", "has facts now")
+            // make first non-topic a topic by adding child
+            .execute( () => {
+                addEntry("/bahn", "msg1", "Züge sind pünktlich.", 2, "2023-10-01 12:20:00");
+            })
+            .isAvailable("#topicFilter", "Bahn-TST >", "Bahn topic now available after adding child, added suffix")
+            .assertEq( 3, () => topicFilter.options.length , "3 topics in filter now")
     });
 
-    tr.addBlock("Block 0 settings", (runner) => {
+    tr.addBlock("Block 1 settings", (runner) => {
         runner
             .wait(500)
             .isVisible("#topicFilter", "alle Basis-Themen")
             .isNotVisible("#typeFilter", "Fakt")
             .isVisible("td", "CoronaTST >", "has facts, should be visible")
-            .isNotVisible("td", "Bahn-TST", "Bahn has no facts, should be hidden")
+            .isNotVisible("td", "Bahn-TST", "Bahn has no facts, should be hidden") // !! just partial match
             ;
     });
 
-    tr.addBlock("Block 1 change settings ... ", (runner) => {
+    tr.addBlock("Block 2 change settings ... ", (runner) => {
         runner
             .set("#topicFilter", "/")
             .click("#toggleTypeFilter")
@@ -1976,13 +2031,13 @@ if (overlayContent) {
 
     tr.addBlock("Block 2 Topic/Text Filter ... ", (runner) => {
         runner
-            .set("#textFilter", "pandemie")
             .set("#topicFilter", "/corona")
-            .wait(500)
+            .set("#textFilter", "pandemie")
             .isVisible("td", "Fakten zur Pandemie.", "should show facts about Pandemie")
             .isNotVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
             .set("#textFilter", "")
-            .wait(500)
+            .isVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
+            .set("#topicFilter", "/")
             .isVisible("td", "Bahn-TST", "should show Bahn again")
             ;
     });
