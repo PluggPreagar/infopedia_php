@@ -556,19 +556,20 @@
     */
 
 
-    function resetData(msg="") {
-        console.log("-----------    Resetting data. " + ( msg ? "( "+ msg + " )" : "" ) + "    -----------");
+    function resetData(newTenantId = "", msg="") {
+        console.log("-----------    Resetting data. '" + newTenantId + "' " + ( msg ? "( "+ msg + " )" : "" ) + "    -----------");
+        tenantId = newTenantId; // set tenantId, !!! may change data-load-behavior !!!
         data = {};
         topicMap = {};
-        tenantId = ""; // reset tenant
         selectedTopic = "/";
         latestTimestamp = null;
         latestDisplayTs = null;
         textFilter.value = ""; // reset text filter
         typeFilter.value = "!"; // reset type filter
+        updateFilteredData();
     }
 
-    resetData("init");
+    resetData(tenantId, "init");
 
 
     function addEntryWoCheck(topic, nodeId, message, votes, timestamp) {
@@ -1660,11 +1661,10 @@ if (overlayContent) {
             }
             if (condition) {
                 if (msgOk || msg) {
-                    console.log(`OK : ${msgOk}` + (msg && msgOk ? ` - ` : "") + msg );
+                    console.log(`OK : ${msgOk}` + (msg && msgOk ? ` - ` : "") + (msg|| '') );
                 }
             } else if (this.timeout !== null) {
-                const errorMsg = `WAIT: Condition not met within ${this.timeout}ms` + (msg ? ` - ${msg}` : "");
-                console.warn(errorMsg);
+                console.warn( `WAIT: Condition not met` + (msg ? ` - ${msg}` : ""));
             } else {
                 const errorMsg = "FAIL: " + (msgFail || `CHECK FAILED (${msgOk})`) + (msg ? ` - ${msg}` : "");
                 console.error(errorMsg);
@@ -1677,10 +1677,30 @@ if (overlayContent) {
             return condition;
         }
 
+        assertEq(expected, actual, msg = null) {
+            this.chain = this.chain.then(() => {
+                let actualValue = typeof actual === "function" ? actual() : actual;
+                this.check( expected === actualValue
+                    , `Assert: expected '${expected}' and got '${actualValue}'`
+                    , `Assert FAILED: expected '${expected}' but got '${actualValue}'`
+                            +  (typeof actual === "function" ? ` (${actual})` : "")
+                    , msg);
+            });
+            return this;
+        }
+
+        assertTrue(actual, msg = null) {
+            return assertEq(true, actual, msg);
+        }
+
+        assertFalse(actual, msg = null) {
+            return assertEq(false, actual, msg);
+        }
+
         set(selector, value, msg = null) {
             this.chain = this.chain.then(() => {
                 const element = document.querySelector(selector);
-                if (this.check(element, `Set value of ${selector} to ${value}`, `Element not found: ${selector}`), msg ) {
+                if (this.check(element, `Set value of ${selector} to ${value}`, `Element not found: ${selector}`, msg)) {
                     element.value = value;
                     element.dispatchEvent(new Event("change")); // Trigger change event
                 }
@@ -1690,7 +1710,7 @@ if (overlayContent) {
 
         wait(ms, msg = null) {
             this.chain = this.chain.then(() => {
-                console.log(`Waiting for ${ms}ms${msg ? ` - ${msg}` : ""}`);
+                console.log(`     Waiting for ${ms}ms${msg ? ` - ${msg}` : ""}`);
                 return new Promise(resolve => setTimeout(resolve, ms));
             });
             return this;
@@ -1704,11 +1724,12 @@ if (overlayContent) {
             //
             this.chain = this.chain.then(() => {
                 console.log(`Waiting for condition for up to ${timeoutMs}ms${msg ? ` - ${msg}` : ""}`);
+                console.log("Initial condition check at", Date.now(), conditionFn);
                 this.timeout = Date.now() + timeoutMs;
                 return new Promise((resolve, reject) => {
-                    console.log("Starting waitFor at", Date.now(), " with timeout at ", this.timeout);
+                    console.log("waitFor (" + timeoutMs + "ms)");
                     const checkCondition = () => {
-                        console.log("Checking condition at", Date.now());
+                        console.log("checking condition at", Date.now(), conditionFn);
                         if (Date.now() >= this.timeout){
                             this.timeout = null; // reset - timeout reached, final check
                         }
@@ -1747,14 +1768,19 @@ if (overlayContent) {
 
         isVisible(selector, expectedText = null, msg = null) {
             this.chain = this.chain.then(() => {
-                const element = this.getElementText(selector, expectedText);
-                if ( this.check( element && this.isElementVisible(element)
+                const element = this.getElementText(selector, expectedText) || this.getElementText(selector);
+                if (this.check( element && this.isElementVisible(element)
                         , null
-                        , `Element ${selector} is not visible`)
-                        , msg ) {
-                    this.check (!expectedText || element.textContent.includes(expectedText)
-                        , `Element ${selector} is visible${expectedText ? ` and contains text: ${expectedText}` : ""}`
-                        , `Element ${selector} is visible but does not contain expected text: ${expectedText}`
+                        , `Element ${selector} is not visible`
+                        , msg )) {
+                    let text = "" + element.textContent;
+                    if (element.tagName === "SELECT") {
+                        text = element.options[element.selectedIndex] ? element.options[element.selectedIndex].text : "";
+                    }
+                    this.check (!expectedText || text.includes(expectedText)
+                        , `Element ${selector} is visible${expectedText ? ` and contains text: '${expectedText}'` : ""}`
+                        , `Element ${selector} is visible but does not contain expected text: '${expectedText}'`
+                                + ` (actual text: '${text}')`
                         , msg);
                 }
             });
@@ -1789,10 +1815,20 @@ if (overlayContent) {
         click(selector, expectedText = null, msg = null) {
             this.chain = this.chain.then(() => {
                 const element = this.getElementText(selector, expectedText);
-                if (this.check( element, `Click on ${selector}`, `Element not found: ${selector}` ), msg ) {
+                if (this.check( element, `Click on ${selector}`, `Element not found: ${selector}`, msg)) {
                     element.click();
                 }
             });
+            return this;
+        }
+
+        execute(fn, msg = null) {
+            if (this.check( typeof fn === "function", `add exec step`, `Provided argument is not a function`, msg)) {
+                this.chain = this.chain.then(() => {
+                        console.log("Executing function...");
+                        fn();
+                });
+            }
             return this;
         }
 
@@ -1862,45 +1898,53 @@ if (overlayContent) {
 
     // Example usage:
     const tr = new TestRunner();
-    resetData("TESTING");
-    tenantId = "MOCK"; // for testing, disable polling
-
-    addEntry("/", "bahn", "Bahn-TST", 5, "2023-10-01 12:00:00");
-    addEntry("/", "corona", "CoronaTST >", 5, "2023-10-01 12:00:00");
-    addEntry("/corona", "msg1", "Fakten zur Pandemie.", 3, "2023-10-01 12:05:00");
-    addEntry("/corona", "msg2", "Maßnahmen sind übertrieben.?", 1, "2023-10-01 12:10:00");
-    addEntry("/corona", "msg3", "Impfungen helfen!", 4, "2023-10-01 12:15:00");
-    updateFilteredData();
-
+    resetData("MOCK", "TESTING"); // MOCK - for testing, disable polling
 
     // Define test blocks
     tr.addBlock("Block init", (runner) => {
         runner
-            .wait(1000, "Starting tests...5")
-            .wait(1000, "Starting tests...4")
-            .wait(1000, "Starting tests...3")
-            .wait(1000, "Starting tests...2")
-            .wait(1000, "Starting tests...1");
+            .wait(500, "Starting")
+            .assertEq( "MOCK", () => tenantId, "tenantId should be MOCK" )
+            .assertEq( "/", topicFilter.value, "initial topic filter should be /" )
+            .assertEq( "!", typeFilter.value, "initial type filter should be facts" )
+            .assertEq( "", textFilter.value, "initial text filter should be empty" )
+            .assertEq( 0, () => Object.keys(data).length , "data should be loaded" )
+            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!")
+            .execute( () => {
+                addEntry("/", "bahn", "Bahn-TST", 5, "2023-10-01 12:00:00") }
+            )
+            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet")
+            .execute( () => {
+                addEntry("/", "corona", "CoronaTST >", 5, "2023-10-01 12:00:00");
+                addEntry("/corona", "msg1", "Fakten zur Pandemie.", 3, "2023-10-01 12:05:00");
+                addEntry("/corona", "msg2", "Maßnahmen sind übertrieben.?", 1, "2023-10-01 12:10:00");
+            })
+            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet-2")
+            .execute( () =>
+                addEntry("/corona", "msg3", "Impfungen helfen!", 4, "2023-10-01 12:15:00")
+            )
+            .isVisible("td", "CoronaTST >", "has facts now")
     });
 
     tr.addBlock("Block 0 settings", (runner) => {
         runner
             .wait(500)
-            .isVisibleOrWaitFor("#topicFilter", "alle Basis-Themen")
+            .isVisible("#topicFilter", "alle Basis-Themen")
             .isNotVisible("#typeFilter", "Fakt")
             .isVisible("td", "CoronaTST >", "has facts, should be visible")
             .isNotVisible("td", "Bahn-TST", "Bahn has no facts, should be hidden")
             ;
     });
 
-    tr.addBlock("Block 1", (runner) => {
+    tr.addBlock("Block 1 change settings ... ", (runner) => {
         runner
             .set("#topicFilter", "/")
-            .wait(500)
             .click("#toggleTypeFilter")
             .wait(500)
             .isVisible("#typeFilter", "Fakt")
             .set("#typeFilter", "all")
+            .isVisible("#typeFilter", "All Types")
+            .isVisible("td", "Bahn-TST", "show all - even non-facts")
             ;
     });
 
