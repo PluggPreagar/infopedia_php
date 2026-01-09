@@ -444,7 +444,7 @@
         </table>
     </section>
     <section id="add-edit-section" style="display: none;">
-        <form id="addEditForm">
+        <form id="addEditForm" onsubmit="return false;" style="max-width: 800px; margin: auto;">
             <label for="entryMessage">add Message:</label>
             <textarea id="entryMessage" name="message" placeholder="Enter message..." required style="width: 100%; margin-bottom: 1rem; padding: 0.5rem;"></textarea>
 
@@ -477,7 +477,7 @@
         <div id="edit-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000;">
             <div id="edit-overlay-content" style="position: relative; width: 90%; max-width: 600px; margin: 5% auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);" >
                 <h2 style="margin-top: 0;">Edit Entry</h2>
-                <form id="edit-form">
+                <form id="edit-form" onsubmit="return false;">
                     <textarea id="edit-message" name="message"
                               style="width: 100%; box-sizing: border-box; min-height: 150px; resize: none; padding: 0.5rem; border: 1px solid #ccc; border-radius: 5px;"
                               required>
@@ -526,6 +526,8 @@
     let selectedTopic = "/";
     let latestTimestamp = null;
     let latestDisplayTs = null;
+    let mockIO = []; // to be used in tests instead of real data-fetching/upload
+    let mockToasts = []; // to be used in tests instead of real user-notices
 
     const tableBody = document.querySelector("#browse tbody");
     const topicFilter = document.getElementById("topicFilter");
@@ -566,6 +568,12 @@
         latestDisplayTs = null;
         textFilter.value = ""; // reset text filter
         typeFilter.value = "!"; // reset type filter
+        // .click("#toggleTypeFilter") if filter visible
+        if (typeFilterContainer.style.display !== "none"){
+            toggleButton.click();
+        }
+        initializeTopicMap();
+        populateFilterOptions();
         updateFilteredData();
     }
 
@@ -1046,7 +1054,8 @@
         const messageInput = document.getElementById("edit-message");
         const topicInput = document.getElementById("edit-topic-id");
         const nodeInput = document.getElementById("edit-node-id");
-
+        //  just to save - clear other input variant
+        document.getElementById("entryMessage").value = "";
         messageInput.value = message; // Pre-fill the message if provided
         // topicInput.value = topicId;   // Set the topicId
         // nodeInput.value = nodeId;     // Set the nodeId
@@ -1214,12 +1223,17 @@ if (overlayContent) {
         test
     */
 
+    let unitTestCounter = 0;
+    let unitTestPassed = [];
+    let unitTestFailed = [];
 
     function assertExists(m,e){
         const e_ = typeof e === "object" ? JSON.stringify(e) : e;
         if (!e){
+            unitTestFailed.push(m);
             console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got none");
         } else {
+            unitTestPassed.push(m);
             console.log("ASSERTION PASSED in test #"+m+": '"+e_+"' exists");
         }
     }
@@ -1228,8 +1242,10 @@ if (overlayContent) {
         const e_ = typeof e === "object" ? JSON.stringify(e) : e;
         const i_ = typeof i === "object" ? JSON.stringify(i) : i;
         if (e!==i){
+            unitTestFailed.push(m);
             console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got '"+i_+"'");
         } else {
+            unitTestPassed.push(m);
             console.log("ASSERTION PASSED in test #"+m+": '"+e_+"'");
         }
     }
@@ -1526,7 +1542,9 @@ if (overlayContent) {
         document.querySelectorAll(".send-button").forEach((button) => {
             button.addEventListener("click", () => {
                 const topic = document.getElementById("topicFilter").value;
-                const message = document.getElementById("entryMessage").value.trim();
+                // check which input dialog has been used
+                const message = document.getElementById("entryMessage").value.trim()
+                            || document.getElementById("edit-message").value.trim();
                 const type = button.getAttribute("data-type");
                 console.log("Send button clicked:", button, " for topic:", topic, " with type:", type);
 
@@ -1553,8 +1571,15 @@ if (overlayContent) {
                 // generate nodeId as timestamp + random
                 const nodeId = Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
                 const entry = topic + " | " + nodeId + " | " + message + type;
-                addEntry(topic, nodeId, message + type, "0", new Date().toLocaleDateString("de-DE") + " " + new Date().toLocaleTimeString("de-DE"));
+                // timestamp format: YYYY-MM-DD HH:MM:SS
+                let entryTimestamp = new Date().toISOString().slice(0, 19).replace("T", " ");
+                addEntry(topic, nodeId, message + type, "0", entryTimestamp);
                 const sendUrl = `entry/add?sid=www&tid=${encodeURIComponent(tenantId)}&entry=${encodeURIComponent(entry)}`;
+                if (tenantId === "MOCK") {
+                    console.log("Mock tenant - skipping sending entry to URL:", sendUrl);
+                    mockIO.push(sendUrl);
+                    return;
+                }
                 fetch(sendUrl)
                     .then(response => {
                         if (!response.ok) {
@@ -1572,6 +1597,8 @@ if (overlayContent) {
 
                 // Clear the form
                 document.getElementById("addEditForm").reset();
+                // clear both inputs after reading
+                document.getElementById("entryMessage").value = "";
             });
         });
 
@@ -1579,6 +1606,11 @@ if (overlayContent) {
             SHOW TOAST MESSAGES
     */
     function showToast(message, type = "info", duration = 3000) {
+        if ("MOCK" === tenantId) {
+            console.log("Mock tenant - toast message:", message);
+            mockToasts.push({ message: message, type: type, duration: duration });
+            return;
+        }
         const toastContainer = document.getElementById("toast-container");
         console.log("Showing toast message:", message);
         // Create the toast element
@@ -1604,14 +1636,43 @@ if (overlayContent) {
         }, duration);
     }
 
+    function isElementInViewport(el) {
+        const rect = el.getBoundingClientRect();
+        const headerOffset = document.querySelector("nav").offsetHeight; // Adjust based on your sticky header
+        return (
+            rect.top >= headerOffset &&
+            rect.left >= 0 &&
+            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+        );
+    }
+
+    function scrollToElement(el) {
+        if (!isElementInViewport(el)) {
+            const headerOffset = document.querySelector("nav").offsetHeight; // Adjust based on your sticky header
+            const elementPosition = el.getBoundingClientRect().top + window.scrollY;
+            const offsetPosition = elementPosition - headerOffset;
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: "smooth"
+            });
+        }
+    }
+
         // Add event listener to the FAB button
     document.getElementById("fab-add").addEventListener("click", () => {
         // Example: Open the add/edit section or trigger a function
         const addEditSection = document.getElementById("add-edit-section");
+        // not allowed on root topic or general topic
+        if (topicFilter.value === "/" || topicFilter.value === "" || topicFilter.value === null || topicFilter.value == "all" ) {
+            showToast("Cannot add entry to root topic. Please select a specific topic first.");
+            return;
+        }
+
         if (addEditSection) {
+            document.getElementById("entryMessage").value = ""; // Clear previous input
             addEditSection.style.display = "block"; // Show the add/edit section
-            // ensure the page scrolls to the add/edit section
-            addEditSection.scrollIntoView({ behavior: 'smooth' });
+            scrollToElement(addEditSection); // considering sticky header, scroll only if not visible
             // Optionally, you can focus on the first input field
             const firstInput = addEditSection.querySelector("input, textarea, select");
             if (firstInput) {
@@ -1888,13 +1949,23 @@ if (overlayContent) {
             return this;
         }
 
+        blockSetupChecks(name) {
+            return this
+                .assertEq( "/", topicFilter.value, "topic filter is reset to / before block '" + name + "'" )
+                .isVisible("#topicFilter", "alle Basis-Themen", "topic filter is visible before block '" + name + "'" )
+                .isNotVisible("#typeFilter", null, "type filter is hidden before block '" + name + "'" )
+                .isNotVisible("#add-edit-section", null, "add/edit section is hidden before block '" + name + "'" );
+        }
+
         start(name) {
             this.chain = this.chain.then(() => {
                 if (name === "showStart") {
                     console.log("---------------------------------------------- ");
                     console.log("Starting test sequence...              ------- ");
                 } else if (name !== "showSummary") {
-                    console.log(`--- Starting test block: ${name}  --- `);
+                    console.log("| ");
+                    console.log(`|-- Starting test block: ${name}  --- `);
+                    console.log("| ");
                 } else {
                     console.log("--------------------------------------------- ");
                     this.showSummary();
@@ -1935,6 +2006,9 @@ if (overlayContent) {
 
             Object.entries(this.blocks).forEach(([name, block]) => {
                 this.chain = this.chain.then(() => {
+                    return this.blockSetupChecks(name); // Ensure setup checks are done before each block
+                });
+                this.chain = this.chain.then(() => {
                     return block(this.start(name)); // Ensure the block returns a Promise
                 });
             });
@@ -1957,7 +2031,6 @@ if (overlayContent) {
 
     // Example usage:
     const tr = new TestRunner();
-    resetData("MOCK", "TESTING"); // MOCK - for testing, disable polling
 
     // Define test blocks
     tr.addBlock("Block 0 init", (runner) => {
@@ -2031,12 +2104,15 @@ if (overlayContent) {
             .set("#typeFilter", "all")
             .isVisible("#typeFilter", "All Types")
             .isVisible("td", "Bahn-TST", "show all - even non-facts")
+            .click("#toggleTypeFilter")
             ;
     });
 
-    tr.addBlock("Block 2 Topic/Text Filter ... ", (runner) => {
+    tr.addBlock("Block 3 Topic/Text Filter ... ", (runner) => {
         runner
             .set("#topicFilter", "/corona")
+            .click("#toggleTypeFilter")
+            .set("#typeFilter", "all")
             .set("#textFilter", "pandemie")
             .isVisible("td", "Fakten zur Pandemie.", "should show facts about Pandemie")
             .isNotVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
@@ -2049,14 +2125,82 @@ if (overlayContent) {
             .set("#textFilter", "")
             .set("#topicFilter", "/")
             .isVisible("td", "Bahn-TST", "should show Bahn again")
+            .click("#toggleTypeFilter")
+            .set("#topicFilter", "/")
+            ;
+    });
+
+    tr.addBlock("Block 4 unit tests for filtering logic", (runner) => {
+        runner
+            .execute( () => {
+                // todo integrate with testRunner
+                unitTestPassed = [];
+                unitTestFailed = [];
+                test();
+                for (let i=0; i<unitTestPassed.length; i++) {
+                    runner.check( true, `Unit Test Passed[${i}]: ${unitTestPassed[i]}` );
+                }
+                for (let i=0; i<unitTestFailed.length; i++) {
+                    runner.check( false, `Unit Test Failed[${i}]: ${unitTestFailed[i]}` );
+                }
+            })
+            .wait(100)
+            .assertEq( 0, () => unitTestFailed.length , "all unit tests passed" )
+            .assertEq( 18, () => unitTestPassed.length , "KLUDGE log passed tests")
+            ;
+    });
+
+    tr.addBlock("Block 5 add new entry via form", (runner) => {
+        runner
+            .set("#topicFilter", "/corona")
+            .assertEq( 0, () => mockIO.length , "no mock data entries yet" )
+            .click("#fab-add", null, "click FAB to open add section")
+            // sunny case - matching type filter
+            .set("#entryMessage", "neuer Fakt")
+            .click(".send-button[data-type='!']", null, "try - click send button for Fakt")
+            .isVisibleOrWaitFor("td", "neuer Fakt!", "new fact is accepted")
+            .assertEq( 1, () => mockIO.length , "1 mock data entry after adding new fact" )
+            .assertEq( 0, () => mockToasts.length , "no toast messages yet" )
+            // rainy case - non-matching type filter
+            .set("#entryMessage", "Neu eingetragene Nachricht.")
+            .click(".send-button[data-type='.']", null, "try - click send button for Meinung")
+            .wait(100)
+            .isNotVisible("td", "Neu eingetragene Nachricht.!", "new entry is not accepted (not matching type filter)")
+            .assertEq( 1, () => mockIO.length , "still only 1 mock data entry after trying to add non-matching type" )
+            .assertEq( 1, () => mockToasts.length , "1 toast message after trying to add non-matching type" )
+            .assertEq( "Selected type does not match filter type. Please adjust the type filter or select a different type."
+                        , () => mockToasts[mockToasts.length -1 ].message
+                        , "toast message content after trying to add non-matching type" )
+            .execute( () => {
+                mockIO = []; // reset mock data
+                document.getElementById("add-edit-section").style.display = "none"; // hide add/edit section
+            })
+            .set("#topicFilter", "/")
             ;
     });
 
 
+    let tenantIdOld = tenantId;
+    tr.addBlock("Block 'cleanup' ", (runner) => {
+        runner
+            .wait(500)
+            .execute( () => {
+                resetData(tenantIdOld, "cleanup test");
+            })
+            .wait(500)
+            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "data reset - no entries")
+            .assertEq( 1, () => topicFilter.options.length , "only 'all topics' option after reset" )
+            .execute( () => {
+                loadData(url);
+            })
+            ;
+    });
+
 
     // Run all test blocks
-
+    resetData("MOCK", "TESTING"); // MOCK - for testing, disable polling
     tr.runBlocks( true );
+
 
 
 
