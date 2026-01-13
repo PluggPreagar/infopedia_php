@@ -1143,6 +1143,48 @@
     }
 
 
+    function toggleShowAndWorkmode() {
+        const sectionsToToggle = document.querySelectorAll("section:not(#browse)");
+        const newDisplay = sectionsToToggle[0].style.display === "none" || getComputedStyle(sectionsToToggle[0]).display === "none"
+            ? "block" : "none";
+        const ignoreIds = ["browse", "utils-send-buttons", "add-edit-section"];
+        sectionsToToggle.forEach((section) => {
+            if (!ignoreIds.includes(section.id))
+                section.style.display = newDisplay;
+        });
+        // set nav links visibility - only direct in body
+        const navLinks = document.querySelectorAll("body > nav a");
+        navLinks.forEach((link) => {
+            if (!link.id) { // only links without id - links in menu bar
+                link.style.display = newDisplay;
+            }
+        });
+        const cinemaSlogans = document.getElementById("cinema-slogans");
+        if (cinemaSlogans) {
+            cinemaSlogans.style.display = newDisplay;
+        }
+        // browse h2
+        document.querySelector("#browse h2").style.display = newDisplay;
+        document.getElementById("browse_comment").style.display = newDisplay;
+        // enable type filter if was disabled
+        if (typeFilterContainer.style.display === "none" && newDisplay === "none") {
+            toggleButton.dispatchEvent(new Event("click"));
+        }
+        topicFilterLabel.style.display = newDisplay;
+        // header
+        document.querySelector("header").style.display = newDisplay;
+        // change color of nav to green
+        document.querySelector("nav").style.backgroundColor = newDisplay === "none" ? "#4CAF50" : "";
+        // thead - topic in filter
+        document.querySelector("thead").style.display = newDisplay;
+        //
+        margin = newDisplay === "none" ? "1em" : "0";
+        textFilter.style.marginBottom = margin;
+        typeFilter.style.marginBottom = margin;
+
+    };
+
+
 
 
     /*
@@ -1573,6 +1615,7 @@ if (overlayContent) {
         });
 
         toggleButton.addEventListener("click", () => {
+            console.log("Toggle filter visibility (toggleButton)");
             textFilter.value = ""; // reset text filter
             typeFilter.value = "!"; // reset type filter
             const ignoreOption = topicFilter.querySelector('option[value="IGNORE"]');
@@ -1660,46 +1703,7 @@ if (overlayContent) {
         });
 
         // toggle visibility of sections (except browsing-section) on click of navProjectTitle
-        navProjectTitle.addEventListener("click", () => {
-            const sectionsToToggle = document.querySelectorAll("section:not(#browse)");
-            const newDisplay = sectionsToToggle[0].style.display === "none" || getComputedStyle(sectionsToToggle[0]).display === "none"
-                ? "block" : "none";
-            const ignoreIds = ["browse", "utils-send-buttons", "add-edit-section"];
-            sectionsToToggle.forEach((section) => {
-                if (!ignoreIds.includes(section.id))
-                    section.style.display = newDisplay;
-            });
-            // set nav links visibility - only direct in body
-            const navLinks = document.querySelectorAll("body > nav a");
-            navLinks.forEach((link) => {
-                if (!link.id) { // only links without id - links in menu bar
-                    link.style.display = newDisplay;
-                }
-            });
-            const cinemaSlogans = document.getElementById("cinema-slogans");
-            if (cinemaSlogans) {
-                cinemaSlogans.style.display = newDisplay;
-            }
-            // browse h2
-            document.querySelector("#browse h2").style.display = newDisplay;
-            document.getElementById("browse_comment").style.display = newDisplay;
-            //
-            if (typeFilterContainer.style.display === "none") {
-                toggleTypeFilter.dispatchEvent(new Event("click"));
-            }
-            topicFilterLabel.style.display = newDisplay;
-            // header
-            document.querySelector("header").style.display = newDisplay;
-            // change color of nav to green
-            nav.style.backgroundColor = newDisplay === "none" ? "#4CAF50" : "";
-            // thead - topic in filter
-            document.querySelector("thead").style.display = newDisplay;
-            //
-            margin = newDisplay === "none" ? "1em" : "0";
-            textFilter.style.marginBottom = margin;
-            typeFilter.style.marginBottom = margin;
-
-        });
+        navProjectTitle.addEventListener("click", () => {toggleShowAndWorkmode()});
 
 
 
@@ -2525,6 +2529,9 @@ if (overlayContent) {
                     console.log("All tests passed - reloading data for tenant: " + tenantIdOld);
                     resetData(tenantIdOld, "cleanup test");
                     loadData(url);
+                    if (urlParams.get('tenantId') || urlParams.get('tid')) {
+                        toggleShowAndWorkmode();
+                    }
                     // show a big big toast
                     showToast(randomCongratulation("All tests passed !!"), "success", 10000);
                     showToast("Well done! 🎉", "success", 10000);
@@ -2537,12 +2544,17 @@ if (overlayContent) {
             ;
     });
 
-    if (true && window.location.hostname === "localhost") {
+    if (false && window.location.hostname === "localhost") {
         // Run all test blocks first and stop on error
         resetData("MOCK", "TESTING"); // MOCK - for testing, disable polling
         tr.runBlocks( true );
+
     } else {
         resetData(tenantId, "normal start");
+        if (urlParams.get('tenantId') || urlParams.get('tid')) {
+            typeFilterContainer.style.display = "block";
+            toggleShowAndWorkmode();
+        }
         showToast(randomCongratulation("Welcome!"), "success", 4000);
         showToast("Infopedia loaded" +  ( ""==tenantId ? "" : " for " + tenantId), "info", 2000);
         // polling every 60 seconds

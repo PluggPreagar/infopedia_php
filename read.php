@@ -38,7 +38,7 @@ $cacheOutdated = $cacheOutdatedFile
 
 
 // return csv if format is not txt
-if ($format === 'txt' || $format === 'txt.0.2') {
+if ($format === 'txt' || $format === 'txt.0.2' || $format === 'txt.0.3') {
     header('Content-Type: text/plain');
 } else if ($format === 'json.0.3') {
     header('Content-Type: application/json');
@@ -68,7 +68,10 @@ if (file_exists($cacheFile)
 // if ts-mode, check last modified time of org file - wait 1 minute for the file to change
 // add 2 seconds to let file write finish
 if ($last_timestamp !== '' && file_exists($googleSheetUrl)
-        && $format !== 'txt.0.2' && $format !== 'txt' && $format !== 'json.0.3') {
+        && $format !== 'txt.0.2'
+        && $format !== 'txt.0.3'
+        && $format !== 'txt'
+        && $format !== 'json.0.3') {
     // last_timestamp == time of last read
     // a) already changed - if file modification time is new then last_timestamp
     // b) no changed yet - wait until max 50 seconds for file to change
@@ -365,8 +368,65 @@ if ($response === false) {
         $newLines = array_unique($newLines);
         sort($newLines);
         $response = implode("\n", $newLines);
-        log_warn("Converted csv to txt.0.2 format with " . count($newLines) . " lines");
+        log_warn("Converted csv to txt.0.2b format with " . count($newLines) . " lines");
     }
+
+    if ($format === 'txt.0.3') {
+        // convert csv to txt v0.2
+        // target: <indent> <message>
+        // from  : <date>,<path> | <node> | <message> | <votes>
+        $lines = explode("\n", $response);
+        $newLines = [];
+        $txtResponse = "";
+        $leftoverLine = "";
+        foreach($lines as $line) {
+            // check quotes for wrapped lines
+            $quoteCount = substr_count($line, '"');
+            if ($quoteCount % 2 != 0) {
+                // odd number of quotes, line is wrapped
+                $leftoverLine .= $line . "\\n"; // preserve newline in message
+                continue;
+            } else {
+                // even number of quotes, line is complete
+                $line = $leftoverLine . $line;
+                $leftoverLine = "";
+            }
+            if (strpos($line, 'Timestamp,') !== 0) {
+                [$timestamp, $rest] = array_pad(explode(',', $line, 2), 2, '');
+                if ($timestamp === '' || $rest === '') {
+                    log_warn("Skipping malformed line for txt.0.3: $line");
+                    continue;
+                }
+                // handle <ts>,"/path | node | message | votes
+                $rest = trim($rest, '"');
+                [$path, $node, $message, $votes] = array_pad(explode(' | ', $rest, 4), 4, '');
+                $message = trim($message, '"'); // remove quotes around message
+                $fullPath = $path . "/" . $node; // fix multiple "/"
+                $fullPath = preg_replace('#/+#','/',$fullPath);
+                $indent = substr_count($fullPath, '/') - 1; // calculate indent based on path depth
+                $newLine = [ $fullPath, str_repeat('    ', $indent).$message];
+                if (trim($node) !== '' && trim($message) !== '') {
+                    $newLines[] = implode(' | ', $newLine);
+                } else {
+                    log_warn("Skipping malformed line for txt.0.3: $line");
+                }
+            }
+        }
+        // sort
+        $newLines = array_unique($newLines);
+        sort($newLines);
+        // remove path from lines
+        foreach ($newLines as &$line) {
+            $parts = explode(' | ', $line, 2);
+            if (count($parts) == 2) {
+                $line = $parts[1]; // keep only the message with indent
+            }
+        }
+        $response = implode("\n", $newLines);
+        log_warn("Converted csv to txt.0.3 format with " . count($newLines) . " lines");
+    }
+
+
 
     if ($format == "json.0.3"){
         // convert csv to json v0.3
