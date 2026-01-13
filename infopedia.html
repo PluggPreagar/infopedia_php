@@ -687,6 +687,14 @@
                     checkData(topic, nodeId, data[topic][nodeId].message);
                 });
             });
+            // remove all topic w/o parent-definition
+            Object.keys(data).forEach((topic) => {
+                const [parentTopic, parentNodeId] = splitKey(topic);
+                if (topic !== "/" && (!data[parentTopic] || !data[parentTopic][parentNodeId])) {
+                    console.log("Removing topic without parent definition:", topic);
+                    delete data[topic];
+                }
+            });
         } else if (topic && nodeId) {
             // check if topic has children
             const topicNode = data[topic][nodeId];
