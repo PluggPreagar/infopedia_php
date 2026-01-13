@@ -431,7 +431,7 @@
             <thead>
             <tr>
                 <th></th>
-                <th>Message</th>
+                <th id="header-topic-name" >Message</th>
                 <th></th>
                 <th>Stand</th>
             </tr>
@@ -1509,6 +1509,11 @@ if (overlayContent) {
                 }
             }
             updateFilteredData();
+            // set table header to selected topic name
+            const headerTopicName = document.getElementById("header-topic-name");
+            if (headerTopicName) {
+                headerTopicName.textContent = topicMap[selectedTopic] || 'Message';
+            }
         });
 
         typeFilter.addEventListener("change", () => {
@@ -1519,6 +1524,10 @@ if (overlayContent) {
                 const buttonType = button.getAttribute("data-type");
                 button.disabled = selectedType !== "all" && buttonType !== selectedType;
                 button.style.opacity = button.disabled ? "0.25" : "1"; // Optional: Dim disabled buttons
+                // on mobile, hide disabled buttons
+                if (window.innerWidth < 600) {
+                    button.style.display = button.disabled ? "none" : "inline-block";
+                }
             });
 
             updateFilteredData();
