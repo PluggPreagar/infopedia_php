@@ -860,6 +860,11 @@
             option.textContent = topic.name.replace(/ /g, "\u00A0");
             topicFilter.appendChild(option);
         });
+        // add global search option
+        const globalOption = document.createElement("option");
+        globalOption.value = "IGNORE";
+        globalOption.textContent = "🔍 global Suche";
+        topicFilter.appendChild(globalOption);
     }
 
 
@@ -1168,7 +1173,7 @@
         document.getElementById("browse_comment").style.display = newDisplay;
         // enable type filter if was disabled
         if (typeFilterContainer.style.display === "none" && newDisplay === "none") {
-            toggleButton.dispatchEvent(new Event("click"));
+            toggleFilterVisibility();
         }
         topicFilterLabel.style.display = newDisplay;
         // header
@@ -1185,6 +1190,29 @@
     };
 
 
+    function toggleFilterVisibility() {
+        console.log("Toggle filter visibility (toggleButton)");
+        textFilter.value = ""; // reset text filter
+        typeFilter.value = "!"; // reset type filter
+        const ignoreOption = topicFilter.querySelector('option[value="IGNORE"]');
+        if (typeFilterContainer.style.display === "none") {
+            toggleButton.textContent = "verstecke Filter";
+            typeFilterContainer.style.display = "block";
+            if (!ignoreOption) {
+                const option = document.createElement("option");
+                option.value = "IGNORE";
+                option.textContent = "(globale Suche)";
+                topicFilter.appendChild(option);
+            }
+        } else {
+            toggleButton.textContent = "zeige Filter";
+            typeFilterContainer.style.display = "none";
+            if (ignoreOption) {
+                ignoreOption.remove();
+            }
+        }
+        updateFilteredData();
+    };
 
 
     /*
@@ -1614,29 +1642,8 @@ if (overlayContent) {
             updateFilteredData();
         });
 
-        toggleButton.addEventListener("click", () => {
-            console.log("Toggle filter visibility (toggleButton)");
-            textFilter.value = ""; // reset text filter
-            typeFilter.value = "!"; // reset type filter
-            const ignoreOption = topicFilter.querySelector('option[value="IGNORE"]');
-            if (typeFilterContainer.style.display === "none") {
-                toggleButton.textContent = "verstecke Filter";
-                typeFilterContainer.style.display = "block";
-                if (!ignoreOption) {
-                    const option = document.createElement("option");
-                    option.value = "IGNORE";
-                    option.textContent = "(globale Suche)";
-                    topicFilter.appendChild(option);
-                }
-            } else {
-                toggleButton.textContent = "zeige Filter";
-                typeFilterContainer.style.display = "none";
-                if (ignoreOption) {
-                    ignoreOption.remove();
-                }
-            }
-            updateFilteredData();
-        });
+        toggleButton.addEventListener("click", () => toggleFilterVisibility() );
+
 
 
     /*
@@ -2552,7 +2559,6 @@ if (overlayContent) {
     } else {
         resetData(tenantId, "normal start");
         if (urlParams.get('tenantId') || urlParams.get('tid')) {
-            typeFilterContainer.style.display = "block";
             toggleShowAndWorkmode();
         }
         showToast(randomCongratulation("Welcome!"), "success", 4000);
