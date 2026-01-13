@@ -1646,9 +1646,9 @@ if (overlayContent) {
 
         // toggle visibility of sections (except browsing-section) on click of navProjectTitle
         navProjectTitle.addEventListener("click", () => {
+            const sectionsToToggle = document.querySelectorAll("section:not(#browse)");
             const newDisplay = sectionsToToggle[0].style.display === "none" || getComputedStyle(sectionsToToggle[0]).display === "none"
                 ? "block" : "none";
-            const sectionsToToggle = document.querySelectorAll("section:not(#browse)");
             const ignoreIds = ["browse", "utils-send-buttons", "add-edit-section"];
             sectionsToToggle.forEach((section) => {
                 if (!ignoreIds.includes(section.id))
