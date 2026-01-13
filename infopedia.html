@@ -500,7 +500,7 @@
             </div>
         </div>
         <!-- fab button to show/hide send buttons -->
-        <button id="fab-add" title="Add Data">
+        <button id="fab-add" title="Add Data" style="display: none;">
             <i class="fas fa-plus"></i>
         </button>
     </section>
@@ -903,11 +903,12 @@
         // Add click event for topic links
         document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
             link.addEventListener("click", (event) => {
-                console.log("Topic link clicked");
+                console.log("Topic link clicked"); // TODO merge with topicFilter change
                 event.preventDefault();
                 selectedTopic = event.target.dataset.topic;
                 console.log("Topic link clicked: '" + selectedTopic+"'");
                 topicFilter.value = selectedTopic; // run updates ..
+                topicFilter.dispatchEvent(new Event('change'));
                 updateFilteredData();
             });
         });
@@ -1499,6 +1500,14 @@ if (overlayContent) {
         topicFilter.addEventListener("change", () => {
             console.log("Topic filter changed");
             selectedTopic = topicFilter.value;
+            const fabAddButton = document.getElementById("fab-add");
+            if (fabAddButton){
+                if (selectedTopic === "/" || selectedTopic === "") {
+                    fabAddButton.style.display = "none";
+                } else {
+                    fabAddButton.style.display = "block";
+                }
+            }
             updateFilteredData();
         });
 
@@ -2445,6 +2454,7 @@ if (overlayContent) {
         resetData("MOCK", "TESTING"); // MOCK - for testing, disable polling
         tr.runBlocks( true );
     } else {
+        resetData(tenantId, "normal start");
         showToast(randomCongratulation("Welcome!"), "success", 4000);
         showToast("Infopedia loaded" +  ( ""==tenantId ? "" : " for " + tenantId), "info", 2000);
         // polling every 60 seconds
