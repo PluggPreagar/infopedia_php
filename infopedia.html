@@ -422,11 +422,9 @@
         </p>
         <div class="filter-container">
             <div id="typeFilterContainer"  style="display: none; grid-column: span 2">
-                <div class="filter-row" >
-                    <label  id="topicFilterLabel" for="childRow.topic">Filter&nbsp;nach&nbsp;Thema:</label>
-                    <select id="topicFilter">
-                        <option value="/">alle Basis-Themen</option>
-                    </select>
+                <div class="filter-row" style="padding-top: 0.5rem;">
+                    <label for="textFilter" style="display: none" >Search by Text:</label>
+                    <input type="text" id="textFilter" class="textInput" placeholder="Enter text to search...">
                 </div>
                 <div class="filter-row">
                     <label for="typeFilter" style="display: none" >Filter&nbsp;nach&nbsp;Type:</label>
@@ -440,9 +438,11 @@
                         <option value="@">Reference</option>
                     </select>
                 </div> <!-- filter-row  -->
-                <div class="filter-row" style="padding-top: 0.5rem;">
-                    <label for="textFilter" style="display: none" >Search by Text:</label>
-                    <input type="text" id="textFilter" class="textInput" placeholder="Enter text to search...">
+                <div class="filter-row" >
+                    <label  id="topicFilterLabel" for="childRow.topic">Filter&nbsp;nach&nbsp;Thema:</label>
+                    <select id="topicFilter">
+                        <option value="/">alle Basis-Themen</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -1677,6 +1677,8 @@ if (overlayContent) {
             document.querySelector("header").style.display = newDisplay;
             // change color of nav to green
             nav.style.backgroundColor = newDisplay === "none" ? "#4CAF50" : "";
+            // thead - topic in filter
+            document.querySelector("thead").style.display = newDisplay;
 
         });
 
