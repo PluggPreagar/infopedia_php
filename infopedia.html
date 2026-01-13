@@ -398,9 +398,10 @@
     </section>
     <section id="browse" style="width: 90%; margin: auto;">
         <h2>Browse Example Dataset</h2>
-        <p id="browse_comment">Explore the data collected by the Fakt Farming Project.</p>
+        <p id="browse_comment">Explore the data collected by the Fakt Farming Project.
+            <button id="toggleTypeFilter" style="display: block">zeige Filter</button>
+        </p>
         <div class="filter-container">
-            <button id="toggleTypeFilter" style="display: block">Erweiterte Filter</button>
             <div id="typeFilterContainer"  style="display: none; grid-column: span 2">
                 <div class="filter-row" >
                     <label for="childRow.topic">Filter&nbsp;nach&nbsp;Thema:</label>
@@ -1398,7 +1399,7 @@ if (overlayContent) {
             typeFilter.value = "!"; // reset type filter
             const ignoreOption = topicFilter.querySelector('option[value="IGNORE"]');
             if (typeFilterContainer.style.display === "none") {
-                toggleButton.textContent = "Einfache Filter";
+                toggleButton.textContent = "verstecke Filter";
                 typeFilterContainer.style.display = "block";
                 if (!ignoreOption) {
                     const option = document.createElement("option");
@@ -1407,7 +1408,7 @@ if (overlayContent) {
                     topicFilter.appendChild(option);
                 }
             } else {
-                toggleButton.textContent = "Erweiterte Filter";
+                toggleButton.textContent = "zeige Filter";
                 typeFilterContainer.style.display = "none";
                 if (ignoreOption) {
                     ignoreOption.remove();
