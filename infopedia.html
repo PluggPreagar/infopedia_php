@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Fakt Farming Project - fayf.info">
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -53,6 +64,9 @@
         a:hover, nav a:hover, .topic-link:hover, .parent-topic-link:hover {
             text-decoration: underline;
         }
+        main {
+            flex: 1; /* Ensures the main content takes up available space */
+        }
         tbody {
            margin-top: 1rem; /* Add space between the header and content */
         }
@@ -97,6 +111,7 @@
             text-align: center;
             padding: 1rem 0;
             margin-top: 2rem;
+            margin-top: auto; /* Pushes the footer to the bottom */
         }
 
         #topicFilter, #typeFilter {
@@ -355,6 +370,10 @@
             100% { opacity: 0; transform: translateY(-10px); }
         }
 
+        .project-title{
+            cursor: pointer;
+        }
+
     </style>
     <!-- Add this script to include the QRCode.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -404,7 +423,7 @@
         <div class="filter-container">
             <div id="typeFilterContainer"  style="display: none; grid-column: span 2">
                 <div class="filter-row" >
-                    <label for="childRow.topic">Filter&nbsp;nach&nbsp;Thema:</label>
+                    <label  id="topicFilterLabel" for="childRow.topic">Filter&nbsp;nach&nbsp;Thema:</label>
                     <select id="topicFilter">
                         <option value="/">alle Basis-Themen</option>
                     </select>
@@ -1597,11 +1616,13 @@ if (overlayContent) {
 
         window.addEventListener("scroll", function () {
             const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+            // nav a is not visible - then keep project title empty
+            const ptFallback = getComputedStyle(document.querySelector("nav a")).display === "none" ? "fayf" : "";
 
             if (!mediaQuery.matches) {
                 if (window.scrollY < header.offsetHeight) {
                     nav.classList.remove("sticky");
-                    navProjectTitle.textContent = "";
+                    navProjectTitle.textContent = ptFallback;
             } else {
                     nav.classList.add("sticky");
                     navProjectTitle.textContent = "fayf";
@@ -1610,7 +1631,7 @@ if (overlayContent) {
             }
             if (currentScroll < headerBottom) {
                 // Above header bottom - set title to empty
-                navProjectTitle.textContent = "";
+                navProjectTitle.textContent = ptFallback;
             } else if (navProjectTitle.textContent === "") {
                 // Below header bottom - set title if not already set
                 navProjectTitle.textContent = projectTitle;
@@ -1622,6 +1643,43 @@ if (overlayContent) {
 
             lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; // For mobile or negative scrolling
         });
+
+        // toggle visibility of sections (except browsing-section) on click of navProjectTitle
+        navProjectTitle.addEventListener("click", () => {
+            const newDisplay = sectionsToToggle[0].style.display === "none" || getComputedStyle(sectionsToToggle[0]).display === "none"
+                ? "block" : "none";
+            const sectionsToToggle = document.querySelectorAll("section:not(#browse)");
+            const ignoreIds = ["browse", "utils-send-buttons", "add-edit-section"];
+            sectionsToToggle.forEach((section) => {
+                if (!ignoreIds.includes(section.id))
+                    section.style.display = newDisplay;
+            });
+            // set nav links visibility - only direct in body
+            const navLinks = document.querySelectorAll("body > nav a");
+            navLinks.forEach((link) => {
+                if (!link.id) { // only links without id - links in menu bar
+                    link.style.display = newDisplay;
+                }
+            });
+            const cinemaSlogans = document.getElementById("cinema-slogans");
+            if (cinemaSlogans) {
+                cinemaSlogans.style.display = newDisplay;
+            }
+            // browse h2
+            document.querySelector("#browse h2").style.display = newDisplay;
+            document.getElementById("browse_comment").style.display = newDisplay;
+            //
+            if (typeFilterContainer.style.display === "none") {
+                toggleTypeFilter.dispatchEvent(new Event("click"));
+            }
+            topicFilterLabel.style.display = newDisplay;
+            // header
+            document.querySelector("header").style.display = newDisplay;
+            // change color of nav to green
+            nav.style.backgroundColor = newDisplay === "none" ? "#4CAF50" : "";
+
+        });
+
 
 
         /*
