@@ -486,6 +486,9 @@
                     <div style="display: flex; padding-top: 0.5rem; justify-content: space-between; align-items: center;">
                         <button id="cancel-edit" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; color: #f44336; cursor: pointer;" onclick="closeEditOverlay();">&times;</button>
                         <div id="send-buttons" style="display: flex; gap: 0.5rem; margin-left: auto;">
+                            <button type="button" class="send-button" data-type="--" style="background: red ; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Delete</button>
+                            <!-- spacer -->
+                            <button type="button" style="background: transparent; border: none; cursor: default; width: 5rem;"></button>
                             <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
                             <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
                             <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
@@ -522,6 +525,9 @@
 
 <script>
     let tenantId = "";
+    // /!\ use current topic and type from filters
+    let currentNodeId = ""; // current nodeId for edit/add
+    let currentType = ""; // type on edit/add
     let data = {}; // Store the retrieved data
     let topicMap = {}; // Map of topicId to topic name
     let selectedTopic = "/";
@@ -591,13 +597,21 @@
         if (!timestamp) {
             timestamp = formatTimestamp(new Date().toLocaleString("de-DE"));
         }
-        data[topic][nodeId] = {
-            topic: topic,           // allow to work on data - flat structure
-            nodeId: nodeId,         // ease to identifying node
-            timestamp: timestamp,
-            message: message,
-            votes: votes
-        };
+        if (message && message.endsWith("--")) {
+            console.log("Deleting entry: " + ("/" == topic ? "" : topic) + "/" + nodeId);
+            delete data[topic][nodeId];
+        } else {
+            if ("MOCK" == tenantId || topic.length < 10) {
+                console.log("Adding entry: " + ("/" == topic ? "" : topic) + "/" + nodeId + " -> '" + message + "' (votes: " + votes + ", ts: " + timestamp + ")");
+            }
+            data[topic][nodeId] = {
+                topic: topic,           // allow to work on data - flat structure
+                nodeId: nodeId,         // ease to identifying node
+                timestamp: timestamp,
+                message: message,
+                votes: votes
+            };
+        }
     }
 
 
@@ -641,6 +655,10 @@
             // check if topic has children
             const topicNode = data[topic][nodeId];
             const topicChildren = data[fullKey(topic, nodeId)];
+            if (topicNode === undefined) {
+                console.log("Topic node not found for topic:", topic, "nodeId:", nodeId);
+                return;
+            }
             if (topicChildren && Object.keys(topicChildren).length > 0) {
                 if (!topicNode.message.endsWith(">")) {
                     topicNode.message += " >";
@@ -655,6 +673,16 @@
             if (parentTopic && parentNodeId && data[parentTopic] && data[parentTopic][parentNodeId]
                     && !data[parentTopic][parentNodeId].message.endsWith(">")) {
                 checkData(parentTopic, parentNodeId, data[parentTopic][parentNodeId].message);
+            }
+            // check topic for unique message - than skipp current nodeId
+            let changed = false;
+            Object.keys(data[topic]).forEach((otherNodeId) => {
+                    if (!changed && otherNodeId !== nodeId && data[topic][otherNodeId].message === message)
+                        changed = true;
+            });
+            if (changed) {
+                console.log("Duplicate message found in topic:", topic, "->", message); // skipping entry
+                delete data[topic][nodeId];
             }
         }
         //
@@ -828,6 +856,9 @@
                 const row = filteredData[key];
                 const tr = document.createElement("tr");
                 const fullNodeId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
+                tr.dataset.nodeId = row.nodeId;
+                tr.dataset.fullNodeId = fullNodeId;
+                tr.dataset.timestamp = row.timestamp;
                 let messageContent = row.message;
                 if (row.message.endsWith(">")) {
                     messageContent = `<a href="#" class="topic-link" data-topic="${fullNodeId}">${row.message}</a>`;
@@ -1050,22 +1081,73 @@
 
     */
 
+    function generateNodeId() {
+        return Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
+    }
+
+    function getTypeFromMessage(message) {
+        const typeIndicators = [">", ".", "!", "!-", "??", "?", "@", "--"];
+        if (message) {
+            for (const indicator of typeIndicators) {
+                if (message.endsWith(indicator)) {
+                    return indicator;
+                }
+            }
+        }
+        return ""; // default type
+    }
+
+    function matchType(message, type) {
+        // /!\ check type suffix ... - complicated ... message must not end with type already
+        let msgEndsWithType = getTypeFromMessage(message);
+        if (msgEndsWithType === type) {
+            console.log("Message already ends with type indicator '" + type + "'");
+        } else if (!msgEndsWithType) {
+            console.log("Message does not end with any type indicator, appending type '" + type + "'");
+            message += type;
+        } else if (type === "--") {
+            console.log("Message ends with different type indicator '" + msgEndsWithType + "', deleting message as requested.");
+            message = message + type; // enforce delete
+        } else {
+            console.log("Message ends with different type indicator '" + msgEndsWithType + "', enforce type '" + type + "'");
+            showToast("Message type updated to '" + type + "'.", "info");
+            message = message.slice(0, -msgEndsWithType.length).trim() + type;
+        }
+        return message;
+    }
+
     function openEditOverlay(messageOrElement = "", topicId = "", nodeId = "") {
         if (!topicId && !nodeId && messageOrElement instanceof Element) {
             let row = messageOrElement.closest("tr");
             message = messageOrElement.textContent.trim();
-            topicId = row.dataset.topic || "";
+            topicId = row.dataset.topic || topicFilter.value || "";
             nodeId = row.dataset.nodeId || "";
         } else {
             message = messageOrElement;
         }
+        console.log("Opening edit overlay for topic:", topicId, "nodeId:", nodeId, "message:", message);
+        // enable deletion button, if not in root and no votes
+        const deleteButton = document.querySelector("#edit-overlay .send-button[data-type='--']");
+        if (!nodeId || nodeId == "" || !topicId || topicId == "/"
+                || !data[topicId] || !data[topicId][nodeId] || !data[topicId][nodeId].votes) {
+            deleteButton.disabled = true;
+            deleteButton.style.opacity = "0.25";
+            console.log("Delete button disabled for nodeId:" + nodeId + "( "+ topicId + " "
+                + (nodeId && nodeId !== "" && data[topicId] && data[topicId][nodeId] ? "votes: " + data[topicId][nodeId].votes : "no nodeId") + " )");
+        } else {
+            deleteButton.disabled = false;
+            deleteButton.style.opacity = "1.0";
+            console.log("Delete button enabled for nodeId:", nodeId);
+        }
         const overlay = document.getElementById("edit-overlay");
         const messageInput = document.getElementById("edit-message");
-        const topicInput = document.getElementById("edit-topic-id");
-        const nodeInput = document.getElementById("edit-node-id");
-        //  just to save - clear other input variant
+        //const topicInput = document.getElementById("edit-topic-id");
+        //const nodeInput = document.getElementById("edit-node-id");
+        //  just to be save - clear other input variant
         document.getElementById("entryMessage").value = "";
-        messageInput.value = message; // Pre-fill the message if provided
+        currentType = getTypeFromMessage(message);
+        currentNodeId = nodeId || generateNodeId();
+        messageInput.value = message && message.endsWith(currentType) ? message.slice(0, -currentType.length).trim() : message;
         // topicInput.value = topicId;   // Set the topicId
         // nodeInput.value = nodeId;     // Set the nodeId
 
@@ -1552,13 +1634,14 @@ if (overlayContent) {
             button.addEventListener("click", () => {
                 const topic = document.getElementById("topicFilter").value;
                 // check which input dialog has been used
-                const message = document.getElementById("entryMessage").value.trim()
+                const messageRaw = document.getElementById("entryMessage").value.trim()
                             || document.getElementById("edit-message").value.trim();
                 const type = button.getAttribute("data-type");
+                const message = matchType(messageRaw, type); // append type indicator
                 console.log("Send button clicked:", button, " for topic:", topic, " with type:", type);
 
                 // type must match one of the type filter options
-                if (typeFilter.value !== "all" && typeFilter.value !== type) {
+                if (typeFilter.value !== "all" && typeFilter.value !== type && type !== "--") {
                     showToast("Selected type does not match filter type. Please adjust the type filter or select a different type.", "error");
                     return;
                 }
@@ -1575,14 +1658,28 @@ if (overlayContent) {
                     showToast("Message cannot be empty.");
                     return;
                 }
+                if (message.length < 5) {
+                    showToast("Message is too short. Please provide a more detailed message.");
+                    return;
+                }
+                // check if topic already has that message
+                const existingEntries = data[topic];
+                if (existingEntries) {
+                    for (const nodeId in existingEntries) {
+                        if (existingEntries[nodeId].message === message) {
+                            showToast("This message already exists in the selected topic. Please provide a different message.", "error");
+                            return;
+                        }
+                    }
+                }
 
                 // send entry/add?sid=www&tid={tenantId}&topic={topic}&data={message}{type}
                 // generate nodeId as timestamp + random
-                const nodeId = Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
+                const nodeId = currentNodeId || generateNodeId();
                 const entry = topic + " | " + nodeId + " | " + message + type;
                 // timestamp format: YYYY-MM-DD HH:MM:SS
                 let entryTimestamp = new Date().toISOString().slice(0, 19).replace("T", " ");
-                addEntry(topic, nodeId, message + type, "0", entryTimestamp);
+                addEntry(topic, nodeId, message, "0", entryTimestamp);
                 const sendUrl = `entry/add?sid=www&tid=${encodeURIComponent(tenantId)}&entry=${encodeURIComponent(entry)}`;
                 if (tenantId === "MOCK") {
                     console.log("Mock tenant - skipping sending entry to URL:", sendUrl);
@@ -1639,6 +1736,20 @@ if (overlayContent) {
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
             animation: fadeInOut ${duration / 1000}s ease-in-out;
         `;
+        if ("success" === type) {
+            toast.style.backgroundColor = "#4CAF50";
+            toast.style.color = "#fff";
+            toast.style.fontWeight = "bold";
+            toast.style.fontSize = "1.1rem";
+            toast.style.textAlign = "center";
+            toast.style.border = "2px solid #fff";
+            toast.style.boxShadow = "0 0 10px rgba(255, 255, 255, 0.5)";
+            toast.style.opacity = "0.9";
+        } else if ("error" === type) {
+            toast.style.backgroundColor = "#f44336";
+        } else {
+            toast.style.backgroundColor = "#333";
+        }
 
         // Append the toast to the container
         toastContainer.appendChild(toast);
@@ -2101,31 +2212,6 @@ if (overlayContent) {
             .assertEq( 3, () => topicFilter.options.length , "3 topics in filter now")
     });
 
-    tr.addBlock("Block 8 edit entry via form", (runner) => {
-        runner
-            .set("#topicFilter", "/corona")
-            .assertEq( 0, () => mockIO.length , "no mock data entries yet" )
-            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
-            .isVisible("#edit-message", "", "edit overlay is open")
-            .assertEq( "Impfungen helfen!", () => document.getElementById("edit-message").value , "edit message has correct initial content" )
-            .set("#edit-message", "Impfungen helfen wirklich!", "update edit message content")
-            .click(".send-button[data-type='!']", null, "click send button for Fakt")
-            .isNotVisible("#edit-message", "", "edit overlay is closed after sending")
-            // check data
-            .assertEq( 1, () => mockIO.length , "1 mock data entry after edit" )
-            .isNotVisible("tbody tr td", "Impfungen helfen!", "old message not visible anymore")
-            .isVisible("tbody tr td", "Impfungen helfen wirklich!", "updated message is visible now")
-            // dirty - disabled buttons
-            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
-            .isVisible("#edit-message", "", "edit overlay is open")
-            .click(".send-button[data-type='?']", null, "try - click send button for Question - currently disabled")
-            .isVisible("#edit-message", "", "edit overlay is still open - send question is disabled")
-            .wait(2000)
-            .assertEq( "F", "T" , "FORCE-STOP" )
-            .execute( () => closeEditOverlay() )
-            .isNotVisible("#edit-message", "", "edit overlay is closed after forced close")
-    });
-
 
     tr.addBlock("Block 1 navigate in message list", (runner) => {
         runner
@@ -2237,17 +2323,88 @@ if (overlayContent) {
                 mockIO = []; // reset mock data
                 document.getElementById("add-edit-section").style.display = "none"; // hide add/edit section
             })
+            .isVisible("td", "neuer Fakt!", "new fact is still visible after hiding add/edit section")
             .set("#topicFilter", "/")
             ;
     });
 
     tr.addBlock("Block 7 verify added entry persists", (runner) => {
         runner
-            .wait(500)
-            .isVisible("td", "neuer Fakt!", "new fact is still visible after hiding add/edit section")
             .set("#topicFilter", "/corona")
             .isVisible("td", "neuer Fakt!", "new fact is still visible in /corona topic")
+            // KLUDGE -- remove added entry for next tests
+            .execute( () => Object.keys(data["/corona"]).forEach( (key) => {
+                    if (data["/corona"][key].message === "neuer Fakt!") {
+                        delete data["/corona"][key];
+                    }
+                })
+            )
             ;
+    });
+
+
+
+    tr.addBlock("Block 8 edit entry via form", (runner) => {
+        runner
+            .set("#topicFilter", "/corona")
+                .assertEq( 0, () => mockIO.length , "no mock data entries yet" )
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "1+1 entries in /corona topic" )
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            //
+            // clean edit and undo
+            //
+                .isVisible("#edit-message", "", "edit overlay is open")
+                .assertEq( "Impfungen helfen", () => document.getElementById("edit-message").value
+                    , "edit message has correct initial content -  wo type suffix" )
+            .set("#edit-message", "Impfungen helfen wirklich!", "update edit message content")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt")
+                .isNotVisible("#edit-message", "", "edit overlay is closed after sending")
+                // check data
+                .assertEq( 1, () => mockIO.length , "1 mock data entry after edit" )
+                .isNotVisible("tbody tr td", "Impfungen helfen!", "old message not visible anymore")
+                .isVisible("tbody tr td", "Impfungen helfen wirklich!", "updated message is visible now")
+            // undo
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen wirklich!") ) )
+            .set("#edit-message", "Impfungen helfen", "restore original message content - wo type suffix in msg")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt to restore")
+                .isVisible("tbody tr td", "Impfungen helfen!", "old message restored and visible again")
+                // check no duplication
+                .isNotVisible("tbody tr td", "Impfungen helfen!!", "old message not changed - suffix not duplicated")
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic" )
+            //
+            // dirty - type-suffix in message
+            //
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            .set("#edit-message", "Impfungen helfen!", "restore w suffix in msg")
+            .click(".send-button[data-type='!']", null, "click send button - w suffix in msg")
+                .isVisible("tbody tr td", "Impfungen helfen!", "old message restored - w suffix in msg")
+                .isNotVisible("tbody tr td", "Impfungen helfen!!", "old message not changed - w suffix in msg")
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - w suffix in msg" )
+            // dirty - disabled buttons
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+                .isVisible("#edit-message", "", "edit overlay is open")
+            .click(".send-button[data-type='?']", null, "try - click send button for Question - currently disabled")
+                .isVisible("#edit-message", "", "edit overlay is still open - send question is disabled")
+            //
+            // dirty - try set duplicate message (direct)
+            //
+            .execute( () => openEditOverlay( null ) )
+            .set("#edit-message", "Impfungen helfen!", "set duplicate message directly")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message")
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - duplicate message not added" )
+            // dirty - try set duplicate message (via edit, add dummy first) + delete dummy
+            .execute( () => openEditOverlay( ) )
+            .set("#edit-message", "Impfungen helfen ~ish!", "prepare duplicate message via edit")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message via edit")
+            .execute( () => openEditOverlay ( runner.getElementWText("tbody tr td", "Impfungen helfen ~ish!") ) )
+            .set("#edit-message", "Impfungen helfen!", "set duplicate message via edit")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message via edit") // cant close due to DUPL
+                .isVisible("#edit-message", "", "edit overlay is still open - send duplicate message via edit is not allowed")
+                .assertEq( 3, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - duplicate message via edit prehibit" )
+            .click(".send-button[data-type='--']", null, "click send button for DELETE to remove temp dirty entry")
+                .isNotVisible("#edit-message", "", "edit overlay is closed after delete temp dirty entry")
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "back to 1+1 entries in /corona topic after delete temp dirty entry" )
+            .isNotVisible("#edit-message", "", "edit overlay is closed after forced close")
     });
 
 
@@ -2258,14 +2415,18 @@ if (overlayContent) {
     tr.addBlock("Block 'cleanup' ", (runner) => {
         runner
             .wait(500)
-            .execute( () => {
-                resetData(tenantIdOld, "cleanup test");
-            })
-            .wait(500)
-            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "data reset - no entries")
-            .assertEq( 1, () => topicFilter.options.length , "only 'all topics' option after reset" )
-            .execute( () => {
-                loadData(url);
+            .execute( () => { // if all tests passed, reload data
+                if (runner.errors.length === 0) {
+                    console.log("All tests passed - reloading data for tenant: " + tenantIdOld);
+                    resetData(tenantIdOld, "cleanup test");
+                    loadData(url);
+                    // show a big big toast
+                    showToast("All tests passed !!", "success", 10000);
+                    showToast("Well done! 🎉", "success", 10000);
+                    showToast("data reloaded for tenant: " + tenantIdOld, "info", 1000);
+                } else {
+                    console.warn("Some tests failed - keeping MOCK data for tenant: " + tenantIdOld);
+                }
             })
             ;
     });
