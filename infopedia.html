@@ -400,14 +400,14 @@
         <h2>Browse Example Dataset</h2>
         <p id="browse_comment">Explore the data collected by the Fakt Farming Project.</p>
         <div class="filter-container">
-            <div class="filter-row">
-                <label for="childRow.topic">Filter&nbsp;nach&nbsp;Thema:</label>
-                <select id="topicFilter">
-                    <option value="/">alle Basis-Themen</option>
-                </select>
-            </div>
             <button id="toggleTypeFilter" style="display: block">Erweiterte Filter</button>
             <div id="typeFilterContainer"  style="display: none; grid-column: span 2">
+                <div class="filter-row" >
+                    <label for="childRow.topic">Filter&nbsp;nach&nbsp;Thema:</label>
+                    <select id="topicFilter">
+                        <option value="/">alle Basis-Themen</option>
+                    </select>
+                </div>
                 <div class="filter-row">
                     <label for="typeFilter" style="display: none" >Filter&nbsp;nach&nbsp;Type:</label>
                     <select id="typeFilter">
@@ -1952,7 +1952,7 @@ if (overlayContent) {
         blockSetupChecks(name) {
             return this
                 .assertEq( "/", topicFilter.value, "topic filter is reset to / before block '" + name + "'" )
-                .isVisible("#topicFilter", "alle Basis-Themen", "topic filter is visible before block '" + name + "'" )
+                .isNotVisible("#topicFilter", "alle Basis-Themen", "topic filter is visible before block '" + name + "'" )
                 .isNotVisible("#typeFilter", null, "type filter is hidden before block '" + name + "'" )
                 .isNotVisible("#add-edit-section", null, "add/edit section is hidden before block '" + name + "'" );
         }
@@ -2042,7 +2042,7 @@ if (overlayContent) {
             .assertEq( "", textFilter.value, "initial text filter should be empty" )
             .assertEq( 0, () => Object.keys(data).length , "data should be loaded" )
             // check filter options
-            .isAvailable("#topicFilter", "alle Basis-Themen", "topic filter has all topics")
+            .isNotVisible("#topicFilter", "alle Basis-Themen", "topic filter has all topics")
             .assertEq( 1, topicFilter.options.length , "only 'all topics' option initially" )
             .isNotVisible("#typeFilter", null, "type filter is hidden initially")
             .isNotVisible("#textFilter", null, "text filter is hidden initially")
@@ -2064,8 +2064,10 @@ if (overlayContent) {
             .execute( () => {
                 addEntry("/corona", "msg1", "Fakten zur Pandemie.", 3, "2023-10-01 12:05:00");
             })
-            .isAvailable("#topicFilter", "alle Basis-Themen", "topic filter has all topics")
-            .isAvailable("#topicFilter", "CoronaTST >", "topic filter has Corona topic now - first child")
+            //.isAvailable("#topicFilter", "alle Basis-Themen", "topic filter has all topics2")  // hide now
+            .assertEq( "alle Basis-Themen" , () => topicFilter.options[0].text , "first topic is /")
+            // .isAvailable("#topicFilter", "CoronaTST >", "topic filter has Corona topic now - first child") // hide now
+            .assertEq( "CoronaTST >", () => topicFilter.options[1].text.replace(/\u00A0/g, " ") , "second topic is CoronaTST >") // non-breaking space
             .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
             .execute( () => {
                 addEntry("/corona", "msg2", "Maßnahmen sind übertrieben.?", 1, "2023-10-01 12:10:00");
@@ -2081,14 +2083,15 @@ if (overlayContent) {
             .execute( () => {
                 addEntry("/bahn", "msg1", "Züge sind pünktlich.", 2, "2023-10-01 12:20:00");
             })
-            .isAvailable("#topicFilter", "Bahn-TST >", "Bahn topic now available after adding child, added suffix")
+            //.isAvailable("#topicFilter", "Bahn-TST >", "Bahn topic now available after adding child, added suffix") // hide now
+            .assertEq( "Bahn-TST >", () => topicFilter.options[1].text.replace(/\u00A0/g, " ") , "second topic is Bahn-TST >") // non-breaking space
             .assertEq( 3, () => topicFilter.options.length , "3 topics in filter now")
     });
 
     tr.addBlock("Block 1 settings", (runner) => {
         runner
             .wait(500)
-            .isVisible("#topicFilter", "alle Basis-Themen")
+            .isNotVisible("#topicFilter", "alle Basis-Themen")
             .isNotVisible("#typeFilter", "Fakt")
             .isVisible("td", "CoronaTST >", "has facts, should be visible")
             .isNotVisible("td", "Bahn-TST", "Bahn has no facts, should be hidden") // !! just partial match
@@ -2100,6 +2103,7 @@ if (overlayContent) {
             .set("#topicFilter", "/")
             .click("#toggleTypeFilter")
             .wait(500)
+            .isVisible("#topicFilter", "alle Basis-Themen", "all topics visible")
             .isVisible("#typeFilter", "Fakt")
             .set("#typeFilter", "all")
             .isVisible("#typeFilter", "All Types")
