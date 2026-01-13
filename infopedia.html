@@ -446,11 +446,11 @@
     </section>
     <section id="add-edit-section" style="display: none;">
         <form id="addEditForm" onsubmit="return false;" style="max-width: 800px; margin: auto;">
-            <label for="entryMessage">add Message:</label>
+            <label for="entryMessage">  </label>
             <textarea id="entryMessage" name="message" placeholder="Enter message..." required style="width: 100%; margin-bottom: 1rem; padding: 0.5rem;"></textarea>
 
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span>Send as:</span>
+                <span> </span>
                 <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
                 <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
                 <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
@@ -477,7 +477,7 @@
         <!-- Overlay Div -->
         <div id="edit-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000;">
             <div id="edit-overlay-content" style="position: relative; width: 90%; max-width: 600px; margin: 5% auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);" >
-                <h2 style="margin-top: 0;">Edit Entry</h2>
+                <h2 style="margin-top: 0;">Edit</h2>
                 <form id="edit-form" onsubmit="return false;">
                     <textarea id="edit-message" name="message"
                               style="width: 100%; box-sizing: border-box; min-height: 150px; resize: none; padding: 0.5rem; border: 1px solid #ccc; border-radius: 5px;"
@@ -485,7 +485,7 @@
                     </textarea>
                     <div style="display: flex; padding-top: 0.5rem; justify-content: space-between; align-items: center;">
                         <button id="cancel-edit" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; color: #f44336; cursor: pointer;" onclick="closeEditOverlay();">&times;</button>
-                        <div id="send-buttons" style="display: flex; gap: 0.5rem;">
+                        <div id="send-buttons" style="display: flex; gap: 0.5rem; margin-left: auto;">
                             <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
                             <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
                             <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
@@ -1050,7 +1050,15 @@
 
     */
 
-    function openEditOverlay(message = "", topicId = "", nodeId = "") {
+    function openEditOverlay(messageOrElement = "", topicId = "", nodeId = "") {
+        if (!topicId && !nodeId && messageOrElement instanceof Element) {
+            let row = messageOrElement.closest("tr");
+            message = messageOrElement.textContent.trim();
+            topicId = row.dataset.topic || "";
+            nodeId = row.dataset.nodeId || "";
+        } else {
+            message = messageOrElement;
+        }
         const overlay = document.getElementById("edit-overlay");
         const messageInput = document.getElementById("edit-message");
         const topicInput = document.getElementById("edit-topic-id");
@@ -1579,27 +1587,31 @@ if (overlayContent) {
                 if (tenantId === "MOCK") {
                     console.log("Mock tenant - skipping sending entry to URL:", sendUrl);
                     mockIO.push(sendUrl);
-                    return;
-                }
-                fetch(sendUrl)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.text();
-                    })
-                    .then(data => {
-                        showToast("Entry submitted successfully!");
-                    })
-                    .catch(error => {
-                        console.error("Error submitting entry:", error);
-                        showToast("Failed to submit entry.");
-                    });
+                    closeEditOverlay();
+                    return false; // prevent default form submission
+                } else {
+                    fetch(sendUrl)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.text();
+                        })
+                        .then(data => {
+                            showToast("Entry submitted successfully!");
+                        })
+                        .catch(error => {
+                            console.error("Error submitting entry:", error);
+                            showToast("Failed to submit entry.");
+                        });
 
-                // Clear the form
-                document.getElementById("addEditForm").reset();
-                // clear both inputs after reading
-                document.getElementById("entryMessage").value = "";
+                    // Clear the form
+                    document.getElementById("addEditForm").reset();
+                    // clear both inputs after reading
+                    document.getElementById("entryMessage").value = "";
+                    closeEditOverlay();
+                    return false; // prevent default form submission
+                }
             });
         });
 
@@ -2089,7 +2101,45 @@ if (overlayContent) {
             .assertEq( 3, () => topicFilter.options.length , "3 topics in filter now")
     });
 
-    tr.addBlock("Block 1 settings", (runner) => {
+    tr.addBlock("Block 8 edit entry via form", (runner) => {
+        runner
+            .set("#topicFilter", "/corona")
+            .assertEq( 0, () => mockIO.length , "no mock data entries yet" )
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            .isVisible("#edit-message", "", "edit overlay is open")
+            .assertEq( "Impfungen helfen!", () => document.getElementById("edit-message").value , "edit message has correct initial content" )
+            .set("#edit-message", "Impfungen helfen wirklich!", "update edit message content")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt")
+            .isNotVisible("#edit-message", "", "edit overlay is closed after sending")
+            // check data
+            .assertEq( 1, () => mockIO.length , "1 mock data entry after edit" )
+            .isNotVisible("tbody tr td", "Impfungen helfen!", "old message not visible anymore")
+            .isVisible("tbody tr td", "Impfungen helfen wirklich!", "updated message is visible now")
+            // dirty - disabled buttons
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            .isVisible("#edit-message", "", "edit overlay is open")
+            .click(".send-button[data-type='?']", null, "try - click send button for Question - currently disabled")
+            .isVisible("#edit-message", "", "edit overlay is still open - send question is disabled")
+            .wait(2000)
+            .assertEq( "F", "T" , "FORCE-STOP" )
+            .execute( () => closeEditOverlay() )
+            .isNotVisible("#edit-message", "", "edit overlay is closed after forced close")
+    });
+
+
+    tr.addBlock("Block 1 navigate in message list", (runner) => {
+        runner
+            .assertEq( "/", () => topicFilter.value , "topic filter is set to /" )
+            .click("tbody tr td a", "CoronaTST >", "click on message row to enter topic")
+            .isVisible("td", "zurück", "in topic CoronaTST >")
+            .isVisible("td", "Impfungen helfen!", "show content from CoronaTST >")
+            .assertEq( "/corona", () => topicFilter.value , "topic filter is set to /corona" )
+            .click("tbody tr td a", "zurück", "click on zurück to go back")
+            .assertEq( "/", () => topicFilter.value , "topic filter is set to / again" )
+        ;
+    });
+
+    tr.addBlock("Block 2 settings", (runner) => {
         runner
             .wait(500)
             .isNotVisible("#topicFilter", "alle Basis-Themen")
@@ -2099,7 +2149,7 @@ if (overlayContent) {
             ;
     });
 
-    tr.addBlock("Block 2 change settings ... ", (runner) => {
+    tr.addBlock("Block 3 change settings ... ", (runner) => {
         runner
             .set("#topicFilter", "/")
             .click("#toggleTypeFilter")
@@ -2109,11 +2159,18 @@ if (overlayContent) {
             .set("#typeFilter", "all")
             .isVisible("#typeFilter", "All Types")
             .isVisible("td", "Bahn-TST", "show all - even non-facts")
+            // re-check 1
+            .click("tbody tr td a", "CoronaTST >", "click on message row to enter topic")
+            .isVisible("td", "Impfungen helfen!", "show content from CoronaTST >")
+            .assertEq( "/corona", () => topicFilter.value , "topic filter is set to /corona" )
+            .click("tbody tr td a", "zurück", "click on zurück to go back")
+            .assertEq( "/", () => topicFilter.value , "topic filter is set to / again" )
+            // reset
             .click("#toggleTypeFilter")
             ;
     });
 
-    tr.addBlock("Block 3 Topic/Text Filter ... ", (runner) => {
+    tr.addBlock("Block 4 Topic/Text Filter ... ", (runner) => {
         runner
             .set("#topicFilter", "/corona")
             .click("#toggleTypeFilter")
@@ -2135,7 +2192,7 @@ if (overlayContent) {
             ;
     });
 
-    tr.addBlock("Block 4 unit tests for filtering logic", (runner) => {
+    tr.addBlock("Block 5 unit tests for filtering logic", (runner) => {
         runner
             .execute( () => {
                 // todo integrate with testRunner
@@ -2155,7 +2212,7 @@ if (overlayContent) {
             ;
     });
 
-    tr.addBlock("Block 5 add new entry via form", (runner) => {
+    tr.addBlock("Block 6 add new entry via form", (runner) => {
         runner
             .set("#topicFilter", "/corona")
             .assertEq( 0, () => mockIO.length , "no mock data entries yet" )
@@ -2184,6 +2241,18 @@ if (overlayContent) {
             ;
     });
 
+    tr.addBlock("Block 7 verify added entry persists", (runner) => {
+        runner
+            .wait(500)
+            .isVisible("td", "neuer Fakt!", "new fact is still visible after hiding add/edit section")
+            .set("#topicFilter", "/corona")
+            .isVisible("td", "neuer Fakt!", "new fact is still visible in /corona topic")
+            ;
+    });
+
+
+
+    // ----
 
     let tenantIdOld = tenantId;
     tr.addBlock("Block 'cleanup' ", (runner) => {
