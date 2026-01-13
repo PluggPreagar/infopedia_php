@@ -395,7 +395,7 @@
         <a href="#browse"><i class="fas fa-search"></i> Browse</a>
         <a href="#features"><i class="fas fa-star"></i> Features</a>
         <a href="#contact"><i class="fas fa-envelope"></i> Contact</a>
-        <span class="project-title"></span>
+        <span id="project-title" class="project-title"></span>
     </nav>
     <section id="about">
         <h2>About the Project</h2>
@@ -1186,7 +1186,10 @@
         margin = newDisplay === "none" ? "1em" : "0";
         textFilter.style.marginBottom = margin;
         typeFilter.style.marginBottom = margin;
-
+        // cproject-title - fallback
+        if (newDisplay === "none" && !document.getElementById("project-title").textContent) {
+            document.getElementById("project-title").textContent = "fayf - Fakt Farming";
+        }
     };
 
 
