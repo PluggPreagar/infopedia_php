@@ -1238,24 +1238,31 @@
         document.querySelectorAll("tbody tr").forEach((row) => {
             let timer;
 
-            row.addEventListener("mousedown", (event) => {
+            function handleLongPressStart(event) {
                 timer = setTimeout(() => {
+                    console.log("Long press detected!");
+                    event.preventDefault(); // Prevent default behavior (e.g., context menu)
                     const targetCell = event.target.closest("td");
                     if (targetCell) {
                         const originalText = targetCell.textContent.trim();
                         openEditOverlay(originalText, row.dataset.topic || "", row.dataset.nodeId || "" );
 
                     }
-                }, 500); // Long press duration (500ms)
-            });
+                }, 500); // 500ms threshold for long press
+            }
 
-            row.addEventListener("mouseup", () => {
-                clearTimeout(timer); // Cancel long press if mouse is released early
-            });
+            function handleLongPressEnd(event) {
+                clearTimeout(timer); // Clear the timer if the press is released early
+            }
 
-            row.addEventListener("mouseleave", () => {
-                clearTimeout(timer); // Cancel long press if mouse leaves the row
-            });
+            row.addEventListener("mousedown", handleLongPressStart);
+            row.addEventListener("touchstart", handleLongPressStart);
+
+            row.addEventListener("mouseup", handleLongPressEnd);
+            row.addEventListener("mouseleave", handleLongPressEnd);
+            row.addEventListener("touchend", handleLongPressEnd);
+            row.addEventListener("touchcancel", handleLongPressEnd);
+
         });
     }
 
@@ -1687,6 +1694,10 @@ if (overlayContent) {
             nav.style.backgroundColor = newDisplay === "none" ? "#4CAF50" : "";
             // thead - topic in filter
             document.querySelector("thead").style.display = newDisplay;
+            //
+            margin = newDisplay === "none" ? "1em" : "0";
+            textFilter.style.marginBottom = margin;
+            typeFilter.style.marginBottom = margin;
 
         });
 
