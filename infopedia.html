@@ -573,8 +573,13 @@
         selectedTopic = "/";
         latestTimestamp = null;
         latestDisplayTs = null;
+        topicFilter.value = selectedTopic; // reset topic filter DUPL !!
         textFilter.value = ""; // reset text filter
         typeFilter.value = "!"; // reset type filter
+        // dispatch change to listeners
+        topicFilter.dispatchEvent(new Event('change'));
+        typeFilter.dispatchEvent(new Event('change')); // set send-buttons state -- seams not to work from test-teardown
+        textFilter.dispatchEvent(new Event('input'));
         // .click("#toggleTypeFilter") if filter visible
         if (typeFilterContainer.style.display !== "none"){
             toggleButton.click();
@@ -619,6 +624,18 @@
         addEntryWoCheck(topic, nodeId, message, votes, timestamp);
         checkData(topic, nodeId, message);
         updateFilteredData(topic, nodeId, message);
+        if ("MOCK" !== tenantId) {
+            showToast(randomCongratulation("Eintrag hinzugefügt!"), "success");
+        }
+    }
+
+
+    function randomCongratulation(msg) {
+        const listOfCongrats = ["Super!", "Klasse!", "Toll!", "Spitze!", "Fantastisch!", "Großartig!", "Hervorragend!", "Genial!", "Exzellent!", "Wunderbar!"];
+        const listOfIcons = ["\uD83C\uDF4E", "\uD83C\uDF4F", "\uD83C\uDF50", "\uD83C\uDF51", "\uD83C\uDF52", "\uD83C\uDF53", "\uD83C\uDF54", "\uD83C\uDF55", "\uD83C\uDF56"];
+        return listOfCongrats[ Math.floor(Math.random() * listOfCongrats.length) ]
+            + " " + msg + " "
+            + listOfIcons[ Math.floor(Math.random() * listOfIcons.length) ];
     }
 
     function fullKey(topic, nodeId) {
@@ -626,7 +643,7 @@
     }
 
     function splitKey(fullKey) {
-        const lastSlashIndex = fullKey.lastIndexOf("/");
+        const lastSlashIndex = (fullKey ?? "").lastIndexOf("/");
         if (lastSlashIndex === -1) {
             return ["/", fullKey];
         } else {
@@ -895,6 +912,31 @@
             });
         });
         //
+        // Add click event for "Edit" buttons
+        document.querySelectorAll(".edit-button").forEach((button) => {
+            if (topicFilter.value === "/") {
+                // hide edit buttons in root topic view
+                button.style.display = "none";
+                return;
+            }
+            if (!button.dataset.id ) {
+                console.error("Edit button missing data-id attribute.");
+                button.style.display = "none";
+                return;
+            }
+            button.style.display = "block";
+            button.addEventListener("click", (event) => {
+                const fullNodeId = button.dataset.id ; // event.target.dataset.id; -> undefined
+                const [nodeTopic, nodeId] = splitKey(fullNodeId);
+                if (!nodeTopic || !nodeId) {
+                    console.error("Invalid node ID for edit:", fullNodeId);
+                    return;
+                }
+                openEditOverlay( data[nodeTopic] && data[nodeTopic][nodeId] ? data[nodeTopic][nodeId].message : "",
+                                 nodeTopic, nodeId );
+            });
+        });
+        //
         enableInlineEditing();
         //
         latestDisplayTs = latestTimestamp; // for display only
@@ -1127,9 +1169,12 @@
         }
         console.log("Opening edit overlay for topic:", topicId, "nodeId:", nodeId, "message:", message);
         // enable deletion button, if not in root and no votes
+        // other buttons available depending in typeFilter - see typeFilter.addEventListener
         const deleteButton = document.querySelector("#edit-overlay .send-button[data-type='--']");
         if (!nodeId || nodeId == "" || !topicId || topicId == "/"
-                || !data[topicId] || !data[topicId][nodeId] || !data[topicId][nodeId].votes) {
+                    || !data[topicId] || !data[topicId][nodeId]
+                    || (data[topicId][nodeId].votes ?? 0 ) > 0
+                ) {
             deleteButton.disabled = true;
             deleteButton.style.opacity = "0.25";
             console.log("Delete button disabled for nodeId:" + nodeId + "( "+ topicId + " "
@@ -1284,16 +1329,7 @@ if (overlayContent) {
 
 
 
-        // Add click event for "Edit" buttons
-        document.querySelectorAll(".edit-button").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                const nodeId = event.target.dataset.id;
-                const row = data.find((row) => row.topic + ("/" == row.topic ? "" : "/") + row.nodeId === nodeId);
-                if (row) {
-                    populateEditForm(row);
-                }
-            });
-        });
+
 
 
 
@@ -1592,8 +1628,7 @@ if (overlayContent) {
 
 
 
-
-    });
+    }); // DOMContentLoaded
 
     /*
         -- QR Code Generation --
@@ -1807,33 +1842,6 @@ if (overlayContent) {
         }
     });
 
-    // init
-
-    if (false) {
-        test();
-    } else {
-        // polling every 60 seconds
-        loadData(url);
-        setInterval(() => {
-            if (tenantId === "MOCK") {
-                console.log("Mock tenant - skipping polling.");
-            } else if (latestTimestamp) {
-                console.log("Polling data... (ts=" + latestTimestamp +")");
-                // use ts minus 20 seconds to avoid caching issues
-                // let ts = new Date().getTime() - 20000;
-                let pollUrl = url ;
-                if (url.endsWith(".json")) {
-                    console.log("Local JSON file detected - inject ts in filename");
-                    pollUrl = url.replace(".json", "_ts" + encodeURIComponent(latestTimestamp.replaceAll(/[^a-zA-Z0-9]/g, "")) + ".json");
-                } else {
-                    pollUrl += "&ts=" + encodeURIComponent(latestTimestamp);
-                }
-                loadData(pollUrl);
-            } else {
-                console.log("SKIPP Polling data... (no latest timestamp yet)");
-            }
-        }, 60000); // 60000 ms = 60 seconds
-    }
 
 
     /*
@@ -2421,8 +2429,9 @@ if (overlayContent) {
                     resetData(tenantIdOld, "cleanup test");
                     loadData(url);
                     // show a big big toast
-                    showToast("All tests passed !!", "success", 10000);
+                    showToast(randomCongratulation("All tests passed !!"), "success", 10000);
                     showToast("Well done! 🎉", "success", 10000);
+                    showToast(randomCongratulation("Welcome!"), "success", 4000);
                     showToast("data reloaded for tenant: " + tenantIdOld, "info", 1000);
                 } else {
                     console.warn("Some tests failed - keeping MOCK data for tenant: " + tenantIdOld);
@@ -2431,12 +2440,35 @@ if (overlayContent) {
             ;
     });
 
-
-    // Run all test blocks
-    resetData("MOCK", "TESTING"); // MOCK - for testing, disable polling
-    tr.runBlocks( true );
-
-
+    if (true && window.location.hostname === "localhost") {
+        // Run all test blocks first and stop on error
+        resetData("MOCK", "TESTING"); // MOCK - for testing, disable polling
+        tr.runBlocks( true );
+    } else {
+        showToast(randomCongratulation("Welcome!"), "success", 4000);
+        showToast("Infopedia loaded" +  ( ""==tenantId ? "" : " for " + tenantId), "info", 2000);
+        // polling every 60 seconds
+        loadData(url);
+        setInterval(() => {
+            if (tenantId === "MOCK") {
+                console.log("Mock tenant - skipping polling.");
+            } else if (latestTimestamp) {
+                console.log("Polling data... (ts=" + latestTimestamp +")");
+                // use ts minus 20 seconds to avoid caching issues
+                // let ts = new Date().getTime() - 20000;
+                let pollUrl = url ;
+                if (url.endsWith(".json")) {
+                    console.log("Local JSON file detected - inject ts in filename");
+                    pollUrl = url.replace(".json", "_ts" + encodeURIComponent(latestTimestamp.replaceAll(/[^a-zA-Z0-9]/g, "")) + ".json");
+                } else {
+                    pollUrl += "&ts=" + encodeURIComponent(latestTimestamp);
+                }
+                loadData(pollUrl);
+            } else {
+                console.log("SKIPP Polling data... (no latest timestamp yet)");
+            }
+        }, 60000); // 60000 ms = 60 seconds
+    }
 
 
 </script>
