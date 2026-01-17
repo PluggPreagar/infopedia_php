@@ -70,6 +70,16 @@
         tbody {
            margin-top: 1rem; /* Add space between the header and content */
         }
+table {
+    border-collapse: separate; /* Ensure borders don't collapse */
+    border-spacing: 5px; /* Optional: Adjust spacing between cells */
+}
+
+tr {
+    border-radius: 10px; /* Add rounded edges to rows */
+    overflow: hidden; /* Ensure the rounded corners are visible */
+}
+
         td {
             color : #358600;
             padding-bottom: 0.5rem;
@@ -100,7 +110,7 @@
 
         #edit-message {
             color: #4CAF50;
-            font-weight: bold;
+            // font-weight: bold;
             font-size: 1.2rem;
             margin-bottom: 1rem;
         }
@@ -112,7 +122,7 @@
 
         /* class data-row */
         .data-row:hover {
-            background-color: #f1f1f1;
+            background-color: #f9f9f9;
         }
         /* data-row and topic-link */
         .data-row .topic-link:hover {
@@ -356,6 +366,27 @@
             }
         }
 
+nav a {
+    color: white; /* Replace with a color from your schema */
+    text-decoration: none;
+    margin: 0 1rem;
+    transition: color 0.3s ease; /* Smooth transition for hover effect */
+}
+
+nav a:hover {
+    color: #2c6e00;
+}
+
+a, .topic-link, .parent-topic-link {
+    color: #358600; /* Replace with a color from your schema */
+    text-decoration: none;
+}
+
+a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade for hover effect */
+    color: #2c6e00;
+}
+
+
         @media (max-width: 600px) {
             table th:nth-child(4),
             table td:nth-child(4) {
@@ -394,6 +425,26 @@
         .project-title{
             cursor: pointer;
         }
+
+        #navSearchInput {
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            color: #333;
+            outline: none;
+            transition: all 0.3s ease;
+            margin-right: 1rem;
+            width: 80%;
+            padding: auto; /* padding for centering */
+        }
+
+        #navSearchInput:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+
 
     </style>
     <!-- Add this script to include the QRCode.js library -->
@@ -459,7 +510,11 @@
         <a href="#browse"><i class="fas fa-search"></i> Browse</a>
         <a href="#features"><i class="fas fa-star"></i> Features</a>
         <a href="#contact"><i class="fas fa-envelope"></i> Contact</a>
-        <span id="project-title" class="project-title"></span>
+        <input type="text" id="navSearchInput" placeholder="Search..." style="display: none; margin-left: auto; padding: 0.25rem; border-radius: 5px; border: 1px solid #ccc;">
+        <div class="right-spacer" style="display: flex; align-items: center; margin-left: 1rem;margin-right: 1rem;">
+            <span id="search-icon" style="cursor: pointer; padding-right: 0.5rem;"><i class="fas fa-search"></i></span>
+            <span id="project-title" class="project-title"></span>
+        </div>
     </nav>
     <section id="about">
         <h2>About the Project</h2>
@@ -517,18 +572,19 @@
                 <th id="header-topic-name" >Message</th>
                 <th></th>
                 <th>Stand</th>
+                <th></th>
             </tr>
             </thead>
             <tbody>
             <!-- Data rows will be dynamically inserted here -->
             <tr>
-                <td colspan="4" style="text-align: center;">No data available</td>
+                <td colspan="5" style="text-align: center;">No data available</td>
             </tr>
             </tbody>
         </table>
     </section>
-    <section id="add-edit-section" style="display: none;">
-        <form id="addEditForm" onsubmit="return false;" style="max-width: 800px; margin: auto;">
+    <section id="add-edit-section" style="display: none; width: 90%">
+        <form id="addEditForm" onsubmit="return false;" style="margin: auto;">
             <label for="entryMessage">  </label>
             <textarea id="entryMessage" name="message" placeholder="Enter message..." required style="width: 100%; margin-bottom: 1rem; padding: 0.5rem;"></textarea>
 
@@ -619,6 +675,8 @@
     let mockIO = []; // to be used in tests instead of real data-fetching/upload
     let mockToasts = []; // to be used in tests instead of real user-notices
     let userMode = "show"; // "show" | "work
+    let typesAvailable = [".", "?", "??", "!", "!-", "@"];
+    let typesAllowed = [".", "?", "??", "!", "!-"];
 
     const tableBody = document.querySelector("#browse tbody");
     const topicFilter = document.getElementById("topicFilter");
@@ -628,6 +686,8 @@
     const toggleButton = document.getElementById("toggleTypeFilter");
     const typeFilterContainer = document.getElementById("typeFilterContainer");
     const navBackLink = document.getElementById("backLink");
+    const navProjectTitle = document.querySelector(".project-title");
+    const projectTitle = "fayf - Fakt Farming Project";
 
     //
     //   -- cinema slogans animation (optional,deutsch) --
@@ -944,40 +1004,38 @@
         // add parent topic link if not root
         //
         let topicId = topicFilter.value;
-        if (userMode === "show") {
-           if (topicId !== "/" && topicId !== "" ) {
-                let parentTopic = splitKey(topicId)[0];
-                console.log("Parent topic link would be added for topic:", topicId, "->", parentTopic);
-                //
-                // parentDummy = { topic: parentTopic, nodeId: "", message: "zurück", votes: 0, timestamp: "" };
-                // filteredData = { topicId: parentDummy, ...filteredData};
-                //
-                const parentRow = document.createElement("tr");
-                parentRow.classList.add("data-row");
-                parentRow.classList.add("topic-link");
-                parentRow.dataset.topic = parentTopic;
-                parentRow.innerHTML = `
-                    <td colspan="4" style="text-align: left;">
-                        <a href="#" class="parent-topic-link" data-topic="${parentTopic}">
-                        <i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>zurück
-                        </a>
-                    </td>
-                `;
-                tableBody.appendChild(parentRow);
-            } // userMode !== "show"
+        if (topicId !== "/" && topicId !== "" ) {
+            let parentTopic = splitKey(topicId)[0];
+            console.log("Parent topic link would be added for topic:", topicId, "->", parentTopic);
+            //
+            // parentDummy = { topic: parentTopic, nodeId: "", message: "zurück", votes: 0, timestamp: "" };
+            // filteredData = { topicId: parentDummy, ...filteredData};
+            //
+            const parentRow = document.createElement("tr");
+            parentRow.id = "backLinkRow";
+            parentRow.classList.add("data-row");
+            parentRow.classList.add("topic-link");
+            parentRow.dataset.topic = parentTopic;
+            parentRow.innerHTML = `
+                <td colspan="5" style="text-align: left;">
+                    <a href="#" class="parent-topic-link" data-topic="${parentTopic}">
+                    <i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>zurück
+                    </a>
+                </td>
+            `;
+            tableBody.appendChild(parentRow);
+            parentRow.style.display = userMode === "show" ? "" : "none";
+        } // userMode !== "show"
+        // update nav back link
+        const navBackLink = document.getElementById("backLink");
+        navBackLink.style.display = "inline";
+        navBackLink.removeEventListener("click", () => {}); // remove previous listeners
+        if (topicId === "/") {
+            navBackLink.innerHTML = ``;
         } else {
-            const navBackLink = document.getElementById("backLink");
-            navBackLink.style.display = "inline";
-            const topicId = topicFilter.value;
-            navBackLink.removeEventListener("click", () => {}); // remove previous listeners
-            if (topicId === "/") {
-                navBackLink.style.display = "none"; // hide back link in root
-            } else {
-                const titleText = (topicMap[topicId] || topicId);
-                navBackLink.innerHTML = `<i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>${titleText}`;
-            } // not root
-        }
-
+            const titleText = (topicMap[topicId] || topicId);
+            navBackLink.innerHTML = `<i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>${titleText}`;
+        } // not root
         //
         //
         if (filteredData.length === 0) {
@@ -1241,13 +1299,16 @@
         const sectionsToToggle = document.querySelectorAll("section:not(#browse)");
         userMode = sectionsToToggle[0].style.display === "none" || getComputedStyle(sectionsToToggle[0]).display === "none"
             ? "show" : "work";
-        console.log("New user mode:", userMode);
+        console.log("userMode:", userMode);
         const newDisplay = userMode === "show" ? "block" : "none";
         const ignoreIds = ["browse", "utils-send-buttons", "add-edit-section"];
         sectionsToToggle.forEach((section) => {
             if (!ignoreIds.includes(section.id))
                 section.style.display = newDisplay;
         });
+        // toggle QR code section
+        const qrCodeSection = document.getElementById("qr-code-section");
+        qrCodeSection.style.display = newDisplay;
         // set nav links visibility - only direct in body
         const navLinks = document.querySelectorAll("body > nav a");
         navLinks.forEach((link) => {
@@ -1272,7 +1333,7 @@
         // change color of nav to green
         document.querySelector("nav").style.backgroundColor = newDisplay === "none" ? "#4CAF50" : "";
         // thead - topic in filter
-        document.querySelector("thead").style.display = newDisplay;
+        document.querySelector("thead").style.display = newDisplay === "none" ? "none" : ""; // not block !!!
         //
         margin = newDisplay === "none" ? "1em" : "0";
         textFilter.style.marginBottom = margin;
@@ -1283,6 +1344,20 @@
         }
         // in work mode - disable filter, use setting for type-changes and appbar for search
         typeFilterContainer.style.display = newDisplay === "none" ? "none" : "block";
+        // backLink
+        navBackLink.style.display = newDisplay === "none" ? "inline" : "none";
+        let backLinkRow = document.getElementById("backLinkRow");
+        if (backLinkRow) {
+            document.getElementById("backLinkRow").style.display = newDisplay;
+        }
+        //
+        navProjectTitle.innerHTML = userMode === "show"
+            ? "fayf.info"
+            : '<i class="fas fa-bars"></i>';
+        const searchButton = document.getElementById("search-icon");
+        if (searchButton) {
+            searchButton.style.display = userMode === "work" ? "" : "none";
+        }
     };
 
 
@@ -1687,10 +1762,9 @@ if (overlayContent) {
     document.addEventListener("DOMContentLoaded", function () {
 
 
-
-        showQRCode(tenantId);
-
-
+        if (userMode === "show") {
+            showQRCode(tenantId);
+        }
 
         //test();
 
@@ -1755,6 +1829,61 @@ if (overlayContent) {
         });
 
 
+        function clickProjectTitle() {
+            console.log("Project title clicked - toggling view mode.");
+            toggleUserModeShowOrWork();
+            if (userMode === "show") {
+                showToast("Wechsel in die Anzeigeansicht.");
+            } else {
+                showToast("Wechsel in die Arbeitsansicht. Like APP");
+            }
+        }
+
+        document.getElementById("search-icon").addEventListener("click", () => {
+            console.log("Search icon clicked - focusing text filter.");
+            const navSearchInput = document.getElementById("navSearchInput");
+            if (navSearchInput) {
+                if (navSearchInput.style.display === "inline-block") {
+                    // already visible - hide it
+                    navSearchInput.style.display = "none";
+                    navSearchInput.value = "";
+                    textFilter.value = "";
+                    textFilter.dispatchEvent(new Event("input"));
+                    return;
+                } else {
+                    navSearchInput.style.display = "inline-block";
+                    navSearchInput.focus();
+                }
+            }
+            // hide backLink on small screens
+            if (window.innerWidth < 800) {
+                navBackLink.style.display = "none";
+            }
+        });
+
+        document.getElementById("navSearchInput").addEventListener("input", function () { /* on every key press */
+            const query = this.value.toLowerCase();
+            console.log("Search query:", query);
+            textFilter.value = query;
+            textFilter.dispatchEvent(new Event("input"));
+            // changing textFilter will trigger updateFilteredData, this will also update/show the navSearchInput value
+            if (window.innerWidth < 800) {
+                navBackLink.style.display = "none";
+            }
+        });
+
+        document.getElementById("navSearchInput").addEventListener("keydown", function (event) {
+            if (event.key === "Escape" || event.key === "Enter") {
+                this.style.display = "none"; // Hide the input field
+                this.value = ""; // Optionally clear the input field
+                if (event.key === "Escape") {
+                    textFilter.value = "";
+                }
+                textFilter.dispatchEvent(new Event("input"));
+            }
+        });
+
+
     /*
         Cinema slogans
     */
@@ -1782,8 +1911,6 @@ if (overlayContent) {
 
         const header = document.querySelector("header");
         const headerBottom = header.getBoundingClientRect().bottom;
-        const navProjectTitle = document.querySelector(".project-title");
-        const projectTitle = "fayf - Fakt Farming Project";
         const mediaQuery = window.matchMedia("(min-width: 768px)"); // Adjust width as needed
         const nav = document.querySelector("nav");
 
@@ -1819,7 +1946,7 @@ if (overlayContent) {
         });
 
         // toggle visibility of sections (except browsing-section) on click of navProjectTitle
-        navProjectTitle.addEventListener("click", () => {toggleUserModeShowOrWork()});
+        navProjectTitle.addEventListener("click", () => clickProjectTitle() );
 
 
 
