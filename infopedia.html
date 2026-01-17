@@ -1358,6 +1358,10 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         if (searchButton) {
             searchButton.style.display = userMode === "work" ? "" : "none";
         }
+        const navSearchInput = document.getElementById("navSearchInput");
+        if (navSearchInput) {
+            navSearchInput.style.display = "none";
+        }
     };
 
 
