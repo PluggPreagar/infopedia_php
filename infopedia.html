@@ -62,7 +62,7 @@
             text-decoration: none;
         }
         a:hover, nav a:hover, .topic-link:hover, .parent-topic-link:hover {
-            text-decoration: underline;
+           // text-decoration: underline;
         }
         main {
             flex: 1; /* Ensures the main content takes up available space */
@@ -74,7 +74,10 @@
             color : #358600;
             padding-bottom: 0.5rem;
         }
-
+        /* KLUDGE edit might be last td */
+        td:nth-last-child(2), td:last-child, th:last-child {
+            text-align: right;
+        }
         .new-row-highlight {
             background-color: #d4edda; /* Light green background */
             animation: fadeOut 3s forwards;
@@ -95,10 +98,28 @@
             visibility: hidden;
         }
 
+        #edit-message {
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
         /* Show edit icon when hovering over the row */
         tr:hover .edit-button {
             visibility: visible;
         }
+
+        /* class data-row */
+        .data-row:hover {
+            background-color: #f1f1f1;
+        }
+        /* data-row and topic-link */
+        .data-row .topic-link:hover {
+            cursor: pointer;
+        }
+
+
 
         section {
             padding: 1rem;
@@ -433,8 +454,8 @@
         <!--
         <div style="margin: 0;display: flex; align-items: center" ><img src="favicon-32x32.png" alt="Project Icon" style="height: 1em;"></div>
         -->
-        <a href="#about">
-            <i class="fas fa-info-circle"></i> About</a>
+        <a href="#back" id="backLink" style="display:none"><i class="fas fa-arrow-left"></i>Back</a>
+        <a href="#about"><i class="fas fa-info-circle"></i> About</a>
         <a href="#browse"><i class="fas fa-search"></i> Browse</a>
         <a href="#features"><i class="fas fa-star"></i> Features</a>
         <a href="#contact"><i class="fas fa-envelope"></i> Contact</a>
@@ -517,7 +538,7 @@
                 <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
                 <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
                 <button type="button" class="send-button" data-type="!" style="background: #2196F3; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Fakt</button>
-                <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch-Aussage</button>
+                <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch</button>
             </div>
         </form>
     </section>
@@ -555,7 +576,7 @@
                             <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
                             <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
                             <button type="button" class="send-button" data-type="!" style="background: #2196F3; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Fakt</button>
-                            <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch-Aussage</button>
+                            <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch</button>
                         </div>
                     </div>
                 </form>
@@ -597,6 +618,7 @@
     let latestDisplayTs = null;
     let mockIO = []; // to be used in tests instead of real data-fetching/upload
     let mockToasts = []; // to be used in tests instead of real user-notices
+    let userMode = "show"; // "show" | "work
 
     const tableBody = document.querySelector("#browse tbody");
     const topicFilter = document.getElementById("topicFilter");
@@ -605,6 +627,7 @@
     const sendButtons = document.querySelectorAll(".send-button");
     const toggleButton = document.getElementById("toggleTypeFilter");
     const typeFilterContainer = document.getElementById("typeFilterContainer");
+    const navBackLink = document.getElementById("backLink");
 
     //
     //   -- cinema slogans animation (optional,deutsch) --
@@ -921,23 +944,40 @@
         // add parent topic link if not root
         //
         let topicId = topicFilter.value;
-        if (topicId !== "/" && topicId !== "") {
-            let parentTopic = splitKey(topicId)[0];
-            console.log("Parent topic link would be added for topic:", topicId, "->", parentTopic);
-            //
-            // parentDummy = { topic: parentTopic, nodeId: "", message: "zurück", votes: 0, timestamp: "" };
-            // filteredData = { topicId: parentDummy, ...filteredData};
-            //
-            const parentRow = document.createElement("tr");
-            parentRow.innerHTML = `
-                <td colspan="4" style="text-align: left;">
-                    <a href="#" class="parent-topic-link" data-topic="${parentTopic}">
-                    <i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>zurück
-                    </a>
-                </td>
-            `;
-            tableBody.appendChild(parentRow);
+        if (userMode === "show") {
+           if (topicId !== "/" && topicId !== "" ) {
+                let parentTopic = splitKey(topicId)[0];
+                console.log("Parent topic link would be added for topic:", topicId, "->", parentTopic);
+                //
+                // parentDummy = { topic: parentTopic, nodeId: "", message: "zurück", votes: 0, timestamp: "" };
+                // filteredData = { topicId: parentDummy, ...filteredData};
+                //
+                const parentRow = document.createElement("tr");
+                parentRow.classList.add("data-row");
+                parentRow.classList.add("topic-link");
+                parentRow.dataset.topic = parentTopic;
+                parentRow.innerHTML = `
+                    <td colspan="4" style="text-align: left;">
+                        <a href="#" class="parent-topic-link" data-topic="${parentTopic}">
+                        <i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>zurück
+                        </a>
+                    </td>
+                `;
+                tableBody.appendChild(parentRow);
+            } // userMode !== "show"
+        } else {
+            const navBackLink = document.getElementById("backLink");
+            navBackLink.style.display = "inline";
+            const topicId = topicFilter.value;
+            navBackLink.removeEventListener("click", () => {}); // remove previous listeners
+            if (topicId === "/") {
+                navBackLink.style.display = "none"; // hide back link in root
+            } else {
+                const titleText = (topicMap[topicId] || topicId);
+                navBackLink.innerHTML = `<i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>${titleText}`;
+            } // not root
         }
+
         //
         //
         if (filteredData.length === 0) {
@@ -951,8 +991,11 @@
                 tr.dataset.nodeId = row.nodeId;
                 tr.dataset.fullNodeId = fullNodeId;
                 tr.dataset.timestamp = row.timestamp;
+                tr.classList.add("data-row");
                 let messageContent = row.message;
                 if (row.message.endsWith(">")) {
+                    tr.classList.add("topic-link"); // allow row click
+                    tr.dataset.topic = fullNodeId;
                     messageContent = `<a href="#" class="topic-link" data-topic="${fullNodeId}">${row.message}</a>`;
                 }
                 tr.innerHTML = `
@@ -980,7 +1023,8 @@
             link.addEventListener("click", (event) => {
                 console.log("Topic link clicked"); // TODO merge with topicFilter change
                 event.preventDefault();
-                selectedTopic = event.target.dataset.topic;
+                // get to parent element if undefined - tr may be clicked
+                selectedTopic = event.target.dataset.topic || event.target.parentElement.dataset.topic;
                 console.log("Topic link clicked: '" + selectedTopic+"'");
                 topicFilter.value = selectedTopic; // run updates ..
                 topicFilter.dispatchEvent(new Event('change'));
@@ -1179,7 +1223,6 @@
     */
 
 
-
     function highlightNewRow(rowElement) {
         // Add the highlight class
         rowElement.classList.add("new-row-highlight");
@@ -1191,10 +1234,15 @@
     }
 
 
-    function toggleShowAndWorkmode() {
+
+
+    function toggleUserModeShowOrWork() {
+        console.log("Toggling view between 'show' and 'work' mode.");
         const sectionsToToggle = document.querySelectorAll("section:not(#browse)");
-        const newDisplay = sectionsToToggle[0].style.display === "none" || getComputedStyle(sectionsToToggle[0]).display === "none"
-            ? "block" : "none";
+        userMode = sectionsToToggle[0].style.display === "none" || getComputedStyle(sectionsToToggle[0]).display === "none"
+            ? "show" : "work";
+        console.log("New user mode:", userMode);
+        const newDisplay = userMode === "show" ? "block" : "none";
         const ignoreIds = ["browse", "utils-send-buttons", "add-edit-section"];
         sectionsToToggle.forEach((section) => {
             if (!ignoreIds.includes(section.id))
@@ -1233,6 +1281,8 @@
         if (newDisplay === "none" && !document.getElementById("project-title").textContent) {
             document.getElementById("project-title").textContent = "fayf - Fakt Farming";
         }
+        // in work mode - disable filter, use setting for type-changes and appbar for search
+        typeFilterContainer.style.display = newDisplay === "none" ? "none" : "block";
     };
 
 
@@ -1259,6 +1309,10 @@
         }
         updateFilteredData();
     };
+
+
+
+
 
 
     /*
@@ -1641,7 +1695,7 @@ if (overlayContent) {
         //test();
 
         /*
-            events ...
+            EVENTS ...
         */
 
 
@@ -1690,6 +1744,15 @@ if (overlayContent) {
 
         toggleButton.addEventListener("click", () => toggleFilterVisibility() );
 
+        navBackLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            console.log("Back link clicked");
+            selectedTopic = splitKey(selectedTopic)[0]; // go one level up
+            console.log("Navigating back to topic: '" + selectedTopic + "'");
+            topicFilter.value = selectedTopic; // run updates ..
+            topicFilter.dispatchEvent(new Event('change'));
+            updateFilteredData();
+        });
 
 
     /*
@@ -1756,7 +1819,7 @@ if (overlayContent) {
         });
 
         // toggle visibility of sections (except browsing-section) on click of navProjectTitle
-        navProjectTitle.addEventListener("click", () => {toggleShowAndWorkmode()});
+        navProjectTitle.addEventListener("click", () => {toggleUserModeShowOrWork()});
 
 
 
@@ -2583,7 +2646,7 @@ if (overlayContent) {
                     resetData(tenantIdOld, "cleanup test");
                     loadData(url);
                     if (urlParams.get('tenantId') || urlParams.get('tid')) {
-                        toggleShowAndWorkmode();
+                        toggleUserModeShowOrWork();
                     }
                     // show a big big toast
                     showToast(randomCongratulation("All tests passed !!"), "success", 10000);
@@ -2605,7 +2668,7 @@ if (overlayContent) {
     } else {
         resetData(tenantId, "normal start");
         if (urlParams.get('tenantId') || urlParams.get('tid')) {
-            toggleShowAndWorkmode();
+            toggleUserModeShowOrWork();
         }
         showToast(randomCongratulation("Welcome!"), "success", 4000);
         showToast("Infopedia loaded" +  ( ""==tenantId ? "" : " for " + tenantId), "info", 2000);
