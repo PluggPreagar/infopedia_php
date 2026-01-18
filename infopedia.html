@@ -529,6 +529,33 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
   #settings-open-btn .settings-text { display: none; }
 }
 
+
+        .vote-cell { width: 6.5rem; text-align: right; padding-right: 0.5rem; }
+        .vote-badge {
+          display: inline-block;
+          min-width: 3.2rem;
+          padding: 0.25rem 0.5rem;
+          border-radius: 999px;
+          font-weight: 700;
+          text-align: center;
+          color: #ffffff;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+          transition: transform 180ms ease, background-color 180ms ease;
+          will-change: transform;
+          font-size: 0.95rem;
+          margin-right: 0.5rem;
+        }
+        .vote-badge.positive { background: linear-gradient(180deg,#39a84a,#2e7d39); }
+        .vote-badge.negative { background: linear-gradient(180deg,#e25656,#b33a3a); }
+        .vote-badge.neutral  { background: linear-gradient(180deg,#8aa6d6,#5f83b8); color:#fff; }
+        .vote-badge.zero__     { background: rgba(0,0,0,0.06); color:#222; font-weight:600; box-shadow:none; }
+        .vote-badge.zero     {  font-weight:600; box-shadow:none; }
+
+        /* subtle pulse when value changes */
+        .vote-badge.pulse {
+          transform: scale(1.14);
+        }
+
     </style>
     <!-- Add this script to include the QRCode.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -876,7 +903,6 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         }
     }
 
-
     function addEntry(topic, nodeId, message, votes, timestamp) {
         addEntryWoCheck(topic, nodeId, message, votes, timestamp);
         checkData(topic, nodeId, message);
@@ -885,6 +911,24 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             showToast(randomCongratulation("Eintrag hinzugefügt!"), "success");
         }
     }
+
+    function addVoteByGui(topic, nodeId, deltaVotes) {
+        if (data[topic] && data[topic][nodeId]) {
+            data[topic][nodeId].votes = (data[topic][nodeId].votes || 0) + deltaVotes;
+            // reorder in topic - order by votes - NOT POSSIBLE with numeric keys -> order on redering
+            data[topic] = Object.fromEntries(
+                Object.entries(data[topic])
+                    .sort(([, a], [, b]) => (b.votes || 0) - (a.votes || 0 ) || a.message.localeCompare(b.message))
+            );
+            updateFilteredData(topic, nodeId, data[topic][nodeId].message);
+            if ("MOCK" !== tenantId) {
+                showToast("Vote: " + data[topic][nodeId].votes, "info");
+            }
+        } else {
+            console.log("Cannot add vote - entry not found for topic:", topic, "nodeId:", nodeId);
+        }
+    }
+
 
 
     function randomCongratulation(msg) {
@@ -1137,6 +1181,8 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         tableBody.innerHTML = "";
         // inject parent topic link
         console.log("Displaying data:", filteredData);
+        // order by votes desc, message asc
+        filteredData.sort( (a,b) => (b.votes || 0) - (a.votes || 0) || a.message.localeCompare(b.message) );
         //
         // add parent topic link if not root
         //
@@ -1200,7 +1246,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                 tr.innerHTML = `
                     <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
                     <td>${messageContent}</td>
-                    <td>${row.votes >0 ? row.votes : ""}</td>
+                    <td class="vote-cell___">${formatVoteBadge(row.votes||"")}</td>
                     <td>${row.timestamp.replace(" ","&nbsp;")}</td>
                     <td>
                         <button class="edit-button" data-id="${fullNodeId}" style="background: none; border: none; cursor: pointer;">
@@ -1256,6 +1302,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             });
         });
         //
+        addSwipeHandlersToAllRows();
         enableInlineEditing();
         //
         latestDisplayTs = latestTimestamp; // for display only
@@ -1636,26 +1683,43 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     function enableInlineEditing() {
         document.querySelectorAll("tbody tr").forEach((row) => {
             let timer;
+            let startX, startY;
 
             function handleLongPressStart(event) {
+                startX = event.type === "touchstart" ? event.touches[0].clientX : event.clientX;
+                startY = event.type === "touchstart" ? event.touches[0].clientY : event.clientY;
                 timer = setTimeout(() => {
                     console.log("Long press detected!");
-                    event.preventDefault(); // Prevent default behavior (e.g., context menu)
+                    // event.preventDefault(); // Prevent default behavior (e.g., context menu) // may interfere with touch
                     const targetCell = event.target.closest("td");
                     if (targetCell) {
                         const originalText = targetCell.textContent.trim();
                         openEditOverlay(originalText, row.dataset.topic || "", row.dataset.nodeId || "" );
 
                     }
-                }, 500); // 500ms threshold for long press
+                }, 1000); // threshold for long press - more than swipe
             }
 
             function handleLongPressEnd(event) {
-                clearTimeout(timer); // Clear the timer if the press is released early
+                if (event.type === "mousemove") {
+                    const currentX = event.clientX;
+                    const currentY = event.clientY;
+                    const deltaX = Math.abs(currentX - startX);
+                    const deltaY = Math.abs(currentY - startY);
+                    // If the mouse has moved significantly, cancel the long press
+                    if (deltaX > 20 || deltaY > 20) {
+                        console.log("move detected - cancelling long press.");
+                        clearTimeout(timer); // Clear the timer if it's a swipe
+                        return;
+                    }
+                } else {
+                    clearTimeout(timer); // Clear the timer if the press is released early
+                }
             }
 
             row.addEventListener("mousedown", handleLongPressStart);
             row.addEventListener("touchstart", handleLongPressStart);
+            row.addEventListener("mousemove", handleLongPressEnd);
 
             row.addEventListener("mouseup", handleLongPressEnd);
             row.addEventListener("mouseleave", handleLongPressEnd);
@@ -2240,6 +2304,41 @@ if (overlayContent) {
                     closeEditOverlay();
                     return false; // prevent default form submission
                 }
+        }
+
+        function sendVote(topic, nodeId, vote) {
+            console.log("Sending vote:", vote, "for topic:", topic, "nodeId:", nodeId);
+            const entry = data[topic] && data[topic][nodeId] ? data[topic][nodeId] : null;
+            if (!entry) {
+                console.error("Entry not found for voting:", topic, nodeId);
+                showToast("Cannot vote: Entry not found.", "error");
+                return;
+            }
+            const entryVote = topic + " | " + nodeId + " | " + entry.message + " | " + vote;
+            const voteUrl = `vote/add?sid=www&tid=${encodeURIComponent(tenantId)}`
+                            + `&entry=${encodeURIComponent(entryVote)}`;
+            if (tenantId === "MOCK") {
+                console.log("Mock tenant - skipping sending vote to URL:", voteUrl);
+                mockIO.push(voteUrl);
+                return;
+            } else {
+                fetch(voteUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            console.error("HTTP error! status:", response.status);
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                    .then(data => {
+                        console.log("Vote submitted successfully.");
+                        showToast("Vote submitted successfully!");
+                    })
+                    .catch(error => {
+                        console.error("Error submitting vote:", error);
+                        showToast("Failed to submit vote.");
+                    });
+            }
         }
 
 
@@ -3215,9 +3314,164 @@ if (overlayContent) {
        swipe to vote on mobile devices
    */
 
+    // Swipe-Voting: attach to rows after sie erstellt wurden (z.B. am Ende von displayData())
+    function addSwipeHandlersToAllRows() {
+       console.log("Adding swipe handlers to all rows...");
+       document.querySelectorAll("tbody tr").forEach(addSwipeHandlersToRow);
+    }
 
+    function addSwipeHandlersToRow(row) {
+      // prevent double-binding
+      if (row.__swipeBound) return;
+      row.__swipeBound = true;
 
+      let startX = 0, startY = 0, startTime = 0;
+      const MIN_SWIPE_DISTANCE = 50; // px
+      const MAX_HORIZONTAL_DRIFT = 50; // px
+      const MAX_SWIPE_TIME = 700; // ms
 
+      function getIdsFromRow(r) {
+        // prefer data attributes if set
+        if (r.dataset && r.dataset.topic && r.dataset.nodeId) {
+          return { topic: r.dataset.topic, nodeId: r.dataset.nodeId };
+        }
+        // try anchors with data attributes
+        const a = r.querySelector("a[data-topic][data-node-id], a[data-topic][data-node]");
+        if (a) {
+          return { topic: a.dataset.topic, nodeId: a.dataset.nodeId || a.dataset.node };
+        }
+        // try elements with data-fullkey (format: /topic/nodeId or /nodeId)
+        const fkEl = r.querySelector("[data-fullkey]");
+        if (fkEl && fkEl.dataset.fullkey) {
+          const fk = fkEl.dataset.fullkey;
+          const lastSlash = fk.lastIndexOf("/");
+          if (lastSlash > 0) {
+            return { topic: fk.substring(0, lastSlash) || "/", nodeId: fk.substring(lastSlash+1) };
+          }
+        }
+        // fallback: no ids found
+        return { topic: null, nodeId: null };
+      }
+
+      function handleVoteAction(topic, nodeId, delta, rowEl) {
+        if (!topic || !nodeId) {
+          // dispatch event anyway to allow external handling
+          document.dispatchEvent(new CustomEvent("swipevote", { detail: { topic, nodeId, delta, row: rowEl } }));
+          return;
+        }
+        // try existing global function first
+        if (typeof window.voteEntry === "function") {
+          try {
+            window.voteEntry(topic, nodeId, delta);
+            return;
+          } catch (e) {
+            console.warn("voteEntry failed:", e);
+          }
+        }
+        // fallback: dispatch event so host app can process it
+        document.dispatchEvent(new CustomEvent("swipevote", { detail: { topic, nodeId, delta, row: rowEl } }));
+      }
+
+      // Touch events
+      row.addEventListener("touchstart", function (ev) {
+        console.log("touchstart on row");
+        const t = ev.touches[0];
+        startX = t.clientX; startY = t.clientY; startTime = Date.now();
+      }, {passive: true});
+
+      row.addEventListener("touchend", function (ev) {
+        // last touch point not available reliably on touchend; use changedTouches
+        console.log("touchend on row");
+        const t = ev.changedTouches && ev.changedTouches[0];
+        if (!t) return;
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        const dt = Date.now() - startTime;
+        if (dt > MAX_SWIPE_TIME) return;
+        if (Math.abs(dy) >= MIN_SWIPE_DISTANCE && Math.abs(dx) <= MAX_HORIZONTAL_DRIFT) {
+          const ids = getIdsFromRow(row);
+          if (dy < 0) {
+            // swipe up -> upvote (+1)
+            handleVoteAction(ids.topic, ids.nodeId, +1, row);
+          } else {
+            // swipe down -> downvote (-1)
+            handleVoteAction(ids.topic, ids.nodeId, -1, row);
+          }
+        }
+      }, {passive: true});
+
+      // Pointer / mouse fallback for desktop drag
+      let pointerDown = false;
+      row.addEventListener("pointerdown", (ev) => {
+        console.log("pointerdown on row");
+        pointerDown = true;
+        startX = ev.clientX; startY = ev.clientY; startTime = Date.now();
+        row.setPointerCapture && row.setPointerCapture(ev.pointerId);
+      });
+
+      row.addEventListener("pointerup", (ev) => {
+        if (!pointerDown) return;
+        console.log("pointerup on row");
+        pointerDown = false;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        const dt = Date.now() - startTime;
+        if (dt > MAX_SWIPE_TIME) {
+            console.log("swipe too slow, ignoring (" + dt + " ms)");
+            return;
+        }
+        if (Math.abs(dx) >= MIN_SWIPE_DISTANCE && Math.abs(dy) <= Math.abs(dx) / 2) {
+          const ids = getIdsFromRow(row);
+          if (dy < 0) {
+            handleVoteAction(ids.topic, ids.nodeId, +1, row);
+          } else {
+            handleVoteAction(ids.topic, ids.nodeId, -1, row);
+          }
+        } else {
+          console.log("not a valid swipe gesture, ignoring (dx=" + dx + ", dy=" + dy + ")");
+        }
+        try { row.releasePointerCapture && row.releasePointerCapture(ev.pointerId); } catch(e){}
+      });
+
+      // Optional: visual feedback on swipe start
+      row.addEventListener("pointermove", (ev) => {
+        if (!pointerDown) return;
+        const dy = ev.clientY - startY;
+        // small translate for feedback
+        row.style.transform = `translateY(${Math.max(-10, Math.min(10, dy / 8))}px)`;
+      });
+      ["pointerup","pointercancel","pointerleave"].forEach(evt => {
+        row.addEventListener(evt, () => { row.style.transform = ""; pointerDown = false; });
+      });
+    }
+
+    // Beispiel: consumer kann so auf das Event reagieren
+    document.addEventListener("swipevote", function(e) {
+      let { topic, nodeId, delta, row } = e.detail;
+      [topic, nodeId] = splitKey(row.dataset.fullNodeId); // should be in details ...
+      console.log("Swipe vote event:", { topic, nodeId, delta, row });
+      // Beispiel: zeige Toast (falls showToast vorhanden)
+      if (!topic || !nodeId) {
+        console.warn("No topic/nodeId available for swipe vote - cannot process.");
+        return;
+      }
+      addVoteByGui(topic, nodeId, delta);
+      sendVote(topic, nodeId, delta);
+      // Falls eigene Logik: sende an backend oder update lokale Daten
+      // z.B. send vote via entry/vote?tid=...&topic=...&nodeId=...&delta=...
+    });
+
+    // JS helpers: formatVoteBadge + update helper
+    function formatVoteBadge(votes) {
+      const n = Number(votes) || 0;
+      let cls = 'neutral';
+      let text = String(n);
+      if (n > 0) { cls = 'positive'; text = '+' + n; }
+      else if (n < 0) { cls = 'negative'; }
+      else if (n === 0) { cls = 'zero'; text = '0'; }
+      // use data-votes for easy updates
+      return `<span class="vote-badge ${cls}" role="status" aria-label="Votes" data-votes="${n}">${text}</span>`;
+    }
 
 
 </script>
