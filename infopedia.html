@@ -88,7 +88,14 @@ tr {
         /* KLUDGE edit might be last td */
         td:nth-last-child(2), td:last-child, th:last-child {
             text-align: right;
+            padding-left: 1rem;
         }
+        @media (max-width: 600px) {
+            td:nth-last-child(2), td:last-child, th:last-child {
+                padding-left: 0;
+            }
+        }
+
         .new-row-highlight {
             background-color: #d4edda; /* Light green background */
             animation: fadeOut 3s forwards;
@@ -116,9 +123,10 @@ tr {
             margin-bottom: 1rem;
         }
 
-        /* Show edit icon when hovering over the row */
+        /* Show edit icon when hovering over the row - slow transition */
         tr:hover .edit-button {
             visibility: visible;
+            transition: visibility 0.5s ease-in-out;
         }
 
         /* class data-row */
@@ -530,23 +538,54 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 }
 
 
-        .vote-cell { width: 6.5rem; text-align: right; padding-right: 0.5rem; }
-        .vote-badge {
-          display: inline-block;
-          min-width: 3.2rem;
-          padding: 0.25rem 0.5rem;
-          border-radius: 999px;
-          font-weight: 700;
-          text-align: center;
-          color: #ffffff;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-          transition: transform 180ms ease, background-color 180ms ease;
-          will-change: transform;
-          font-size: 0.95rem;
-          margin-right: 0.5rem;
-        }
-        .vote-badge.positive { background: linear-gradient(180deg,#39a84a,#2e7d39); }
-        .vote-badge.negative { background: linear-gradient(180deg,#e25656,#b33a3a); }
+.vote-cell { width: 2em; text-align: right; padding-right: 0.35rem; position: relative; }
+.vote-badge {
+  display: inline-block;
+  /* min-width: 2.0rem; */          /* minimale Breite */
+  height: 1.4rem;
+  line-height: 1.4rem;            /* vertikale Zentrierung */
+  padding: 0 0.35rem;            /* horizontaler Abstand */
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.75rem;            /* kleinere Schrift */
+  text-align: center;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  transition: transform 160ms ease, background-color 160ms ease;
+  will-change: transform;
+  vertical-align: middle;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  transition: transform 120ms ease;
+}
+@media (max-width: 600px) {
+    .vote-cell { width: 1px; position: relative; }
+    .vote-badge {
+          position: absolute;
+          left: -2rem;
+    }
+    .action-cell { width: 1px; text-align: right; padding-left: 0.35rem; position: relative; }
+    .action-cell .edit-button {
+          position: absolute;
+          left: -1rem;
+    }
+
+    .send-button {
+        padding: 0.25rem 0.5rem !important;
+        font-size: small;
+    }
+    #spacer-button{
+        width: 0.5rem !important;
+    }
+
+}
+
+
+
+
+        .vote-badge.positive { background: linear-gradient(180deg,#4ad95f,#49b658);; }
+        .vote-badge.negative { background: linear-gradient(180deg,#f79696,#cb5a5a); }
         .vote-badge.neutral  { background: linear-gradient(180deg,#8aa6d6,#5f83b8); color:#fff; }
         .vote-badge.zero__     { background: rgba(0,0,0,0.06); color:#222; font-weight:600; box-shadow:none; }
         .vote-badge.zero     {  font-weight:600; box-shadow:none; }
@@ -554,6 +593,13 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         /* subtle pulse when value changes */
         .vote-badge.pulse {
           transform: scale(1.14);
+        }
+        .vote-badge.fade-out {
+          animation: fadeOutBadge 1s forwards;
+        }
+        @keyframes fadeOutBadge {
+          0% { opacity: 1; }
+          100% { opacity: 0; display: none; }
         }
 
     </style>
@@ -738,7 +784,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                         <div id="send-buttons" style="display: flex; gap: 0.5rem; margin-left: auto;">
                             <button type="button" class="send-button" data-type="--" style="background: red ; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Delete</button>
                             <!-- spacer -->
-                            <button type="button" style="background: transparent; border: none; cursor: default; width: 5rem;"></button>
+                            <button type="button" id="spacer-button"  style="background: transparent; border: none; cursor: default; width: 5rem;"></button>
                             <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
                             <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
                             <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
@@ -929,6 +975,16 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         }
     }
 
+    function setVoteByOthers(topic, nodeId, votes) {
+        if (data[topic] && data[topic][nodeId]) {
+            data[topic][nodeId].votes = votes;
+            if (selectedTopic === topic) {// only update if in current view
+                updateFilteredData(topic, nodeId, data[topic][nodeId].message);
+            }
+        } else {
+            console.log("Cannot set vote - entry not found for topic:", topic, "nodeId:", nodeId);
+        }
+    }
 
 
     function randomCongratulation(msg) {
@@ -1182,7 +1238,10 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         // inject parent topic link
         console.log("Displaying data:", filteredData);
         // order by votes desc, message asc
-        filteredData.sort( (a,b) => (b.votes || 0) - (a.votes || 0) || a.message.localeCompare(b.message) );
+        filteredData.sort( (a,b) =>
+            (b.votes || 0) - (a.votes || 0)
+            || (b.votesOthers || 0) - (a.votesOthers || 0)
+            || a.message.localeCompare(b.message) );
         //
         // add parent topic link if not root
         //
@@ -1246,9 +1305,9 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                 tr.innerHTML = `
                     <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
                     <td>${messageContent}</td>
-                    <td class="vote-cell___">${formatVoteBadge(row.votes||"")}</td>
+                    <td class="vote-cell">${formatVoteBadge(row.votes||"")}</td>
                     <td>${row.timestamp.replace(" ","&nbsp;")}</td>
-                    <td>
+                    <td class="action-cell">
                         <button class="edit-button" data-id="${fullNodeId}" style="background: none; border: none; cursor: pointer;">
                             <i class="fas fa-edit" style="color: #4CAF50;"></i>
                         </button>
@@ -1263,6 +1322,13 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             });
         } // filteredData.length > 0
         //
+        // fade alle badges after 5 seconds
+        setTimeout(() => {
+            document.querySelectorAll(".vote-badge").forEach((badge) => {
+                badge.classList.add("fade-out");
+            });
+        }, 5000);
+
         // Add click event for topic links
         document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
             link.addEventListener("click", (event) => {
@@ -1339,6 +1405,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     }
 
     let url = "entry/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
+    let urlVote = "vote/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
     // for local testing, use local CSV file
     // check if running from file://
     if (window.location.protocol === "file:") {
@@ -1369,14 +1436,37 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             let dataLoaded = JSON.parse(jsonText);
             // recheck for MOCK - due to async run
             if (tenantId !== "MOCK") {
-                addData(dataLoaded);
+                if (url.includes("vote/get")) {
+                    addVotesData(dataLoaded);
+                } else {
+                    addData(dataLoaded);
+                }
             } else {
                 console.log("Mock tenant - skipping data addition after fetch.");
             }
         } catch (error) {
-            console.error("Error loading data:", error);
-           tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
+            console.error("Error loading data (" + url + "):", error);
+            // do not clear table - keep old data
+            if (data && Object.keys(data).length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
+            }
         }
+    }
+
+    function addVotesData(dataLoaded) {
+        console.log("Votes data loaded:", dataLoaded);
+        if (!dataLoaded || Object.keys(dataLoaded).length === 0) {
+            console.info("No votes data loaded from URL:", url);
+        } else {
+            // only update votes for existing entries
+            Object.entries(dataLoaded).forEach(([topic, nodes]) => {
+                Object.entries(nodes).forEach(([nodeId, entry]) => {
+                    setVoteByOthers(topic, nodeId, entry.votes);
+                });
+            });
+            showToast( "Votes updated (" + Object.keys(dataLoaded).length + " entries)");
+        } // dataLoaded not empty
+        //
     }
 
 
@@ -1680,6 +1770,18 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     }
 
 
+  function clearSelection() {
+    try {
+      if (window.getSelection) {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) sel.removeAllRanges();
+      } else if (document.selection) { // alte IE
+        document.selection.empty();
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+
     function enableInlineEditing() {
         document.querySelectorAll("tbody tr").forEach((row) => {
             let timer;
@@ -1690,7 +1792,8 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                 startY = event.type === "touchstart" ? event.touches[0].clientY : event.clientY;
                 timer = setTimeout(() => {
                     console.log("Long press detected!");
-                    // event.preventDefault(); // Prevent default behavior (e.g., context menu) // may interfere with touch
+                    event.preventDefault(); // Prevent default behavior (e.g., context menu) // may interfere with touch
+                    clearSelection();
                     const targetCell = event.target.closest("td");
                     if (targetCell) {
                         const originalText = targetCell.textContent.trim();
@@ -3053,6 +3156,10 @@ if (overlayContent) {
         showToast("Infopedia loaded" +  ( ""==tenantId ? "" : " for " + tenantId), "info", 2000);
         // polling every 60 seconds
         loadData(url);
+        // load votes later
+        setTimeout( () => {
+            loadData(urlVote);
+        }, 5000);
         setInterval(() => {
             if (tenantId === "MOCK") {
                 console.log("Mock tenant - skipping polling.");
@@ -3061,13 +3168,16 @@ if (overlayContent) {
                 // use ts minus 20 seconds to avoid caching issues
                 // let ts = new Date().getTime() - 20000;
                 let pollUrl = url ;
+                let pollUrlVote = urlVote;
                 if (url.endsWith(".json")) {
                     console.log("Local JSON file detected - inject ts in filename");
                     pollUrl = url.replace(".json", "_ts" + encodeURIComponent(latestTimestamp.replaceAll(/[^a-zA-Z0-9]/g, "")) + ".json");
                 } else {
                     pollUrl += "&ts=" + encodeURIComponent(latestTimestamp);
+                    pollUrlVote += "&ts=" + encodeURIComponent(latestTimestamp);
                 }
                 loadData(pollUrl);
+                loadData(pollUrlVote);
             } else {
                 console.log("SKIPP Polling data... (no latest timestamp yet)");
             }
@@ -3422,11 +3532,7 @@ if (overlayContent) {
         }
         if (Math.abs(dx) >= MIN_SWIPE_DISTANCE && Math.abs(dy) <= Math.abs(dx) / 2) {
           const ids = getIdsFromRow(row);
-          if (dy < 0) {
-            handleVoteAction(ids.topic, ids.nodeId, +1, row);
-          } else {
-            handleVoteAction(ids.topic, ids.nodeId, -1, row);
-          }
+          handleVoteAction(ids.topic, ids.nodeId, dx < 0 ? -1 : 1 , row);
         } else {
           console.log("not a valid swipe gesture, ignoring (dx=" + dx + ", dy=" + dy + ")");
         }
@@ -3436,9 +3542,9 @@ if (overlayContent) {
       // Optional: visual feedback on swipe start
       row.addEventListener("pointermove", (ev) => {
         if (!pointerDown) return;
-        const dy = ev.clientY - startY;
+        const dx = ev.clientX - startX;
         // small translate for feedback
-        row.style.transform = `translateY(${Math.max(-10, Math.min(10, dy / 8))}px)`;
+        row.style.transform = `translateX(${Math.max(-10, Math.min(10, dx / 8))}px)`;
       });
       ["pointerup","pointercancel","pointerleave"].forEach(evt => {
         row.addEventListener(evt, () => { row.style.transform = ""; pointerDown = false; });
