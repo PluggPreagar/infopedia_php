@@ -271,6 +271,10 @@ if ($response === false) {
             [$timestamp, $rest] = explode(',', $line, 2);
             [$path, $nodeWsid, $content, $votes] = array_pad(explode(' | ', $rest, 4), 4, ''); // assume content has no " | "
             [$node, $wsid] = array_pad(explode($voteMarkerPrefix, $nodeWsid, 2), 2, '');
+            // check if content has type suffix [>!?.-] - if not append "."
+            if (!preg_match('/[>!?.-]$/', $content)) {
+                $content .= '.';
+            }
             if (is_numeric($votes) && '' !== trim($votes) && '' !== trim($path) &&  '' !== trim($wsid) ) {
                 $key = $path . ' | ' . ($wsid == $session_id || $wsid == "signed" ? $nodeWsid : $node . $othersMarker) ;
                 // echo "Processing vote line: $nodeWsid => key: $key<br>\n"; // Debugging output
@@ -354,6 +358,9 @@ if ($response === false) {
                 $rest = trim($rest, '"');
                 [$path, $node, $message, $votes] = array_pad(explode(' | ', $rest, 4), 4, '');
                 $message = trim($message, '"'); // remove quotes around message
+                if (!preg_match('/[>!?.-]$/', $message)) {
+                    $message .= '.';
+                }
                 $fullPath = $path . "/" . $node; // fix multiple "/"
                 $fullPath = preg_replace('#/+#','/',$fullPath);
                 $newLine = [ $fullPath, $timestamp, $message, $votes];
@@ -401,6 +408,9 @@ if ($response === false) {
                 $rest = trim($rest, '"');
                 [$path, $node, $message, $votes] = array_pad(explode(' | ', $rest, 4), 4, '');
                 $message = trim($message, '"'); // remove quotes around message
+                if (!preg_match('/[>!?.-]$/', $message)) {
+                    $message .= '.';
+                }
                 $fullPath = $path . "/" . $node; // fix multiple "/"
                 $fullPath = preg_replace('#/+#','/',$fullPath);
                 $indent = substr_count($fullPath, '/') - 1; // calculate indent based on path depth
@@ -486,6 +496,9 @@ if ($response === false) {
             $rest = trim($rest, '"');
             [$path, $node, $message, $votes] = array_pad(explode(' | ', $rest, 4), 4, '');
             $message = trim($message, '"'); // remove quotes around message
+            if (!preg_match('/[>!?.-]$/', $message)) {
+                $message .= '.';
+            }
             $path = preg_replace('#/+#','/',$path); // fix multiple "/"
             // empty path -> "/"
             if (trim($path) === '') {

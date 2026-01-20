@@ -584,9 +584,9 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
 
 
-        .vote-badge.positive { background: linear-gradient(180deg,#4ad95f,#49b658);; }
-        .vote-badge.negative { background: linear-gradient(180deg,#f79696,#cb5a5a); }
-        .vote-badge.neutral  { background: linear-gradient(180deg,#8aa6d6,#5f83b8); color:#fff; }
+        .vote-badge.positive { background: #4ad95fb2 ; /*linear-gradient(180deg,#4ad95f,#49b658);*/ }
+        .vote-badge.negative { background: #f79696b2 ; /* linear-gradient(180deg,#f79696,#cb5a5a); */ }
+        .vote-badge.neutral  { background: #9aa+d6b2 ; /* linear-gradient(180deg,#8aa6d6,#5f83b8); color:#fff; */ }
         .vote-badge.zero__     { background: rgba(0,0,0,0.06); color:#222; font-weight:600; box-shadow:none; }
         .vote-badge.zero     {  font-weight:600; box-shadow:none; }
 
@@ -601,6 +601,15 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
           0% { opacity: 1; }
           100% { opacity: 0; display: none; }
         }
+
+        .highlight-vote-increase1 {
+          border-top: 4px solid hsl(130, 70%, 45%);
+        }
+        .highlight-vote-increase0 {
+            border-top: 4px solid hsl(0, 70%, 45%);
+        }
+
+
 
     </style>
     <!-- Add this script to include the QRCode.js library -->
@@ -894,6 +903,42 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         BASE DATA
     */
 
+    lastRuntimeCheckValue = null;
+    lastRuntimeCheckStack = [];
+
+    function runtimeCheck( msg = "" ) {
+        const currentValue = topicFilter.value + "|" + selectedTopic + "|" + Object.keys(data).length + "|" + tenantId;
+        if (currentValue === lastRuntimeCheckValue) {
+            if (lastRuntimeCheckStack.length > 20) {
+                lastRuntimeCheckStack = []; // prevent overflow
+            }
+            if (msg.endsWith("-end")) { // remove w/o "-end" from stack
+                msgShort = msg.substring(0, msg.length - 4);
+                const index = lastRuntimeCheckStack.lastIndexOf(msgShort);
+                if (index !== -1) {
+                    lastRuntimeCheckStack.splice(index, 1);
+                }
+            } else {
+                lastRuntimeCheckStack.push(msg);
+            }
+            return;
+        }
+        console.log("-----------    Runtime Check  --  Change detected    -----------");
+        console.log("Runtime check: " + msg);
+        console.log("Current tenantId: '" + tenantId + "'");
+        console.log("Data keys:", Object.keys(data));
+        console.log("Topic map:", topicMap);
+        console.log("Selected topic:", selectedTopic);
+        console.log("Latest timestamp:", latestTimestamp);
+        console.log("Latest display timestamp:", latestDisplayTs);
+        console.log("Value old:", lastRuntimeCheckValue);
+        console.log("Value new:", currentValue);
+        lastRuntimeCheckValue = currentValue;
+        // list call stack
+        console.log("Call stack:", new Error().stack);
+        console.log("-----------    Runtime Check  --  End    -----------");
+    }
+
 
     function resetData(newTenantId = "", msg="") {
         console.log("-----------    Resetting data. '" + newTenantId + "' " + ( msg ? "( "+ msg + " )" : "" ) + "    -----------");
@@ -923,6 +968,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
 
     function addEntryWoCheck(topic, nodeId, message, votes, timestamp) {
+        runtimeCheck("addEntryWoCheck");
         if (!topic || topic === "") {
             topic = "/";
         }
@@ -947,18 +993,22 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                 votes: votes
             };
         }
+        runtimeCheck("addEntryWoCheck-end");
     }
 
     function addEntry(topic, nodeId, message, votes, timestamp) {
+        runtimeCheck("addEntry");
         addEntryWoCheck(topic, nodeId, message, votes, timestamp);
         checkData(topic, nodeId, message);
         updateFilteredData(topic, nodeId, message);
         if ("MOCK" !== tenantId) {
             showToast(randomCongratulation("Eintrag hinzugefügt!"), "success");
         }
+        runtimeCheck("addEntry-end");
     }
 
     function addVoteByGui(topic, nodeId, deltaVotes) {
+        runtimeCheck("addVoteByGui");
         if (data[topic] && data[topic][nodeId]) {
             data[topic][nodeId].votes = (data[topic][nodeId].votes || 0) + deltaVotes;
             // reorder in topic - order by votes - NOT POSSIBLE with numeric keys -> order on redering
@@ -973,9 +1023,11 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         } else {
             console.log("Cannot add vote - entry not found for topic:", topic, "nodeId:", nodeId);
         }
+        runtimeCheck("addVoteByGui-end");
     }
 
     function setVoteByOthers(topic, nodeId, votes) {
+        runtimeCheck("setVoteByOthers");
         if (data[topic] && data[topic][nodeId]) {
             data[topic][nodeId].votes = votes;
             if (selectedTopic === topic) {// only update if in current view
@@ -984,6 +1036,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         } else {
             console.log("Cannot set vote - entry not found for topic:", topic, "nodeId:", nodeId);
         }
+        runtimeCheck("setVoteByOthers-end");
     }
 
 
@@ -1012,6 +1065,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
 
     function checkData(topic, nodeId, message) {
+        runtimeCheck("checkData");
         // console.log("Checking data for topic:", topic, "nodeId:", nodeId, "message:", message);
         if (!topic) { // check all
             console.log("Checking data for topic:", topic, "nodeId:", nodeId, "message:", message);
@@ -1071,9 +1125,11 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         if (initializeTopicMap(topic)){
             populateFilterOptions();
         }
+        runtimeCheck("checkData-end");
     }
 
     function initializeTopicMap(topic = null) {
+        runtimeCheck("initializeTopicMap");
         // lookup topic names to paths
         changed = false;
         if (!topic){
@@ -1090,12 +1146,14 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                                 ? data[parentTopic][nodeId].message : "";
             console.log("Added topic name for topic:", topic, "->", topicMap[topic] || "(n/a)");
         }
+        runtimeCheck("initializeTopicMap-end");
         return changed;
     }
 
 
 
     function getFilteredData(data, selectedTopic, selectedType, textFilterValue="") {
+        runtimeCheck("getFilteredData");
         //
         //  selectedTopic:  "/clima" -> focus on topic (and its children to search in)
         //  selectedType:   "."      -> filter by type (search in topic and its children)
@@ -1169,7 +1227,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             console.log("After hard filtering topics:");
             console.log(filteredData);
         }
-
+        runtimeCheck("getFilteredData-end");
         return filteredData;
     }
 
@@ -1186,6 +1244,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
 
     function updateSendButtons(){
+        runtimeCheck("updateSendButtons");
         const selectedType = typeFilter.value;
         console.log("Updating send buttons for type filter '" + selectedType + "'");
 
@@ -1201,11 +1260,13 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                 button.style.display = button.disabled ? "none" : "inline-block";
             //}
         });
+        runtimeCheck("updateSendButtons-end");
     }
 
 
     // Populate filter dropdown with unique topics
     function populateFilterOptions() {
+        runtimeCheck("populateFilterOptions");
         const topics = [];
         Object.keys(topicMap).sort().forEach((topic) => {
             let indent = topic.split("/").length - 2;
@@ -1223,17 +1284,24 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             option.textContent = topic.name.replace(/ /g, "\u00A0");
             topicFilter.appendChild(option);
         });
+        // cross-check selectedTopic still exists
+        if (data[selectedTopic] === undefined) {
+            selectedTopic = "/";
+        }
+        topicFilter.value = selectedTopic; // ensure selected topic is set
         // add global search option
         const globalOption = document.createElement("option");
         globalOption.value = "IGNORE";
         globalOption.textContent = "🔍 global Suche";
         topicFilter.appendChild(globalOption);
+        runtimeCheck("populateFilterOptions-end");
     }
 
 
 
     // Display data in the table
     function displayData(filteredData) {
+        runtimeCheck("displayData");
         tableBody.innerHTML = "";
         // inject parent topic link
         console.log("Displaying data:", filteredData);
@@ -1288,6 +1356,8 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Keine Daten - hilf uns Sie zu ergänzen!</td></tr>`;
         } else {
             //
+            lastVoteSign = -1; // for highlight vote increase
+            lastTr = null;
             Object.keys(filteredData).forEach((key) => {
                 const row = filteredData[key];
                 const tr = document.createElement("tr");
@@ -1296,6 +1366,11 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                 tr.dataset.fullNodeId = fullNodeId;
                 tr.dataset.timestamp = row.timestamp;
                 tr.classList.add("data-row");
+                currentVoteSign = Math.sign(row.votes || 0 );
+                if ( currentVoteSign < lastVoteSign ) { // skipp initial case -1
+                    tr.classList.add("highlight-vote-increase" + lastVoteSign);
+                }
+                lastTr = tr;
                 let messageContent = row.message;
                 if (row.message.endsWith(">")) {
                     tr.classList.add("topic-link"); // allow row click
@@ -1306,13 +1381,14 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                     <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
                     <td>${messageContent}</td>
                     <td class="vote-cell">${formatVoteBadge(row.votes||"")}</td>
-                    <td>${row.timestamp.replace(" ","&nbsp;")}</td>
+                    <td class="ts-cell" tooltip="${row.timestamp}">${formatTimestamp(row.timestamp).replace(" ","&nbsp;")}</td>
                     <td class="action-cell">
                         <button class="edit-button" data-id="${fullNodeId}" style="background: none; border: none; cursor: pointer;">
                             <i class="fas fa-edit" style="color: #4CAF50;"></i>
                         </button>
                     </td>
                 `;
+                lastVoteSign = currentVoteSign;
                 tableBody.appendChild(tr);
                 //
                 // Check if the row is new (based on timestamp)
@@ -1372,6 +1448,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         enableInlineEditing();
         //
         latestDisplayTs = latestTimestamp; // for display only
+        runtimeCheck("displayData-end");
     }
 
 
@@ -1423,6 +1500,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
     // Function to fetch and display CSV data
     async function loadData(url) {
+        runtimeCheck("loadData");
         if (tenantId === "MOCK") {
             console.log("Mock tenant - skipping loading data from URL:", url);
             return;
@@ -1451,9 +1529,11 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                 tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
             }
         }
+        runtimeCheck("loadData-end");
     }
 
     function addVotesData(dataLoaded) {
+        runtimeCheck("addVotesData");
         console.log("Votes data loaded:", dataLoaded);
         if (!dataLoaded || Object.keys(dataLoaded).length === 0) {
             console.info("No votes data loaded from URL:", url);
@@ -1467,10 +1547,12 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             showToast( "Votes updated (" + Object.keys(dataLoaded).length + " entries)");
         } // dataLoaded not empty
         //
+        runtimeCheck("addVotesData-end");
     }
 
 
     function addData(dataLoaded) {
+        runtimeCheck("addData");
         // only first 20 entries for testing
         if (false) {
             dataLoaded = Object.fromEntries(
@@ -1515,6 +1597,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             }
         } // dataLoaded not empty
         //
+        runtimeCheck("addData-end");
     }
 
 
@@ -1529,7 +1612,11 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
     function formatTimestamp(timestamp) {
         const [datePart, timePart] = timestamp.split(" ");
-        const [day, month, year] = datePart.split("/").map(Number);
+        // handle date part DD/MM/YYYY and YYYY-MM-DD
+        let [day, month, year] = datePart.split(/[-/]/).map(Number);
+        if (datePart.includes("-")) { // YYYY-MM-DD
+            [ year , day ] = [ day , year ];
+        }
         const [hours, minutes, seconds] = timePart.split(":").map(Number);
         // Create a Date object
         const date = new Date(year, month - 1, day, hours, minutes, seconds);
@@ -1573,6 +1660,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
 
     function toggleUserModeShowOrWork() {
+        runtimeCheck("toggleUserModeShowOrWork");
         console.log("Toggling view between 'show' and 'work' mode.");
         const sectionsToToggle = document.querySelectorAll("section:not(#browse)");
         userMode = sectionsToToggle[0].style.display === "none" || getComputedStyle(sectionsToToggle[0]).display === "none"
@@ -1646,11 +1734,13 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             navBackLink.innerHTML = `fayf of ` + tenantId.replace(/_.*/g, "").replace(/[^a-zA-Z0-9]/g, ""); // show tenant short
             navBackLink.style.display = "inline";
         }
+        runtimeCheck("toggleUserModeShowOrWork-end");
 
     };
 
 
     function toggleFilterVisibility() {
+        runtimeCheck("toggleFilterVisibility");
         console.log("Toggle filter visibility (toggleButton)");
         textFilter.value = ""; // reset text filter
         typeFilter.value = "!"; // reset type filter
@@ -1672,6 +1762,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             }
         }
         updateFilteredData();
+        runtimeCheck("toggleFilterVisibility-end");
     };
 
 
@@ -1721,6 +1812,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     }
 
     function openEditOverlay(messageOrElement = "", topicId = "", nodeId = "") {
+        runtimeCheck("openEditOverlay");
         if (!topicId && !nodeId && messageOrElement instanceof Element) {
             let row = messageOrElement.closest("tr");
             message = messageOrElement.textContent.trim();
@@ -1761,6 +1853,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         // nodeInput.value = nodeId;     // Set the nodeId
 
         overlay.style.display = "block";
+        runtimeCheck("openEditOverlay-end");
     }
 
     // Close the overlay
@@ -1791,6 +1884,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                 startX = event.type === "touchstart" ? event.touches[0].clientX : event.clientX;
                 startY = event.type === "touchstart" ? event.touches[0].clientY : event.clientY;
                 timer = setTimeout(() => {
+                    runtimeCheck("longPressDetected");
                     console.log("Long press detected!");
                     event.preventDefault(); // Prevent default behavior (e.g., context menu) // may interfere with touch
                     clearSelection();
@@ -1935,6 +2029,7 @@ if (overlayContent) {
 
 
     function updateFilteredData() {
+        runtimeCheck("updateFilteredData");
         console.log("updateFilteredData: Updating filtered data...");
         console.log(data);
         const selectedTopic = topicFilter.value; // "" == all topics, "/" == root topics
@@ -1944,6 +2039,7 @@ if (overlayContent) {
         displayData(filteredData);
         console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType
             + "' -> " + Object.keys(filteredData).length + " of " + Object.keys(data).length + " entries)");
+        runtimeCheck("updateFilteredData-end");
     }
 
 
@@ -2289,6 +2385,7 @@ if (overlayContent) {
         -- QR Code Generation --
     */
     function showQRCode(tenantId) {
+        runtimeCheck("showQRCode");
         const qrCodeContainer = document.getElementById("qrcode");
         const qrCodeUrl = window.location.origin + window.location.pathname
                             + "?tid=" + encodeURIComponent(tenantId);
@@ -2305,7 +2402,7 @@ if (overlayContent) {
         tenantInfo.textContent = qrCodeUrl;
         // display the QR code section
         document.getElementById("qr-code-section").style.display = "block";
-
+        runtimeCheck("showQRCode-end");
     }
 
     /*
@@ -2330,6 +2427,7 @@ if (overlayContent) {
 
 
         function sendButtonClicks(button) {
+                runtimeCheck("sendButtonClicks");
                 const topic = document.getElementById("topicFilter").value;
                 // check which input dialog has been used
                 const messageRaw = document.getElementById("entryMessage").value.trim()
@@ -2405,11 +2503,14 @@ if (overlayContent) {
                     // clear both inputs after reading
                     document.getElementById("entryMessage").value = "";
                     closeEditOverlay();
+                    runtimeCheck("sendButtonClicks-end");
                     return false; // prevent default form submission
                 }
+                runtimeCheck("sendButtonClicks-end");
         }
 
         function sendVote(topic, nodeId, vote) {
+            runtimeCheck("sendVote");
             console.log("Sending vote:", vote, "for topic:", topic, "nodeId:", nodeId);
             const entry = data[topic] && data[topic][nodeId] ? data[topic][nodeId] : null;
             if (!entry) {
@@ -2442,6 +2543,7 @@ if (overlayContent) {
                         showToast("Failed to submit vote.");
                     });
             }
+            runtimeCheck("sendVote-end");
         }
 
 
@@ -3463,7 +3565,22 @@ if (overlayContent) {
         return { topic: null, nodeId: null };
       }
 
+      function debounceKey(key, interval) {
+        const now = Date.now();
+        if (!debounceKey.lastTimes) debounceKey.lastTimes = {};
+        if (debounceKey.lastTimes[key] && (now - debounceKey.lastTimes[key]) < interval) {
+          return true; // still in debounce period
+        }
+        debounceKey.lastTimes[key] = now;
+        return false;
+      }
+
       function handleVoteAction(topic, nodeId, delta, rowEl) {
+        // debounce - prevent multiple votes on same row in short time
+        if (debounceKey("swipevote_" + topic + "_" + nodeId, 1000)) {
+          console.log("Swipe vote action debounced for", topic, nodeId);
+          return;
+        }
         if (!topic || !nodeId) {
           // dispatch event anyway to allow external handling
           document.dispatchEvent(new CustomEvent("swipevote", { detail: { topic, nodeId, delta, row: rowEl } }));
@@ -3498,15 +3615,12 @@ if (overlayContent) {
         const dy = t.clientY - startY;
         const dt = Date.now() - startTime;
         if (dt > MAX_SWIPE_TIME) return;
-        if (Math.abs(dy) >= MIN_SWIPE_DISTANCE && Math.abs(dx) <= MAX_HORIZONTAL_DRIFT) {
+        if (Math.abs(dx) >= MIN_SWIPE_DISTANCE && Math.abs(dy) <= Math.abs(dx) / 2) {
           const ids = getIdsFromRow(row);
-          if (dy < 0) {
-            // swipe up -> upvote (+1)
-            handleVoteAction(ids.topic, ids.nodeId, +1, row);
-          } else {
-            // swipe down -> downvote (-1)
-            handleVoteAction(ids.topic, ids.nodeId, -1, row);
-          }
+          // debounce to avoid multiple collision with pointer events
+          handleVoteAction(ids.topic, ids.nodeId, dx < 0 ? -1 : 1 , row);
+        } else {
+          console.log("not a valid swipe gesture, ignoring (dx=" + dx + ", dy=" + dy + ")");
         }
       }, {passive: true});
 
@@ -3579,5 +3693,17 @@ if (overlayContent) {
       return `<span class="vote-badge ${cls}" role="status" aria-label="Votes" data-votes="${n}">${text}</span>`;
     }
 
+
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func.apply(this, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
 
 </script>
