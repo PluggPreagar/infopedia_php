@@ -1,0 +1,3709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fakt Farming Project - fayf.info">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            color: #333;
+        }
+        header {
+            background: #4CAF50;
+            color: #fff;
+            padding: 1rem 0;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+        }
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: left;
+            background: #333;
+            color: #fff;
+            padding: 0.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 1rem;
+        }
+        nav .project-title {
+            margin-left: auto;
+            font-size: 1rem;
+            color: #fff;
+            white-space: nowrap;
+        }
+        nav img {
+            height: 1.5rem; /* Adjust icon height to match text */
+            margin-right: 1rem;
+        }
+        a, nav a, .topic-link, .parent-topic-link {
+            text-decoration: none;
+        }
+        a:hover, nav a:hover, .topic-link:hover, .parent-topic-link:hover {
+           // text-decoration: underline;
+        }
+        main {
+            flex: 1; /* Ensures the main content takes up available space */
+        }
+        tbody {
+           margin-top: 1rem; /* Add space between the header and content */
+        }
+table {
+    border-collapse: separate; /* Ensure borders don't collapse */
+    border-spacing: 5px; /* Optional: Adjust spacing between cells */
+}
+
+tr {
+    border-radius: 10px; /* Add rounded edges to rows */
+    overflow: hidden; /* Ensure the rounded corners are visible */
+}
+
+        td {
+            color : #358600;
+            padding-bottom: 0.5rem;
+            padding-top: 0.5rem;
+        }
+        /* KLUDGE edit might be last td */
+        td:nth-last-child(2), td:last-child, th:last-child {
+            text-align: right;
+            padding-left: 1rem;
+        }
+        @media (max-width: 600px) {
+            td:nth-last-child(2), td:last-child, th:last-child {
+                padding-left: 0;
+            }
+        }
+
+        .new-row-highlight {
+            background-color: #d4edda; /* Light green background */
+            animation: fadeOut 3s forwards;
+        }
+
+        @keyframes fadeOut {
+            0% {
+                background-color: #d4edda;
+            }
+            100% {
+                background-color: transparent;
+            }
+        }
+
+
+        /* Hide edit icon by default */
+        .edit-button {
+            visibility: hidden;
+        }
+
+        #edit-message {
+            color: #4CAF50;
+            // font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Show edit icon when hovering over the row - slow transition */
+        tr:hover .edit-button {
+            visibility: visible;
+            transition: visibility 0.5s ease-in-out;
+        }
+
+        /* class data-row */
+        .data-row:hover {
+            background-color: #f9f9f9;
+        }
+        /* data-row and topic-link */
+        .data-row .topic-link:hover {
+            cursor: pointer;
+        }
+
+
+
+        section {
+            padding: 1rem;
+            max-width: 800px;
+            margin: auto;
+        }
+        footer {
+            background: #333;
+            color: #fff;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 2rem;
+            margin-top: auto; /* Pushes the footer to the bottom */
+        }
+
+        #topicFilter, #typeFilter {
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            color: #333;
+            outline: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        #topicFilter:hover, #typeFilter:hover {
+            border-color: #4CAF50;
+            background-color: #fff;
+        }
+
+        #topicFilter:focus, #typeFilter:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+
+        .filter-container {
+            display: grid;
+            grid-template-columns: auto 1fr; /* Label and dropdown alignment */
+            gap: 1rem 2rem; /* Space between rows and columns */
+            align-items: start; /* Align items to the top/left */
+            max-width: 600px; /* Limit the width for better layout */
+            margin: 1rem auto; /* Center the container */
+            text-align: left; /* Ensure text aligns to the left */
+        }
+        .filter-row {
+            grid-column: span 2; /* Make each filter row span across both columns */
+        }
+
+        .filter-row label {
+            font-weight: bold; /* Highlight labels */
+            font-size: 1rem; /* Ensure consistent font size */
+            color: #333; /* Modern text color */
+            text-align: left; /* Align label text to the left */
+        }
+
+        .filter-row select {
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            color: #333;
+            outline: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            width: 100%; /* Ensure dropdowns take full width */
+            text-align: left; /* Align dropdown text to the left */
+        }
+
+        .filter-row select:hover {
+            border-color: #4CAF50;
+            background-color: #fff;
+        }
+
+        .filter-row select:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+
+        button#toggleTypeFilter {
+            grid-column: span 2; /* Make the button span across both columns */
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button#toggleTypeFilter:hover {
+            background-color: none;
+        }
+
+
+
+        .textInput {
+            padding: 0.25rem 0.25rem;
+            border-color: #4CAF50;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            outline: none;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            width: 100%; /* Ensure it matches the width of the button */
+            box-sizing: border-box; /* Include padding and border in the element's width */
+            font-size: 1rem;
+        }
+
+        #textFilter {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+        }
+
+        #textFilter:hover {
+            background-color: #45a049;
+        }
+
+        #textFilter:focus {
+            background-color: #fff;
+            color: #333;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+
+        #cinema-slogans{
+            text-align: center;
+            padding: 1rem;
+            overflow: hidden;
+            white-space: nowrap;
+            min-height: 2.5rem;
+        }
+
+
+        #add-edit-section h2 {
+            font-size: 1.5rem;
+            color: #4CAF50;
+            margin-bottom: 1rem;
+        }
+
+        #add-edit-section label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        #add-edit-section input[type="text"],
+        #add-edit-section textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        #add-edit-section textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        #add-edit-section .send-button {
+            background-color: #4CAF50;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 1rem;
+        }
+
+        #add-edit-section .send-button:hover {
+            background-color: #45a049;
+        }
+
+        #add-edit-section .send-button:not(:last-child) {
+            margin-right: 0.5rem;
+        }
+
+        #add-edit-section .send-button[data-type="!"] {
+            background-color: #2196F3;
+        }
+
+        #add-edit-section .send-button[data-type="!-"] {
+            background-color: #f44336;
+        }
+
+        #add-edit-section .send-button[data-type="?"] {
+            background-color: #FF9800;
+        }
+
+        /* Floating Action Button (FAB) Styling */
+        #fab-add {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 3.5rem;
+            height: 3.5rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            z-index: 1000;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        #fab-add:hover {
+            background-color: #45a049;
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        #fab-add:focus {
+            outline: none;
+        }
+
+        @media (max-width: 600px) {
+            #cinema-slogans {
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch; /* Smooth scrolling for iOS */
+            }
+        }
+
+nav a {
+    color: white; /* Replace with a color from your schema */
+    text-decoration: none;
+    margin: 0 1rem;
+    transition: color 0.3s ease; /* Smooth transition for hover effect */
+}
+
+nav a:hover {
+    color: #2c6e00;
+}
+
+/* push the right-spacer to the far right */
+nav .right-spacer {
+  margin-left: auto !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+a, .topic-link, .parent-topic-link {
+    color: #358600; /* Replace with a color from your schema */
+    text-decoration: none;
+}
+
+a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade for hover effect */
+    color: #2c6e00;
+}
+
+
+        @media (max-width: 600px) {
+            table th:nth-child(4),
+            table td:nth-child(4) {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            nav a {
+                font-size: 1rem; /* Default text size */
+                transition: font-size 0.3s ease; /* Smooth transition */
+            }
+
+            nav.sticky a {
+                font-size: 0; /* Hide text when sticky */
+            }
+
+            nav.sticky a i {
+                font-size: 1.5rem; /* Keep icons visible */
+            }
+
+            /* search icon enlarged */
+            #search-icon {
+                font-size: 1.5rem;
+            }
+
+
+        }
+
+        .project-title {
+            font-size: 1rem;
+            margin-left: 1rem;
+            color: #fff;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+
+        .project-title{
+            cursor: pointer;
+        }
+
+        #navSearchInput {
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            color: #333;
+            outline: none;
+            transition: all 0.3s ease;
+            margin-right: 1rem;
+            width: 80%;
+            padding: auto; /* padding for centering */
+        }
+
+        #navSearchInput:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+
+        /* backlink - keep text */
+#backLink {
+    font-size: 1rem;
+}
+
+/* Settings overlay styles */
+#settings-overlay {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+}
+#settings-panel {
+  position: absolute;
+  right: 1rem;
+  top: 4rem;
+  width: 320px;
+  max-width: calc(100% - 2rem);
+  background: #fff;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  font-size: 0.95rem;
+  color: #222;
+}
+#settings-panel h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.05rem;
+  color: #358600;
+}
+#settings-panel .row {
+  margin-bottom: 0.5rem;
+}
+#settings-panel label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+#settings-panel .actions {
+  display:flex;
+  gap:0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+#settings-panel input[type="text"]{
+  width:100%;
+  padding:0.35rem;
+  border:1px solid #ccc;
+  border-radius:4px;
+  box-sizing:border-box;
+}
+#settings-open-btn {
+  cursor:pointer;
+}
+
+/* settings-open-btn: show text normally, hide text on small screens
+#settings-open-btn { display: inline-flex; align-items: center; gap: 0.35rem; }
+#settings-open-btn .settings-text { display: inline; }
+*/
+/* bei kleinen Bildschirmen nur Icon anzeigen */
+@media (max-width: 600px) {
+  #settings-open-btn .settings-text { display: none; }
+}
+
+
+.vote-cell { width: 2em; text-align: right; padding-right: 0.35rem; position: relative; }
+.vote-badge {
+  display: inline-block;
+  /* min-width: 2.0rem; */          /* minimale Breite */
+  height: 1.4rem;
+  line-height: 1.4rem;            /* vertikale Zentrierung */
+  padding: 0 0.35rem;            /* horizontaler Abstand */
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.75rem;            /* kleinere Schrift */
+  text-align: center;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  transition: transform 160ms ease, background-color 160ms ease;
+  will-change: transform;
+  vertical-align: middle;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  transition: transform 120ms ease;
+}
+@media (max-width: 600px) {
+    .vote-cell { width: 1px; position: relative; }
+    .vote-badge {
+          position: absolute;
+          left: -2rem;
+    }
+    .action-cell { width: 1px; text-align: right; padding-left: 0.35rem; position: relative; }
+    .action-cell .edit-button {
+          position: absolute;
+          left: -1rem;
+    }
+
+    .send-button {
+        padding: 0.25rem 0.5rem !important;
+        font-size: small;
+    }
+    #spacer-button{
+        width: 0.5rem !important;
+    }
+
+}
+
+
+
+
+        .vote-badge.positive { background: #4ad95fb2 ; /*linear-gradient(180deg,#4ad95f,#49b658);*/ }
+        .vote-badge.negative { background: #f79696b2 ; /* linear-gradient(180deg,#f79696,#cb5a5a); */ }
+        .vote-badge.neutral  { background: #9aa+d6b2 ; /* linear-gradient(180deg,#8aa6d6,#5f83b8); color:#fff; */ }
+        .vote-badge.zero__     { background: rgba(0,0,0,0.06); color:#222; font-weight:600; box-shadow:none; }
+        .vote-badge.zero     {  font-weight:600; box-shadow:none; }
+
+        /* subtle pulse when value changes */
+        .vote-badge.pulse {
+          transform: scale(1.14);
+        }
+        .vote-badge.fade-out {
+          animation: fadeOutBadge 1s forwards;
+        }
+        @keyframes fadeOutBadge {
+          0% { opacity: 1; }
+          100% { opacity: 0; display: none; }
+        }
+
+        .highlight-vote-increase1 {
+          border-top: 4px solid hsl(130, 70%, 45%);
+        }
+        .highlight-vote-increase0 {
+            border-top: 4px solid hsl(0, 70%, 45%);
+        }
+
+
+
+    </style>
+    <!-- Add this script to include the QRCode.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Fakt Farming Project | fayf.info</title>
+</head>
+<body>
+    <header>
+        <h1>Fakt Farming Project</h1>
+        <div style="display: none;">
+        <div style="width: 50px;"> <!-- gegen fragen -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" version="1.1" width="100%" height="auto"  style="fill-rule:evenodd" >
+                <g transform="translate(1.0108557,-7.5)"><path style="opacity:0.829" fill="#348600" d="M -1.0108557,33.092593 -0.5,28.5 C 5.2791,14.6772 15.7791,7.67723 31,7.5 c 16.0396,0.22059 26.5396,7.8873 31.5,23 -0.2466,2.5815 -1.58,3.4149 -4,2.5 C 54.9849,22.1523 47.6515,15.4856 36.5,13 23.1296,11.2699 12.9629,16.1032 6,27.5 3.56047,35.2446 4.72713,42.4113 9.5,49 c -0.6147,2.5146 -1.6147,4.848 -3,7 3.44384,-0.0865 6.7772,-0.9198 10,-2.5 5.0616,2.4323 10.3949,3.9323 16,4.5 1.3333,1.3333 1.3333,2.6667 0,4 -5.6704,0.4672 -11.1704,-0.3662 -16.5,-2.5 -4.7364,2.0529 -9.56975,2.7196 -14.5,2 -0.33333,-1 -0.666667,-2 -1,-3 0.71011,-3.0891 1.71011,-6.0891 3,-9 -1.34752,-3.0614 -3.83027829,-8.615678 -4.5108557,-16.407407 z"/></g>
+                <g transform="translate(1.0108557,-7.5)"><path style="opacity:0.826" fill="#348900" d="m 25.5,20.5 c 3.3499,-0.165 6.6832,0.0017 10,0.5 6.7089,5.6276 6.2089,10.7942 -1.5,15.5 -1.0086,1.5249 -1.5086,3.1916 -1.5,5 -1.6667,0 -3.3333,0 -5,0 -0.6058,-5.2424 1.5608,-8.9091 6.5,-11 1.1647,-3.3139 -0.0019,-5.3139 -3.5,-6 -2,0.6667 -3.3333,2 -4,4 -1.5453,0.9519 -3.212,1.2852 -5,1 -0.1602,-1.6992 0.0065,-3.3659 0.5,-5 1.3756,-1.2051 2.5423,-2.5384 3.5,-4 z"/></g>
+                <path style="opacity:0.848" fill="#348600" d="M 101.40485,57.045977 100.51085,64 c -1.039197,2.4013 -2.372597,4.7346 -3.999997,7 1.1076,2.5591 2.4409,4.8924 3.999997,7 v 4 c -5.307294,2.3563 -10.640694,2.0229 -15.999994,-1 -16.5105,6.3299 -30.6772,2.9966 -42.5,-10 -8.6316,-21.9016 -1.4649,-35.735 21.5,-41.5 17.2531,-2.3779 34.184197,11.657221 37.893994,27.545977 z M 65.510856,34 c 16.4765,4.223 26.8098,6.723 30.999997,22.5 -0.986297,5.124 -2.652997,9.9573 -4.999997,14.5 0.1692,2.3395 0.8358,4.5061 2,6.5 -2.9896,-0.1522 -5.9896,-0.6522 -9,-1.5 -10.5945,4.4061 -20.9278,3.9061 -31,-1.5 -14.5882,-12.8545 -13.9215,-25.1879 2,-37 3.3502,-1.4863 6.6835,-2.653 10,-3.5 z"/>
+                <g transform="translate(1.0108557,-7.5)"><path style="opacity:0.735" fill="#348500" d="m 27.5,44.5 c 1.6992,-0.1602 3.3659,0.0065 5,0.5 1.3133,3.692 -0.0201,5.3587 -4,5 -0.9061,-1.6995 -1.2394,-3.5328 -1,-5.5 z"/></g>
+                <g transform="translate(40, 20)"><path style="opacity:0.826" fill="#348900" d="m 25.5,20.5 c 3.3499,-0.165 6.6832,0.0017 10,0.5 6.7089,5.6276 6.2089,10.7942 -1.5,15.5 -1.0086,1.5249 -1.5086,3.1916 -1.5,5 -1.6667,0 -3.3333,0 -5,0 -0.6058,-5.2424 1.5608,-8.9091 6.5,-11 1.1647,-3.3139 -0.0019,-5.3139 -3.5,-6 -2,0.6667 -3.3333,2 -4,4 -1.5453,0.9519 -3.212,1.2852 -5,1 -0.1602,-1.6992 0.0065,-3.3659 0.5,-5 1.3756,-1.2051 2.5423,-2.5384 3.5,-4 z"/></g>
+                <g transform="translate(40, 20)"><path style="opacity:0.735" fill="#348500" d="m 27.5,44.5 c 1.6992,-0.1602 3.3659,0.0065 5,0.5 1.3133,3.692 -0.0201,5.3587 -4,5 -0.9061,-1.6995 -1.2394,-3.5328 -1,-5.5 z"/></g>
+            </svg>
+        </div>
+        <div> <!-- non fact -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" version="1.1" width="100px" height="100px" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+                <g><path style="opacity:0.814" fill="#348600" d="M 41.5,8.5 C 50.3583,7.40157 58.6917,8.90157 66.5,13C 92.6843,32.5668 96.351,55.5668 77.5,82C 66.7768,90.012 54.7768,92.6787 41.5,90C 26.2898,87.1218 16.4564,78.2885 12,63.5C 4.06921,35.3497 13.9025,17.0164 41.5,8.5 Z M 43.5,12.5 C 51.5832,11.5208 58.9166,13.3541 65.5,18C 74.0013,24.4885 80.1679,32.6552 84,42.5C 87.0693,58.6302 82.236,71.7969 69.5,82C 49.2756,90.9021 32.4423,86.7355 19,69.5C 7.0465,41.4366 15.2132,22.4366 43.5,12.5 Z"/></g>
+                <g><path style="opacity:0.933" fill="#358600" d="M 32.5,21.5 C 34.0898,21.6282 35.4231,22.2949 36.5,23.5C 39.2545,28.0077 41.7545,32.6743 44,37.5C 44.6347,39.6354 44.3014,41.6354 43,43.5C 40.7261,45.7127 39.2261,48.3793 38.5,51.5C 37.6721,52.4147 36.6721,53.0814 35.5,53.5C 29.1375,52.909 22.8042,52.0757 16.5,51C 15.9415,50.2753 15.6082,49.4419 15.5,48.5C 18.4157,37.6469 24.0824,28.6469 32.5,21.5 Z"/></g>
+                <g><path style="opacity:0.94" fill="#348600" d="M 63.5,23.5 C 72.5065,27.131 78.0065,33.7977 80,43.5C 80.9167,47.3015 81.0834,50.9682 80.5,54.5C 72.9253,54.1183 65.4253,53.4517 58,52.5C 56.6132,48.8994 55.1132,45.3994 53.5,42C 56.9993,35.9803 60.3327,29.8137 63.5,23.5 Z"/></g>
+                <g><path style="opacity:0.873" fill="#348500" d="M 45.5,44.5 C 50.8064,43.6408 54.1397,45.8074 55.5,51C 53.6382,58.1788 49.8049,59.3454 44,54.5C 42.254,50.8816 42.754,47.5483 45.5,44.5 Z"/></g>
+                <g><path style="opacity:0.937" fill="#348600" d="M 41.5,60.5 C 46.572,61.2454 51.572,61.5788 56.5,61.5C 59.1778,66.1881 62.3444,70.5215 66,74.5C 67.0419,77.8039 65.8753,79.9705 62.5,81C 52.8054,84.0545 43.1387,83.8878 33.5,80.5C 32.7132,79.7579 32.0465,78.9246 31.5,78C 35.4774,72.5464 38.8108,66.713 41.5,60.5 Z"/></g>
+            </svg>
+        </div>
+        <div> <!-- question -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" version="1.1" width="100px" height="100px" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+                <g><path style="opacity:0.84" fill="#348700" d="M 39.5,7.5 C 59.3982,4.51845 75.8982,10.5185 89,25.5C 101.755,49.9014 96.2552,69.0681 72.5,83C 61.6471,87.3997 50.4804,88.5664 39,86.5C 31.9884,93.7539 23.4884,96.5872 13.5,95C 17.5147,90.1508 19.6814,84.6508 20,78.5C 6.36784,68.5586 1.03451,55.2253 4,38.5C 10.1394,21.5203 21.9728,11.187 39.5,7.5 Z M 23.5,89.5 C 25.4505,84.9465 25.7838,80.2798 24.5,75.5C 6.52109,61.845 3.68776,45.5117 16,26.5C 31.1869,11.9994 48.6869,8.4994 68.5,16C 91.6623,28.4856 96.4957,45.9856 83,68.5C 69.5999,81.1451 53.7665,85.6451 35.5,82C 32.5752,86.2921 28.5752,88.7921 23.5,89.5 Z"/></g>
+                <g><path style="opacity:0.848" fill="#348800" d="M 44.5,26.5 C 58.1666,24.6619 63.6666,30.3286 61,43.5C 55.9326,47.0348 52.7659,51.7015 51.5,57.5C 49.5,57.5 47.5,57.5 45.5,57.5C 46.2334,50.57 49.4001,44.9033 55,40.5C 56.1667,33.6667 53.3333,30.8333 46.5,32C 43.1788,33.8119 41.8454,36.6453 42.5,40.5C 40.5,40.5 38.5,40.5 36.5,40.5C 35.6488,33.6445 38.3155,28.9778 44.5,26.5 Z"/></g>
+                <g><path style="opacity:0.746" fill="#348600" d="M 45.5,61.5 C 47.5,61.5 49.5,61.5 51.5,61.5C 51.5,63.8333 51.5,66.1667 51.5,68.5C 49.5,68.5 47.5,68.5 45.5,68.5C 45.5,66.1667 45.5,63.8333 45.5,61.5 Z"/></g>
+            </svg>
+        </div>
+        <div> <!-- fact -->
+            <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="100px" height="100px" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+                <g><path style="opacity:0.955" fill="#348600" d="M 16.5,7.5 C 38.5025,7.33337 60.5025,7.50004 82.5,8C 86.6408,9.47409 89.4741,12.3074 91,16.5C 91.6667,38.5 91.6667,60.5 91,82.5C 89.5,86.6667 86.6667,89.5 82.5,91C 60.5,91.6667 38.5,91.6667 16.5,91C 13.4384,89.9392 10.9384,88.1059 9,85.5C 7.35426,62.2547 7.02093,38.9214 8,15.5C 10.0982,11.8972 12.9315,9.23049 16.5,7.5 Z M 21.5,11.5 C 40.1696,11.3334 58.8363,11.5001 77.5,12C 83.3333,12.5 86.5,15.6667 87,21.5C 87.6667,40.1667 87.6667,58.8333 87,77.5C 86.5,83.3333 83.3333,86.5 77.5,87C 58.8333,87.6667 40.1667,87.6667 21.5,87C 15.6667,86.5 12.5,83.3333 12,77.5C 11.3333,58.8333 11.3333,40.1667 12,21.5C 12.679,15.6569 15.8457,12.3236 21.5,11.5 Z"/></g>
+                <g><path style="opacity:0.838" fill="#348700" d="M 71.5,30.5 C 72.8149,31.4756 74.1482,32.4756 75.5,33.5C 66.2195,45.7807 56.2195,57.4474 45.5,68.5C 38.3825,62.8849 31.7159,56.7183 25.5,50C 26.6667,48.8333 27.8333,47.6667 29,46.5C 34.5241,51.2682 39.8574,56.2682 45,61.5C 54.0434,51.2943 62.8767,40.961 71.5,30.5 Z"/></g>
+            </svg>
+        </div>
+        <div> <!-- trash -->
+            <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="100px" height="100px" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+                <g><path style="opacity:0.826" fill="#348600" d="M 37.5,3.5 C 45.5069,3.33362 53.5069,3.50029 61.5,4C 64.1856,6.54634 65.1856,9.713 64.5,13.5C 73.8393,13.3335 83.1726,13.5002 92.5,14C 93.3802,15.3561 93.7135,16.8561 93.5,18.5C 82.1667,18.5 70.8333,18.5 59.5,18.5C 61.838,9.50462 58.5046,6.17129 49.5,8.5C 40.4954,6.17129 37.162,9.50462 39.5,18.5C 28.1667,18.5 16.8333,18.5 5.5,18.5C 5.28649,16.8561 5.61983,15.3561 6.5,14C 15.8274,13.5002 25.1607,13.3335 34.5,13.5C 33.8574,9.56695 34.8574,6.23362 37.5,3.5 Z"/></g>
+                <g><path style="opacity:0.837" fill="#348600" d="M 13.5,21.5 C 15.772,22.723 16.9386,24.723 17,27.5C 18.6054,46.888 20.6054,66.2214 23,85.5C 23.8333,86.3333 24.6667,87.1667 25.5,88C 41.5,88.6667 57.5,88.6667 73.5,88C 74.3333,87.1667 75.1667,86.3333 76,85.5C 78.3946,66.2214 80.3946,46.888 82,27.5C 83.5219,20.3752 85.3552,20.0419 87.5,26.5C 85.5766,45.4908 83.7433,64.4908 82,83.5C 81.6806,86.9727 80.1806,89.806 77.5,92C 59.5907,93.6392 41.5907,93.9726 23.5,93C 19.4794,91.1321 17.3128,87.9654 17,83.5C 15.2567,64.4908 13.4234,45.4908 11.5,26.5C 11.7245,24.5453 12.3911,22.8787 13.5,21.5 Z"/></g>
+                <g><path style="opacity:0.84" fill="#348500" d="M 27.5,28.5 C 29.1667,28.5 30.8333,28.5 32.5,28.5C 33.3131,43.6757 34.3131,58.8424 35.5,74C 35.5563,76.5383 34.5563,78.3717 32.5,79.5C 31.914,79.2907 31.414,78.9574 31,78.5C 29.2528,61.8782 28.0861,45.2115 27.5,28.5 Z"/></g>
+                <g><path style="opacity:0.974" fill="#338600" d="M 47.5,28.5 C 49.1439,28.2865 50.6439,28.6198 52,29.5C 52.6667,45.5 52.6667,61.5 52,77.5C 50.3333,80.1667 48.6667,80.1667 47,77.5C 46.1828,61.0926 46.3494,44.7593 47.5,28.5 Z"/></g>
+                <g><path style="opacity:0.829" fill="#358500" d="M 66.5,28.5 C 68.1667,28.5 69.8333,28.5 71.5,28.5C 70.9139,45.2115 69.7472,61.8782 68,78.5C 66.8869,79.7111 65.7202,79.7111 64.5,78.5C 64.1667,77 63.8333,75.5 63.5,74C 64.6869,58.8424 65.6869,43.6757 66.5,28.5 Z"/></g>
+            </svg>
+        </div>
+        </div>
+        <!--<p>Welcome to fayf.info - Cultivating Knowledge, "Fakt" on time.</p>-->
+        <div id="cinema-slogans"></div>
+    </header>
+    <nav>
+        <!--
+        <div style="margin: 0;display: flex; align-items: center" ><img src="favicon-32x32.png" alt="Project Icon" style="height: 1em;"></div>
+        -->
+        <a href="#back" id="backLink" style="display:none"><i class="fas fa-arrow-left"></i>Back</a>
+        <a href="#about"><i class="fas fa-info-circle"></i> About</a>
+        <a href="#browse"><i class="fas fa-search"></i> Browse</a>
+        <a href="#features"><i class="fas fa-star"></i> Features</a>
+        <a href="#contact"><i class="fas fa-envelope"></i> Contact</a>
+        <input type="text" id="navSearchInput" placeholder="Search..." style="display: none; margin-left: auto; padding: 0.25rem; border-radius: 5px; border: 1px solid #ccc;">
+        <div class="right-spacer" style="display: flex; align-items: center; margin-left: 1rem;margin-right: 1rem;">
+            <span id="search-icon" style="display: none;  cursor: pointer; padding-right: 0.5rem;"><i class="fas fa-search"></i></span>
+            <span id="project-title" class="project-title"></span>
+            <a href="#settings" id="settings-open-btn" title="Einstellungen"><i class="fas fa-cog"></i></a>
+        </div>
+    </nav>
+    <section id="about">
+        <h2>About the Project</h2>
+        <p>Das Projekt Fakt Farming widmet sich der Sammlung, Organisation und Präsentation zuverlässiger Informationen
+            auf leicht zugängliche Weise.
+            Unsere Mission ist es, Menschen mit Wissen zu stärken, fundierte Entscheidungen zu fördern
+            und absichtliche Fehlinformationen sichtbar zu machen.
+        </p>
+        <ul>
+            <li>"NutriScore" für öffentliche Äußerungen.</li>
+            <li>Dokumentation öffentlicher Aussagen.</li>
+            <li>Konstruktive (Gegen-) Fragen passend zum Kaffee.</li>
+            <li>Meinungslandkarte für alle.</li>
+        </ul>
+        <!-- https://fayf.info/InfoPedia_Steckbrief.pdf -->
+        <p>
+            Hier finden Sie unseren <a href="https://fayf.info/InfoPedia_Steckbrief.pdf" target="_blank">one pager (PDF)</a>.
+        </p>
+    </section>
+    <section id="browse" style="width: 90%; margin: auto;">
+        <h2>Browse Example Dataset</h2>
+        <p id="browse_comment">Explore the data collected by the Fakt Farming Project.
+            <button id="toggleTypeFilter" style="display: block">zeige Filter</button>
+        </p>
+        <div class="filter-container">
+            <div id="typeFilterContainer"  style="display: none; grid-column: span 2">
+                <div class="filter-row" style="padding-top: 0.5rem;">
+                    <label for="textFilter" style="display: none" >Search by Text:</label>
+                    <input type="text" id="textFilter" class="textInput" placeholder="Enter text to search...">
+                </div>
+                <div class="filter-row">
+                    <label for="typeFilter" style="display: none" >Filter&nbsp;nach&nbsp;Type:</label>
+                    <select id="typeFilter">
+                        <option value="all">All Types</option>
+                        <option value=".">Meinung</option>
+                        <option value="!">Fakt</option>
+                        <option value="!-">Falschaussage</option>
+                        <option value="?">Frage</option>
+                        <option value="??">Gegenfrage</option>
+                        <option value="@">Reference</option>
+                    </select>
+                </div> <!-- filter-row  -->
+                <div class="filter-row" >
+                    <label  id="topicFilterLabel" for="childRow.topic">Filter&nbsp;nach&nbsp;Thema:</label>
+                    <select id="topicFilter">
+                        <option value="/">alle Basis-Themen</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <table border="0" style="width:100%; border-collapse: collapse; text-align: left; margin-top: 1rem;">
+            <thead>
+            <tr>
+                <th></th>
+                <th id="header-topic-name" >Message</th>
+                <th></th>
+                <th>Stand</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <!-- Data rows will be dynamically inserted here -->
+            <tr>
+                <td colspan="5" style="text-align: center;">No data available</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+    <section id="add-edit-section" style="display: none; width: 90%">
+        <form id="addEditForm" onsubmit="return false;" style="margin: auto;">
+            <label for="entryMessage">  </label>
+            <textarea id="entryMessage" name="message" placeholder="Enter message..." required style="width: 100%; margin-bottom: 1rem; padding: 0.5rem;"></textarea>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span> </span>
+                <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
+                <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
+                <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
+                <button type="button" class="send-button" data-type="!" style="background: #2196F3; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Fakt</button>
+                <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch</button>
+            </div>
+        </form>
+    </section>
+    <section id="features">
+        <h2>Key Features</h2>
+        <ul>
+            <li>generische Wissensdatenbank</li>
+            <li>leichter Zugang (Web, App)</li>
+            <li>einfache Recherche</li>
+            <li>intuitive Beteiligung (Ergänzung, Voting)</li>
+        </ul>
+    </section>
+    <section id="contact">
+        <h2>Get in Touch</h2>
+        <p>Haben Sie Fragen oder möchten Sie beitragen?
+            Kontaktieren Sie uns unter <a href="mailto:info@fayf.info">info@fayf.info</a>.</p>
+    </section>
+    <section id="utils-send-buttons" style="">
+        <!-- Overlay Div -->
+        <div id="edit-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000;">
+            <div id="edit-overlay-content" style="position: relative; width: 90%; max-width: 600px; margin: 5% auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);" >
+                <h2 style="margin-top: 0;">Edit</h2>
+                <form id="edit-form" onsubmit="return false;">
+                    <textarea id="edit-message" name="message"
+                              style="width: 100%; box-sizing: border-box; min-height: 150px; resize: none; padding: 0.5rem; border: 1px solid #ccc; border-radius: 5px;"
+                              required>
+                    </textarea>
+                    <div style="display: flex; padding-top: 0.5rem; justify-content: space-between; align-items: center;">
+                        <button id="cancel-edit" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; color: #f44336; cursor: pointer;" onclick="closeEditOverlay();">&times;</button>
+                        <div id="send-buttons" style="display: flex; gap: 0.5rem; margin-left: auto;">
+                            <button type="button" class="send-button" data-type="--" style="background: red ; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Delete</button>
+                            <!-- spacer -->
+                            <button type="button" id="spacer-button"  style="background: transparent; border: none; cursor: default; width: 5rem;"></button>
+                            <button type="button" class="send-button" data-type="." style="background: #4CAF50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Meinung</button>
+                            <button type="button" class="send-button" data-type="?" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Frage</button>
+                            <button type="button" class="send-button" data-type="??" style="background: #FF9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Gegenfrage</button>
+                            <button type="button" class="send-button" data-type="!" style="background: #2196F3; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Fakt</button>
+                            <button type="button" class="send-button" data-type="!-" style="background: #f44336; color: white; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">Falsch</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- fab button to show/hide send buttons -->
+        <button id="fab-add" title="Add Data" style="display: none;">
+            <i class="fas fa-plus"></i>
+        </button>
+    </section>
+    <section id="qr-code-section" style="display: none;">
+        <h2>QR Code</h2>
+        <p>Scan the QR code to share the tenant ID.</p>
+        <div id="qrcode"></div>
+        <p  id="tenant-info" style="font-size: 0.9rem; color: #555;">Tenant ID: <span id="tenantIdDisplay"></span></p>
+    </section>
+    <!-- Settings overlay markup -->
+    <div id="settings-overlay" aria-hidden="true">
+        <div id="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <h3 id="settings-title">Einstellungen</h3>
+
+            <div class="row">
+                <strong>Typen aktivieren / deaktivieren</strong>
+                <div id="settings-type-list" style="margin-top:0.5rem; display:flex; flex-wrap:wrap; gap:0.3rem;"></div>
+            </div>
+
+            <div class="row">
+                <strong>Tenant</strong>
+                <input id="settings-tenant-input" type="text" placeholder="Tenant ID" />
+            </div>
+
+            <div class="row" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <button id="settings-apply" class="send-button-settings" style="background:#4CAF50; color:#fff;">Anwenden</button>
+                <button id="settings-qr" class="send-button-settings" style="background:#2196F3; color:#fff;">QR anzeigen</button>
+                <button id="settings-main" class="send-button-settings" style="background:#777; color:#fff;">Hauptseite</button>
+                <button id="settings-close" class="send-button-settings" style="background:#f44336; color:#fff;">Schließen</button>
+            </div>
+
+            <div style="margin-top:0.5rem; font-size:0.85rem; color:#666;">
+                Änderungen werden sofort angewendet und in Ihrem Browser gespeichert.
+            </div>
+        </div>
+    </div>
+    <!-- footer -->
+    <footer>
+        <p>&copy; 2026 Fakt Farming Project | fayf.info</p>
+        <div id="timestamp" style="font-size: 0.9rem; color: #fff; margin-top: 0.5rem;"><!-- timestamp --> version: 0.0.24</div>
+    </footer>
+    <div id="toast-container" style="position: fixed; top: 1rem; right: 1rem; z-index: 1000;"></div>
+</body>
+</html>
+
+
+
+
+
+
+<script>
+    let tenantId = "";
+    // /!\ use current topic and type from filters
+    let currentNodeId = ""; // current nodeId for edit/add
+    let currentType = ""; // type on edit/add
+    let data = {}; // Store the retrieved data
+    let topicMap = {}; // Map of topicId to topic name
+    let selectedTopic = "/";
+    let latestTimestamp = null;
+    let latestDisplayTs = null;
+    let mockIO = []; // to be used in tests instead of real data-fetching/upload
+    let mockToasts = []; // to be used in tests instead of real user-notices
+    let userMode = "show"; // "show" | "work
+    let typesAvailable = [".", "?", "??", "!", "!-", "@"];
+    let typesAllowed = [".", "?", "??", "!", "!-"];
+
+    const tableBody = document.querySelector("#browse tbody");
+    const topicFilter = document.getElementById("topicFilter");
+    const typeFilter = document.getElementById("typeFilter");
+    const textFilter = document.getElementById("textFilter");
+    const sendButtons = document.querySelectorAll(".send-button");
+    const toggleButton = document.getElementById("toggleTypeFilter");
+    const typeFilterContainer = document.getElementById("typeFilterContainer");
+    const navBackLink = document.getElementById("backLink");
+    const navProjectTitle = document.querySelector(".project-title");
+    const projectTitle = "fayf - Fakt Farming Project";
+
+    //
+    //   -- cinema slogans animation (optional,deutsch) --
+    //
+
+    const slogans = [
+        "Welcome to fayf.info - Cultivating Knowledge.",
+        "Welcome to fayf.info - 'Fakt' on time.",
+        "Welcome to fayf.info - 'Fakt' everywhere.",
+        "Fakt Farming - Fakten pflegen, als wäre es Wissen.",
+        "Widersprüche sind für alle widersprüchlich.",
+        "Fakt Farming macht Wissen leicht zugänglich.",
+        "Der Nutri-Score für Fakten.",
+        "Fakt Farming - deine Quelle für Gegenfragen.",
+        "Differenzierte Sicht - ganz persönlich, für dich."
+    ];
+
+    /*
+        BASE DATA
+    */
+
+    lastRuntimeCheckValue = null;
+    lastRuntimeCheckStack = [];
+
+    function runtimeCheck( msg = "" ) {
+        const currentValue = topicFilter.value + "|" + selectedTopic + "|" + Object.keys(data).length + "|" + tenantId;
+        if (currentValue === lastRuntimeCheckValue) {
+            if (lastRuntimeCheckStack.length > 20) {
+                lastRuntimeCheckStack = []; // prevent overflow
+            }
+            if (msg.endsWith("-end")) { // remove w/o "-end" from stack
+                msgShort = msg.substring(0, msg.length - 4);
+                const index = lastRuntimeCheckStack.lastIndexOf(msgShort);
+                if (index !== -1) {
+                    lastRuntimeCheckStack.splice(index, 1);
+                }
+            } else {
+                lastRuntimeCheckStack.push(msg);
+            }
+            return;
+        }
+        console.log("-----------    Runtime Check  --  Change detected    -----------");
+        console.log("Runtime check: " + msg);
+        console.log("Current tenantId: '" + tenantId + "'");
+        console.log("Data keys:", Object.keys(data));
+        console.log("Topic map:", topicMap);
+        console.log("Selected topic:", selectedTopic);
+        console.log("Latest timestamp:", latestTimestamp);
+        console.log("Latest display timestamp:", latestDisplayTs);
+        console.log("Value old:", lastRuntimeCheckValue);
+        console.log("Value new:", currentValue);
+        lastRuntimeCheckValue = currentValue;
+        // list call stack
+        console.log("Call stack:", new Error().stack);
+        console.log("-----------    Runtime Check  --  End    -----------");
+    }
+
+
+    function resetData(newTenantId = "", msg="") {
+        console.log("-----------    Resetting data. '" + newTenantId + "' " + ( msg ? "( "+ msg + " )" : "" ) + "    -----------");
+        tenantId = newTenantId; // set tenantId, !!! may change data-load-behavior !!!
+        data = {};
+        topicMap = {};
+        selectedTopic = "/";
+        latestTimestamp = null;
+        latestDisplayTs = null;
+        topicFilter.value = selectedTopic; // reset topic filter DUPL !!
+        textFilter.value = ""; // reset text filter
+        typeFilter.value = "!"; // reset type filter
+        // dispatch change to listeners
+        topicFilter.dispatchEvent(new Event('change'));
+        typeFilter.dispatchEvent(new Event('change')); // set send-buttons state -- seams not to work from test-teardown
+        textFilter.dispatchEvent(new Event('input'));
+        // .click("#toggleTypeFilter") if filter visible
+        if (typeFilterContainer.style.display !== "none"){
+            toggleButton.click();
+        }
+        initializeTopicMap();
+        populateFilterOptions();
+        updateFilteredData();
+    }
+
+    resetData(tenantId, "init");
+
+
+    function addEntryWoCheck(topic, nodeId, message, votes, timestamp) {
+        runtimeCheck("addEntryWoCheck");
+        if (!topic || topic === "") {
+            topic = "/";
+        }
+        if (!data[topic]) {
+            data[topic] = {};
+        }
+        if (!timestamp) {
+            timestamp = formatTimestamp(new Date().toLocaleString("de-DE"));
+        }
+        if (message && message.endsWith("--")) {
+            console.log("Deleting entry: " + ("/" == topic ? "" : topic) + "/" + nodeId);
+            delete data[topic][nodeId];
+        } else {
+            if ("MOCK" == tenantId || topic.length < 10) {
+                console.log("Adding entry: " + ("/" == topic ? "" : topic) + "/" + nodeId + " -> '" + message + "' (votes: " + votes + ", ts: " + timestamp + ")");
+            }
+            data[topic][nodeId] = {
+                topic: topic,           // allow to work on data - flat structure
+                nodeId: nodeId,         // ease to identifying node
+                timestamp: timestamp,
+                message: message,
+                votes: votes
+            };
+        }
+        runtimeCheck("addEntryWoCheck-end");
+    }
+
+    function addEntry(topic, nodeId, message, votes, timestamp) {
+        runtimeCheck("addEntry");
+        addEntryWoCheck(topic, nodeId, message, votes, timestamp);
+        checkData(topic, nodeId, message);
+        updateFilteredData(topic, nodeId, message);
+        if ("MOCK" !== tenantId) {
+            showToast(randomCongratulation("Eintrag hinzugefügt!"), "success");
+        }
+        runtimeCheck("addEntry-end");
+    }
+
+    function addVoteByGui(topic, nodeId, deltaVotes) {
+        runtimeCheck("addVoteByGui");
+        if (data[topic] && data[topic][nodeId]) {
+            data[topic][nodeId].votes = (data[topic][nodeId].votes || 0) + deltaVotes;
+            // reorder in topic - order by votes - NOT POSSIBLE with numeric keys -> order on redering
+            data[topic] = Object.fromEntries(
+                Object.entries(data[topic])
+                    .sort(([, a], [, b]) => (b.votes || 0) - (a.votes || 0 ) || a.message.localeCompare(b.message))
+            );
+            updateFilteredData(topic, nodeId, data[topic][nodeId].message);
+            if ("MOCK" !== tenantId) {
+                showToast("Vote: " + data[topic][nodeId].votes, "info");
+            }
+        } else {
+            console.log("Cannot add vote - entry not found for topic:", topic, "nodeId:", nodeId);
+        }
+        runtimeCheck("addVoteByGui-end");
+    }
+
+    function setVoteByOthers(topic, nodeId, votes) {
+        runtimeCheck("setVoteByOthers");
+        if (data[topic] && data[topic][nodeId]) {
+            data[topic][nodeId].votes = votes;
+            if (selectedTopic === topic) {// only update if in current view
+                updateFilteredData(topic, nodeId, data[topic][nodeId].message);
+            }
+        } else {
+            console.log("Cannot set vote - entry not found for topic:", topic, "nodeId:", nodeId);
+        }
+        runtimeCheck("setVoteByOthers-end");
+    }
+
+
+    function randomCongratulation(msg) {
+        const listOfCongrats = ["Super!", "Klasse!", "Toll!", "Spitze!", "Fantastisch!", "Großartig!", "Hervorragend!", "Genial!", "Exzellent!", "Wunderbar!"];
+        const listOfIcons = ["\uD83C\uDF4E", "\uD83C\uDF4F", "\uD83C\uDF50", "\uD83C\uDF51", "\uD83C\uDF52", "\uD83C\uDF53", "\uD83C\uDF54", "\uD83C\uDF55", "\uD83C\uDF56"];
+        return listOfCongrats[ Math.floor(Math.random() * listOfCongrats.length) ]
+            + " " + msg + " "
+            + listOfIcons[ Math.floor(Math.random() * listOfIcons.length) ];
+    }
+
+    function fullKey(topic, nodeId) {
+        return topic + ("/" == topic ? "" : "/") + nodeId;
+    }
+
+    function splitKey(fullKey) {
+        const lastSlashIndex = (fullKey ?? "").lastIndexOf("/");
+        if (lastSlashIndex === -1) {
+            return ["/", fullKey];
+        } else {
+            const topic = fullKey.substring(0, lastSlashIndex);
+            const nodeId = fullKey.substring(lastSlashIndex + 1);
+            return [topic || "/", nodeId];
+        }
+    }
+
+
+    function checkData(topic, nodeId, message) {
+        runtimeCheck("checkData");
+        // console.log("Checking data for topic:", topic, "nodeId:", nodeId, "message:", message);
+        if (!topic) { // check all
+            console.log("Checking data for topic:", topic, "nodeId:", nodeId, "message:", message);
+            if (data[""]) { // root key => "/"
+                data["/"] = data[""]; // TODO merge ??
+                delete data[""];
+            }
+            // if topic has children only than append ">" to topic - message
+            Object.keys(data).forEach((topic) => {
+                Object.keys(data[topic]).forEach((nodeId) => {
+                    checkData(topic, nodeId, data[topic][nodeId].message);
+                });
+            });
+            // remove all topic w/o parent-definition
+            Object.keys(data).forEach((topic) => {
+                const [parentTopic, parentNodeId] = splitKey(topic);
+                if (topic !== "/" && (!data[parentTopic] || !data[parentTopic][parentNodeId])) {
+                    console.log("Removing topic without parent definition:", topic);
+                    delete data[topic];
+                }
+            });
+        } else if (topic && nodeId) {
+            // check if topic has children
+            const topicNode = data[topic][nodeId];
+            const topicChildren = data[fullKey(topic, nodeId)];
+            if (topicNode === undefined) {
+                console.log("Topic node not found for topic:", topic, "nodeId:", nodeId);
+                return;
+            }
+            if (topicChildren && Object.keys(topicChildren).length > 0) {
+                if (!topicNode.message.endsWith(">")) {
+                    topicNode.message += " >";
+                }
+            } else {
+                if (topicNode.message.endsWith(">")) {
+                    topicNode.message = topicNode.message.slice(0, -1).trim();
+                }
+            }
+            // check parent topic - might have got children now
+            const [parentTopic, parentNodeId] = splitKey(topic);
+            if (parentTopic && parentNodeId && data[parentTopic] && data[parentTopic][parentNodeId]
+                    && !data[parentTopic][parentNodeId].message.endsWith(">")) {
+                checkData(parentTopic, parentNodeId, data[parentTopic][parentNodeId].message);
+            }
+            // check topic for unique message - than skipp current nodeId
+            let changed = false;
+            Object.keys(data[topic]).forEach((otherNodeId) => {
+                    if (!changed && otherNodeId !== nodeId && data[topic][otherNodeId].message === message)
+                        changed = true;
+            });
+            if (changed) {
+                console.log("Duplicate message found in topic:", topic, "->", message); // skipping entry
+                delete data[topic][nodeId];
+            }
+        }
+        //
+        if (initializeTopicMap(topic)){
+            populateFilterOptions();
+        }
+        runtimeCheck("checkData-end");
+    }
+
+    function initializeTopicMap(topic = null) {
+        runtimeCheck("initializeTopicMap");
+        // lookup topic names to paths
+        changed = false;
+        if (!topic){
+            topicMap = {};
+            Object.keys(data).forEach((topic) => {
+                initializeTopicMap(topic);
+            });
+            changed = true;
+            console.log("Initialized topic map with topic names( " + Object.keys(topicMap).length + " entries ).");
+        } else if (!topicMap[topic] && topic !== "/") {
+            changed = true;
+            const [parentTopic, nodeId] = splitKey(topic);
+            topicMap[topic] = (nodeId && data[parentTopic] && data[parentTopic][nodeId])
+                                ? data[parentTopic][nodeId].message : "";
+            console.log("Added topic name for topic:", topic, "->", topicMap[topic] || "(n/a)");
+        }
+        runtimeCheck("initializeTopicMap-end");
+        return changed;
+    }
+
+
+
+    function getFilteredData(data, selectedTopic, selectedType, textFilterValue="") {
+        runtimeCheck("getFilteredData");
+        //
+        //  selectedTopic:  "/clima" -> focus on topic (and its children to search in)
+        //  selectedType:   "."      -> filter by type (search in topic and its children)
+        //  returns filtered data    -> topic direct entries and
+        //                              entries leading to children with that type
+        //
+        console.log("Filtering by  " + selectedTopic + " and type '" + selectedType
+            + "' and text '" + textFilterValue + "'");
+        let filteredData = [];
+        // flatten data of topic and its children
+        Object.keys(data).filter( topic => selectedTopic === 'IGNORE' || topic.startsWith(selectedTopic) )
+            .forEach((topic) => {
+                Object.keys(data[topic])
+                    .forEach((nodeId) => {
+                        filteredData.push( data[topic][nodeId]);
+            });
+        });
+        console.log("After topic filtering:");
+        console.log(filteredData);
+        //  data
+        //      "/" ->  ---  Topic ---
+        //              "a" -> "Topic A >"       ( a.k.a "/a" )
+        //              "b" -> "Topic B >"       ( a.k.a "/b" )
+        //              "c" -> "Message C.!"     ( a.k.a "/c" )
+        //      "/a" ->  ---  Topic A ---
+        //              "a1" -> "Message A1.!"   ( a.k.a "/a/a1" )
+        //              "a2" -> "Message A2.?"   ( a.k.a "/a/a2" )
+        //              "a3" -> "Topic A3 >"     ( a.k.a "/a/a3" )
+        //      "/b" ->  ---  Topic B ---
+        //                ...
+        //      "/a/a3" ->  ---  Topic A3 ---
+        //                ...
+        //
+        if (!filteredData || filteredData.length === 0) {
+            console.log("No data after topic filtering.");
+            return [];
+        }
+        if (userMode === "show") {
+            filteredData = filteredData.filter((row) =>
+                row.message.endsWith(">") // allow topics in first filtering
+                || ((selectedType === "all" || row.message.endsWith(selectedType)) // type filter
+                     && (textFilterValue === "" || row.message.toLowerCase().includes(textFilterValue.toLowerCase()))) // text filter
+                );
+        } else {
+            filteredData = filteredData.filter((row) =>
+                row.message.endsWith(">") // allow topics in first filtering
+                || typesAllowed.some( typeSuffix => row.message.endsWith(typeSuffix))
+            );
+        }
+        console.log("After type/text filtering:");
+        console.log(filteredData);
+        // remove topics w/o matching children - only if type or text filter is active
+        if (selectedType !== "all" || textFilterValue !== "") {
+            filteredData = filteredData.filter((row) => // (no-topic) entry exists those topicId is a child of row (<parentTopic>/...)
+                    !row.message.endsWith(">")
+                    || filteredData.some((childRow) =>
+                        !childRow.message.endsWith(">")
+                        && (childRow.topic + "/").startsWith( ("/" === row.topic ? "" : row.topic ) + "/" + row.nodeId + "/")
+                    )
+            );
+            console.log("After removing topics without matching children:");
+            console.log(filteredData);
+        }
+        // hard filter topics
+        if (selectedTopic === "IGNORE") {
+            console.log("Global Search - no topic filtering applied.");
+        } else if (selectedTopic !== "") {
+            filteredData = filteredData.filter((row) =>
+                row.topic === selectedTopic
+            );
+            console.log("After hard filtering topics:");
+            console.log(filteredData);
+        }
+        runtimeCheck("getFilteredData-end");
+        return filteredData;
+    }
+
+
+
+
+
+    /*
+
+        DATA -> GUI
+
+    */
+
+
+
+    function updateSendButtons(){
+        runtimeCheck("updateSendButtons");
+        const selectedType = typeFilter.value;
+        console.log("Updating send buttons for type filter '" + selectedType + "'");
+
+        sendButtons.forEach((button) => {
+            const buttonType = button.getAttribute("data-type");
+            if (userMode === "show") {
+                button.disabled = selectedType !== "all" && buttonType !== selectedType;
+            } else { // check typesAllowed
+                button.disabled = !typesAllowed.includes(buttonType);
+            }
+            //button.style.opacity = button.disabled ? "0.25" : "1"; // Optional: Dim disabled buttons
+            //if (window.innerWidth < 600) { // on mobile, hide disabled buttons
+                button.style.display = button.disabled ? "none" : "inline-block";
+            //}
+        });
+        runtimeCheck("updateSendButtons-end");
+    }
+
+
+    // Populate filter dropdown with unique topics
+    function populateFilterOptions() {
+        runtimeCheck("populateFilterOptions");
+        const topics = [];
+        Object.keys(topicMap).sort().forEach((topic) => {
+            let indent = topic.split("/").length - 2;
+            let indentStr = "                      ".substring(0, indent < 10 ? indent * 2 : 10);
+            if (topicMap[topic]){
+                topics.push({ topicId: topic, name: indentStr + (topicMap[topic] || topic)  });
+            }
+        });
+        //
+        topicFilter.innerHTML = `<option value="/">alle Basis-Themen</option>`;
+        topics.forEach((topic) => {
+            const option = document.createElement("option");
+            option.value = topic.topicId;
+            // allow indentation in option text
+            option.textContent = topic.name.replace(/ /g, "\u00A0");
+            topicFilter.appendChild(option);
+        });
+        // cross-check selectedTopic still exists
+        if (data[selectedTopic] === undefined) {
+            selectedTopic = "/";
+        }
+        topicFilter.value = selectedTopic; // ensure selected topic is set
+        // add global search option
+        const globalOption = document.createElement("option");
+        globalOption.value = "IGNORE";
+        globalOption.textContent = "🔍 global Suche";
+        topicFilter.appendChild(globalOption);
+        runtimeCheck("populateFilterOptions-end");
+    }
+
+
+
+    // Display data in the table
+    function displayData(filteredData) {
+        runtimeCheck("displayData");
+        tableBody.innerHTML = "";
+        // inject parent topic link
+        console.log("Displaying data:", filteredData);
+        // order by votes desc, message asc
+        filteredData.sort( (a,b) =>
+            (b.votes || 0) - (a.votes || 0)
+            || (b.votesOthers || 0) - (a.votesOthers || 0)
+            || a.message.localeCompare(b.message) );
+        //
+        // add parent topic link if not root
+        //
+        let topicId = topicFilter.value;
+        if (topicId !== "/" && topicId !== "" ) {
+            let parentTopic = splitKey(topicId)[0];
+            console.log("Parent topic link would be added for topic:", topicId, "->", parentTopic);
+            //
+            // parentDummy = { topic: parentTopic, nodeId: "", message: "zurück", votes: 0, timestamp: "" };
+            // filteredData = { topicId: parentDummy, ...filteredData};
+            //
+            const parentRow = document.createElement("tr");
+            parentRow.id = "backLinkRow";
+            parentRow.classList.add("data-row");
+            parentRow.classList.add("topic-link");
+            parentRow.dataset.topic = parentTopic;
+            parentRow.innerHTML = `
+                <td colspan="5" style="text-align: left;">
+                    <a href="#" class="parent-topic-link" data-topic="${parentTopic}">
+                    <i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>zurück
+                    </a>
+                </td>
+            `;
+            tableBody.appendChild(parentRow);
+            parentRow.style.display = userMode === "show" ? "" : "none";
+        } // userMode !== "show"
+        // update nav back link
+        const navBackLink = document.getElementById("backLink");
+        navBackLink.style.display = "inline";
+        navBackLink.removeEventListener("click", () => {}); // remove previous listeners
+        if (topicId === "/") {
+            if (userMode === "show") {
+                navBackLink.style.display = "none"; // hide in show mode
+            } else {
+                navBackLink.innerHTML = `fayf of ` + tenantId.replace(/_.*/g, "").replace(/[^a-zA-Z0-9]/g, ""); // show tenant short
+            }
+        } else {
+            const titleText = (topicMap[topicId] || topicId);
+            navBackLink.innerHTML = `<i class="fa fa-arrow-left" aria-hidden="true" style="padding-right: 1em" ></i>${titleText}`;
+        } // not root
+        //
+        //
+        if (filteredData.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Keine Daten - hilf uns Sie zu ergänzen!</td></tr>`;
+        } else {
+            //
+            lastVoteSign = -1; // for highlight vote increase
+            lastTr = null;
+            Object.keys(filteredData).forEach((key) => {
+                const row = filteredData[key];
+                const tr = document.createElement("tr");
+                const fullNodeId = row.topic + ("/" == row.topic ? "" : "/") + row.nodeId;
+                tr.dataset.nodeId = row.nodeId;
+                tr.dataset.fullNodeId = fullNodeId;
+                tr.dataset.timestamp = row.timestamp;
+                tr.classList.add("data-row");
+                currentVoteSign = Math.sign(row.votes || 0 );
+                if ( currentVoteSign < lastVoteSign ) { // skipp initial case -1
+                    tr.classList.add("highlight-vote-increase" + lastVoteSign);
+                }
+                lastTr = tr;
+                let messageContent = row.message;
+                if (row.message.endsWith(">")) {
+                    tr.classList.add("topic-link"); // allow row click
+                    tr.dataset.topic = fullNodeId;
+                    messageContent = `<a href="#" class="topic-link" data-topic="${fullNodeId}">${row.message}</a>`;
+                }
+                tr.innerHTML = `
+                    <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
+                    <td>${messageContent}</td>
+                    <td class="vote-cell">${formatVoteBadge(row.votes||"")}</td>
+                    <td class="ts-cell" tooltip="${row.timestamp}">${formatTimestamp(row.timestamp).replace(" ","&nbsp;")}</td>
+                    <td class="action-cell">
+                        <button class="edit-button" data-id="${fullNodeId}" style="background: none; border: none; cursor: pointer;">
+                            <i class="fas fa-edit" style="color: #4CAF50;"></i>
+                        </button>
+                    </td>
+                `;
+                lastVoteSign = currentVoteSign;
+                tableBody.appendChild(tr);
+                //
+                // Check if the row is new (based on timestamp)
+                if (row.timestamp > latestDisplayTs) {
+                    highlightNewRow(tr);
+                }
+            });
+        } // filteredData.length > 0
+        //
+        // fade alle badges after 5 seconds
+        setTimeout(() => {
+            document.querySelectorAll(".vote-badge").forEach((badge) => {
+                badge.classList.add("fade-out");
+            });
+        }, 5000);
+
+        // Add click event for topic links
+        document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
+            link.addEventListener("click", (event) => {
+                console.log("Topic link clicked"); // TODO merge with topicFilter change
+                event.preventDefault();
+                // get to parent element if undefined - tr may be clicked
+                selectedTopic = event.target.dataset.topic || event.target.parentElement.dataset.topic;
+                console.log("Topic link clicked: '" + selectedTopic+"'");
+                topicFilter.value = selectedTopic; // run updates ..
+                topicFilter.dispatchEvent(new Event('change'));
+                updateFilteredData();
+            });
+        });
+        //
+        // Add click event for "Edit" buttons
+        document.querySelectorAll(".edit-button").forEach((button) => {
+            if (topicFilter.value === "/") {
+                // hide edit buttons in root topic view
+                button.style.display = "none";
+                return;
+            }
+            if (!button.dataset.id ) {
+                console.error("Edit button missing data-id attribute.");
+                button.style.display = "none";
+                return;
+            }
+            button.style.display = "block";
+            button.addEventListener("click", (event) => {
+                const fullNodeId = button.dataset.id ; // event.target.dataset.id; -> undefined
+                const [nodeTopic, nodeId] = splitKey(fullNodeId);
+                if (!nodeTopic || !nodeId) {
+                    console.error("Invalid node ID for edit:", fullNodeId);
+                    return;
+                }
+                openEditOverlay( data[nodeTopic] && data[nodeTopic][nodeId] ? data[nodeTopic][nodeId].message : "",
+                                 nodeTopic, nodeId );
+            });
+        });
+        //
+        addSwipeHandlersToAllRows();
+        enableInlineEditing();
+        //
+        latestDisplayTs = latestTimestamp; // for display only
+        runtimeCheck("displayData-end");
+    }
+
+
+    /*
+        IO -
+
+    */
+
+
+    // choose tenant and topic
+    // Get the current URL's query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Retrieve the tenantId parameter or default to "tst" if not provided
+    tenantId = urlParams.get('tenantId') || urlParams.get('tid') || '';
+    // localhost fallback
+    if (tenantId === "" && window.location.hostname === "localhost") {
+        console.log("No tenantId provided, running on localhost - using default tenant 'tst'.");
+        tenantId = "tst"; // default tenant
+    }
+    // Validate tenantId (alphanumeric, underscores, hyphens, max length 30)
+    if (!/^[a-zA-Z0-9_-]+$/.test(tenantId) || tenantId.length > 30) {
+        console.error("Invalid tenant ID.");
+        tenantId = "tst"; // fallback to default
+    } else {
+        console.log("Valid tenant ID:", tenantId);
+        if  (tenantId !== 'tst') {
+            document.getElementById("browse_comment").innerText =
+                "Explore the data collected for tenant '" + tenantId + "'.";
+        }
+    }
+
+    let url = "entry/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
+    let urlVote = "vote/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
+    // for local testing, use local CSV file
+    // check if running from file://
+    if (window.location.protocol === "file:") {
+        url = "entries_local_"+ encodeURIComponent(tenantId) +".json";
+        console.log("Running from file://, using local CSV file( " + url + " )");
+    }
+    // if localhost, use local CSV file
+    if (window.location.hostname === "localhost") {
+        url = "entries_local_"+ encodeURIComponent(tenantId) +".json";
+        console.log("Running from localhost, using local CSV file( " + url + " )");
+    }
+
+
+
+
+    // Function to fetch and display CSV data
+    async function loadData(url) {
+        runtimeCheck("loadData");
+        if (tenantId === "MOCK") {
+            console.log("Mock tenant - skipping loading data from URL:", url);
+            return;
+        }
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            let jsonText = await response.text();
+            let dataLoaded = JSON.parse(jsonText);
+            // recheck for MOCK - due to async run
+            if (tenantId !== "MOCK") {
+                if (url.includes("vote/get")) {
+                    addVotesData(dataLoaded);
+                } else {
+                    addData(dataLoaded);
+                }
+            } else {
+                console.log("Mock tenant - skipping data addition after fetch.");
+            }
+        } catch (error) {
+            console.error("Error loading data (" + url + "):", error);
+            // do not clear table - keep old data
+            if (data && Object.keys(data).length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Failed to load data</td></tr>`;
+            }
+        }
+        runtimeCheck("loadData-end");
+    }
+
+    function addVotesData(dataLoaded) {
+        runtimeCheck("addVotesData");
+        console.log("Votes data loaded:", dataLoaded);
+        if (!dataLoaded || Object.keys(dataLoaded).length === 0) {
+            console.info("No votes data loaded from URL:", url);
+        } else {
+            // only update votes for existing entries
+            Object.entries(dataLoaded).forEach(([topic, nodes]) => {
+                Object.entries(nodes).forEach(([nodeId, entry]) => {
+                    setVoteByOthers(topic, nodeId, entry.votes);
+                });
+            });
+            showToast( "Votes updated (" + Object.keys(dataLoaded).length + " entries)");
+        } // dataLoaded not empty
+        //
+        runtimeCheck("addVotesData-end");
+    }
+
+
+    function addData(dataLoaded) {
+        runtimeCheck("addData");
+        // only first 20 entries for testing
+        if (false) {
+            dataLoaded = Object.fromEntries(
+                Object.entries(dataLoaded).slice(0, 4)
+            );
+        }
+        //
+        console.log("Data loaded:", dataLoaded);
+        console.log("Latest timestamp:", latestTimestamp);
+        if (!dataLoaded || Object.keys(dataLoaded).length === 0) {
+            console.info("No data loaded from URL:", url);
+        } else {
+            //
+            let foundSelectedTopic = false;
+            //
+            Object.entries(dataLoaded).forEach(([topic, nodes]) => {
+                Object.entries(nodes).forEach(([nodeId, entry]) => {
+                    addEntryWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
+                    if (topic === selectedTopic) {
+                        foundSelectedTopic = true;
+                    }
+                    // robust: if pattern YYYY-MM-DD HH:MM:SS
+                    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
+                        if (!latestTimestamp || entry.timestamp > latestTimestamp) {
+                            latestTimestamp = entry.timestamp;
+                        }
+                    }
+                });
+            });
+            checkData();
+            // FIXME KLUDGE delta contains ts=
+            if (!url.includes("&ts=") || !url.includes("entries_local_tst_ts")) {
+                initializeTopicMap();
+                populateFilterOptions();
+            }
+            // only display data for selected topic is changed
+            if (foundSelectedTopic) {
+                updateFilteredData();
+                showToast( "Topic updated (" + Object.keys(dataLoaded).length + " entries loaded)");
+            } else {
+                showToast( "Data updated (" + Object.keys(dataLoaded).length + " entries)");
+            }
+        } // dataLoaded not empty
+        //
+        runtimeCheck("addData-end");
+    }
+
+
+
+
+    /*
+        UTIL
+    */
+
+
+
+
+    function formatTimestamp(timestamp) {
+        const [datePart, timePart] = timestamp.split(" ");
+        // handle date part DD/MM/YYYY and YYYY-MM-DD
+        let [day, month, year] = datePart.split(/[-/]/).map(Number);
+        if (datePart.includes("-")) { // YYYY-MM-DD
+            [ year , day ] = [ day , year ];
+        }
+        const [hours, minutes, seconds] = timePart.split(":").map(Number);
+        // Create a Date object
+        const date = new Date(year, month - 1, day, hours, minutes, seconds);
+
+        if (isNaN(date.getTime())) {
+            return "";
+        }
+        const now = new Date();
+
+        // Check if the date is today
+        const isToday = date.toDateString() === now.toDateString();
+
+        if (isToday) {
+            // Format as hour:minute (e.g., 14:30)
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (date.getFullYear() === now.getFullYear()) {
+            // If the year matches the current year, format as "Month Day" (e.g., "October 1")
+            return date.toLocaleDateString([], { month: 'long', day: 'numeric' });
+        } else {
+            // If the year is different, format as just the year (e.g., "2022")
+            return date.getFullYear().toString();
+        }
+    }
+
+    /*
+        EFFECTS
+    */
+
+
+    function highlightNewRow(rowElement) {
+        // Add the highlight class
+        rowElement.classList.add("new-row-highlight");
+
+        // Remove the highlight class after 3 seconds
+        setTimeout(() => {
+            rowElement.classList.remove("new-row-highlight");
+        }, 3000);
+    }
+
+
+
+
+    function toggleUserModeShowOrWork() {
+        runtimeCheck("toggleUserModeShowOrWork");
+        console.log("Toggling view between 'show' and 'work' mode.");
+        const sectionsToToggle = document.querySelectorAll("section:not(#browse)");
+        userMode = sectionsToToggle[0].style.display === "none" || getComputedStyle(sectionsToToggle[0]).display === "none"
+            ? "show" : "work";
+        console.log("userMode:", userMode);
+        const newDisplay = userMode === "show" ? "block" : "none";
+        const ignoreIds = ["browse", "utils-send-buttons", "add-edit-section"];
+        sectionsToToggle.forEach((section) => {
+            if (!ignoreIds.includes(section.id))
+                section.style.display = newDisplay;
+        });
+        // toggle QR code section
+        const qrCodeSection = document.getElementById("qr-code-section");
+        qrCodeSection.style.display = newDisplay;
+        // set nav links visibility - only direct in body
+        const navLinks = document.querySelectorAll("body > nav a");
+        navLinks.forEach((link) => {
+            if (!link.id) { // only links without id - links in menu bar
+                link.style.display = newDisplay;
+            }
+        });
+        const cinemaSlogans = document.getElementById("cinema-slogans");
+        if (cinemaSlogans) {
+            cinemaSlogans.style.display = newDisplay;
+        }
+        // browse h2
+        document.querySelector("#browse h2").style.display = newDisplay;
+        document.getElementById("browse_comment").style.display = newDisplay;
+        // enable type filter if was disabled
+        if (typeFilterContainer.style.display === "none" && newDisplay === "none") {
+            toggleFilterVisibility();
+        }
+        topicFilterLabel.style.display = newDisplay;
+        // header
+        document.querySelector("header").style.display = newDisplay;
+        // change color of nav to green
+        document.querySelector("nav").style.backgroundColor = newDisplay === "none" ? "#4CAF50" : "";
+        // thead - topic in filter
+        document.querySelector("thead").style.display = newDisplay === "none" ? "none" : ""; // not block !!!
+        //
+        margin = newDisplay === "none" ? "1em" : "0";
+        textFilter.style.marginBottom = margin;
+        typeFilter.style.marginBottom = margin;
+        // cproject-title - fallback
+        if (newDisplay === "none" && !document.getElementById("project-title").textContent) {
+            document.getElementById("project-title").textContent = "fayf - Fakt Farming";
+        }
+        // in work mode - disable filter, use setting for type-changes and appbar for search
+        typeFilterContainer.style.display = newDisplay === "none" ? "none" : "block";
+        // backLink
+        navBackLink.style.display = newDisplay === "none" ? "inline" : "none";
+        let backLinkRow = document.getElementById("backLinkRow");
+        if (backLinkRow) {
+            document.getElementById("backLinkRow").style.display = newDisplay;
+        }
+        //
+        navProjectTitle.innerHTML = userMode === "show"
+            ? "fayf.info"
+            : '<i class="fas fa-bars"></i>';
+        const searchButton = document.getElementById("search-icon");
+        if (searchButton) {
+            searchButton.style.display = userMode === "work" ? "" : "none";
+        }
+        const navSearchInput = document.getElementById("navSearchInput");
+        if (navSearchInput) {
+            navSearchInput.style.display = "none";
+        }
+        // project title
+        navProjectTitle.style.display = userMode === "show" ? "inline" : "none";
+        if (userMode === "work") {
+            navBackLink.innerHTML = `fayf of ` + tenantId.replace(/_.*/g, "").replace(/[^a-zA-Z0-9]/g, ""); // show tenant short
+            navBackLink.style.display = "inline";
+        }
+        runtimeCheck("toggleUserModeShowOrWork-end");
+
+    };
+
+
+    function toggleFilterVisibility() {
+        runtimeCheck("toggleFilterVisibility");
+        console.log("Toggle filter visibility (toggleButton)");
+        textFilter.value = ""; // reset text filter
+        typeFilter.value = "!"; // reset type filter
+        const ignoreOption = topicFilter.querySelector('option[value="IGNORE"]');
+        if (typeFilterContainer.style.display === "none") {
+            toggleButton.textContent = "verstecke Filter";
+            typeFilterContainer.style.display = "block";
+            if (!ignoreOption) {
+                const option = document.createElement("option");
+                option.value = "IGNORE";
+                option.textContent = "(globale Suche)";
+                topicFilter.appendChild(option);
+            }
+        } else {
+            toggleButton.textContent = "zeige Filter";
+            typeFilterContainer.style.display = "none";
+            if (ignoreOption) {
+                ignoreOption.remove();
+            }
+        }
+        updateFilteredData();
+        runtimeCheck("toggleFilterVisibility-end");
+    };
+
+
+
+
+
+
+    /*
+
+        TODO
+
+    */
+
+    function generateNodeId() {
+        return Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
+    }
+
+    function getTypeFromMessage(message) {
+        const typeIndicators = [">", ".", "!", "!-", "??", "?", "@", "--"];
+        if (message) {
+            for (const indicator of typeIndicators) {
+                if (message.endsWith(indicator)) {
+                    return indicator;
+                }
+            }
+        }
+        return ""; // default type
+    }
+
+    function matchType(message, type) {
+        // /!\ check type suffix ... - complicated ... message must not end with type already
+        let msgEndsWithType = getTypeFromMessage(message);
+        if (msgEndsWithType === type) {
+            console.log("Message already ends with type indicator '" + type + "'");
+        } else if (!msgEndsWithType) {
+            console.log("Message does not end with any type indicator, appending type '" + type + "'");
+            message += type;
+        } else if (type === "--") {
+            console.log("Message ends with different type indicator '" + msgEndsWithType + "', deleting message as requested.");
+            message = message + type; // enforce delete
+        } else {
+            console.log("Message ends with different type indicator '" + msgEndsWithType + "', enforce type '" + type + "'");
+            showToast("Message type updated to '" + type + "'.", "info");
+            message = message.slice(0, -msgEndsWithType.length).trim() + type;
+        }
+        return message;
+    }
+
+    function openEditOverlay(messageOrElement = "", topicId = "", nodeId = "") {
+        runtimeCheck("openEditOverlay");
+        if (!topicId && !nodeId && messageOrElement instanceof Element) {
+            let row = messageOrElement.closest("tr");
+            message = messageOrElement.textContent.trim();
+            topicId = row.dataset.topic || topicFilter.value || "";
+            nodeId = row.dataset.nodeId || "";
+        } else {
+            message = messageOrElement;
+        }
+        console.log("Opening edit overlay for topic:", topicId, "nodeId:", nodeId, "message:", message);
+        updateSendButtons();
+        // update
+        // enable deletion button, if not in root and no votes
+        // other buttons available depending in typeFilter - see typeFilter.addEventListener
+        const deleteButton = document.querySelector("#edit-overlay .send-button[data-type='--']");
+        if (!nodeId || nodeId == "" || !topicId || topicId == "/"
+                    || !data[topicId] || !data[topicId][nodeId]
+                    || (data[topicId][nodeId].votes ?? 0 ) > 0
+                ) {
+            deleteButton.disabled = true;
+            deleteButton.style.opacity = "0.25";
+            console.log("Delete button disabled for nodeId:" + nodeId + "( "+ topicId + " "
+                + (nodeId && nodeId !== "" && data[topicId] && data[topicId][nodeId] ? "votes: " + data[topicId][nodeId].votes : "no nodeId") + " )");
+        } else {
+            deleteButton.disabled = false;
+            deleteButton.style.opacity = "1.0";
+            console.log("Delete button enabled for nodeId:", nodeId);
+        }
+        const overlay = document.getElementById("edit-overlay");
+        const messageInput = document.getElementById("edit-message");
+        //const topicInput = document.getElementById("edit-topic-id");
+        //const nodeInput = document.getElementById("edit-node-id");
+        //  just to be save - clear other input variant
+        document.getElementById("entryMessage").value = "";
+        currentType = getTypeFromMessage(message);
+        currentNodeId = nodeId || generateNodeId();
+        messageInput.value = message && message.endsWith(currentType) ? message.slice(0, -currentType.length).trim() : message;
+        // topicInput.value = topicId;   // Set the topicId
+        // nodeInput.value = nodeId;     // Set the nodeId
+
+        overlay.style.display = "block";
+        runtimeCheck("openEditOverlay-end");
+    }
+
+    // Close the overlay
+    function closeEditOverlay() {
+        const overlay = document.getElementById("edit-overlay");
+        overlay.style.display = "none";
+    }
+
+
+  function clearSelection() {
+    try {
+      if (window.getSelection) {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) sel.removeAllRanges();
+      } else if (document.selection) { // alte IE
+        document.selection.empty();
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+
+    function enableInlineEditing() {
+        document.querySelectorAll("tbody tr").forEach((row) => {
+            let timer;
+            let startX, startY;
+
+            function handleLongPressStart(event) {
+                startX = event.type === "touchstart" ? event.touches[0].clientX : event.clientX;
+                startY = event.type === "touchstart" ? event.touches[0].clientY : event.clientY;
+                timer = setTimeout(() => {
+                    runtimeCheck("longPressDetected");
+                    console.log("Long press detected!");
+                    event.preventDefault(); // Prevent default behavior (e.g., context menu) // may interfere with touch
+                    clearSelection();
+                    const targetCell = event.target.closest("td");
+                    if (targetCell) {
+                        const originalText = targetCell.textContent.trim();
+                        openEditOverlay(originalText, row.dataset.topic || "", row.dataset.nodeId || "" );
+
+                    }
+                }, 1000); // threshold for long press - more than swipe
+            }
+
+            function handleLongPressEnd(event) {
+                if (event.type === "mousemove") {
+                    const currentX = event.clientX;
+                    const currentY = event.clientY;
+                    const deltaX = Math.abs(currentX - startX);
+                    const deltaY = Math.abs(currentY - startY);
+                    // If the mouse has moved significantly, cancel the long press
+                    if (deltaX > 20 || deltaY > 20) {
+                        console.log("move detected - cancelling long press.");
+                        clearTimeout(timer); // Clear the timer if it's a swipe
+                        return;
+                    }
+                } else {
+                    clearTimeout(timer); // Clear the timer if the press is released early
+                }
+            }
+
+            row.addEventListener("mousedown", handleLongPressStart);
+            row.addEventListener("touchstart", handleLongPressStart);
+            row.addEventListener("mousemove", handleLongPressEnd);
+
+            row.addEventListener("mouseup", handleLongPressEnd);
+            row.addEventListener("mouseleave", handleLongPressEnd);
+            row.addEventListener("touchend", handleLongPressEnd);
+            row.addEventListener("touchcancel", handleLongPressEnd);
+
+        });
+    }
+
+/*
+    // Adjust overlay size when the textarea is resized
+const textarea = document.getElementById("edit-message");
+const overlayContent = textarea.closest("div[style*='position: relative']");
+
+if (overlayContent) {
+    const observer = new MutationObserver(() => {
+        const textareaHeight = textarea.offsetHeight;
+        const textareaWidth = textarea.offsetWidth;
+
+        overlayContent.style.height = `${textareaHeight + 100}px`; // Add padding for other elements
+        overlayContent.style.width = `${textareaWidth + 50}px`; // Add padding for width
+    });
+
+    // Observe changes in the textarea's attributes (e.g., style changes)
+    observer.observe(textarea, { attributes: true, attributeFilter: ['style'] });
+}
+
+*/
+
+
+
+
+    function enableInlineEditing__() {
+        document.querySelectorAll("tbody tr").forEach((row) => {
+            let timer;
+
+            row.addEventListener("mousedown", (event) => {
+                timer = setTimeout(() => {
+                    const targetCell = event.target.closest("td");
+                    if (targetCell && !targetCell.querySelector("input")) {
+                        const originalText = targetCell.textContent.trim();
+                        const input = document.createElement("input");
+                        input.type = "text";
+                        input.value = originalText;
+                        input.style.width = "100%";
+                        input.classList.add("textInput");
+                        targetCell.textContent = ""; // Clear the cell content
+                        targetCell.appendChild(input);
+                        //sendButtonsInCell( targetCell, input );
+                        //sendButtonsNearCell( targetCell, input );
+                        //sendButtonsFloatingCell( targetCell, input );
+                        const toolbar = sendButtonsFloatDiv( targetCell, input );
+                        input.focus();
+
+                        // Save changes on Enter
+                        input.addEventListener("keydown", (e) => {
+                            if (e.key === "Enter") {
+                                targetCell.textContent = input.value.trim();
+                            } else if (e.key === "Escape") {
+                                targetCell.textContent = originalText; // Revert changes on Escape
+                            }
+                        });
+
+                        //
+                        input.addEventListener("blur", () => {
+                            setTimeout(() => {
+                                targetCell.textContent = input.value.trim();
+                                toolbar.style.display = "none";
+                            }, 1000); // slight delay to allow button click
+                        });
+                    }
+                }, 500); // Long press duration (500ms)
+            });
+
+            row.addEventListener("mouseup", () => {
+                clearTimeout(timer); // Cancel long press if mouse is released early
+            });
+
+            row.addEventListener("mouseleave", () => {
+                clearTimeout(timer); // Cancel long press if mouse leaves the row
+            });
+        });
+    }
+
+
+
+
+    function sendButtonsFloatDiv( targetDiv, input ){
+        const toolbar = document.getElementById("send_buttons");
+        //input.addEventListener("focus", () => {
+            toolbar.style.display = "flex";
+            toolbar.style.position = "absolute";
+            // blur background
+            // toolbar.style.background = "rgba(255, 255, 255, 0.9)";
+            toolbar.style.background = "linear-gradient(to bottom, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%)";
+            toolbar.style.padding = "0px 400px 200px 0px";
+            //
+            const rect = targetDiv.getBoundingClientRect();
+            toolbar.style.left = `${rect.left + window.scrollX}px`;
+            toolbar.style.top = `${rect.bottom + 5 + window.scrollY}px`;
+        //});
+        return toolbar;
+    }
+
+
+
+
+
+
+
+
+    function updateFilteredData() {
+        runtimeCheck("updateFilteredData");
+        console.log("updateFilteredData: Updating filtered data...");
+        console.log(data);
+        const selectedTopic = topicFilter.value; // "" == all topics, "/" == root topics
+        const selectedType = typeFilter.value;
+        const textFilterValue = textFilter.value || "";
+        const filteredData = getFilteredData(data, selectedTopic, selectedType, textFilterValue);
+        displayData(filteredData);
+        console.log("updateFilteredData: Updating filtered data - DONE. ('" + selectedTopic + "'  '" + selectedType
+            + "' -> " + Object.keys(filteredData).length + " of " + Object.keys(data).length + " entries)");
+        runtimeCheck("updateFilteredData-end");
+    }
+
+
+    /*
+        test
+    */
+
+    let unitTestCounter = 0;
+    let unitTestPassed = [];
+    let unitTestFailed = [];
+
+    function assertExists(m,e){
+        const e_ = typeof e === "object" ? JSON.stringify(e) : e;
+        if (!e){
+            unitTestFailed.push(m);
+            console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got none");
+        } else {
+            unitTestPassed.push(m);
+            console.log("ASSERTION PASSED in test #"+m+": '"+e_+"' exists");
+        }
+    }
+
+    function assertEq(m,e,i){
+        const e_ = typeof e === "object" ? JSON.stringify(e) : e;
+        const i_ = typeof i === "object" ? JSON.stringify(i) : i;
+        if (e!==i){
+            unitTestFailed.push(m);
+            console.error("ASSERTION FAILED in test #"+m+": expected '"+e_+"' but got '"+i_+"'");
+        } else {
+            unitTestPassed.push(m);
+            console.log("ASSERTION PASSED in test #"+m+": '"+e_+"'");
+        }
+    }
+
+    function testBlock(msg){
+        console.log("---- TEST BLOCK: "+msg+" ----");
+        return msg;
+    }
+
+    function lookupById(filteredData){
+        let lookup = {};
+        Object.keys( filteredData ).forEach((key) => {
+            const row = filteredData[key];
+            const fullPath = fullKey(row.topic, row.nodeId);
+            lookup[fullPath] = row;
+        });
+        return lookup;
+    }
+
+    function test() {
+        mockData = {};
+
+        function addMockRow(topic, nodeId, message){
+            mockData[topic] = mockData[topic] || {};
+            mockData[topic][nodeId] = { topic: topic, nodeId: nodeId, message: message, votes: "0", timestamp: "2023-10-01 12:00:00" } ;
+        }
+
+        addMockRow("/",               "war",      "War >");
+        addMockRow("/",               "migration","Migration >");
+        addMockRow("/migration",      "eu",       "Migration in EU is complex.");
+        addMockRow("/",               "clima",    "Clima >");
+        addMockRow("/clima",          "changes",  "Clima changes >");
+        addMockRow("/clima/changes",  "real",     "Climate change is real!");
+        addMockRow("/clima/changes",  "biz",      "Climate discussion kills business.");
+        addMockRow("/",               "support",  "Support us!");
+
+        //
+        // by topic
+        //
+
+        let msg = testBlock( "Root + ALL -> all Topics");
+
+        let filteredData = getFilteredData( mockData, "/", "all");
+        console.debug(filteredData);
+        let items = lookupById( filteredData );
+        assertExists(msg, items["/war"]);
+        assertExists(msg, items["/migration"]);
+        assertExists(msg, items["/clima"]);
+        assertExists(msg, items["/support"]);
+        assertEq('size', 4, Object.keys(items).length);
+        console.debug(items);
+
+        msg = testBlock( "War + ALL -> none (no children)");
+
+        items = lookupById(getFilteredData(mockData, "/war", "all"));
+        assertEq('size', Object.keys(items).length, 0);
+
+        msg = testBlock( "Migration + ALL -> clima topic with 1 child topic");
+
+        items = lookupById(getFilteredData(mockData, "/clima", "all"));
+        assertExists(msg, items["/clima/changes"]);
+        assertEq('size', 1, Object.keys(items).length);
+
+        msg = testBlock( "Migration + ALL -> clima topic with 2 child messages");
+
+        items = lookupById( getFilteredData(mockData, "/clima/changes", "all"));
+        assertExists(msg, items["/clima/changes/real"]);
+        assertExists(msg, items["/clima/changes/biz"]);
+        assertEq('size', 2, Object.keys(items).length);
+
+        //
+        // by topic and type
+        //   - topics with message of type (maybe in nested topics)
+        //
+
+        msg = testBlock( "All + Meinung -> only topics with Meinung messages");
+
+        items = lookupById( getFilteredData(mockData, "/", "."));
+        assertExists(msg + "(direct)", items["/migration"]);
+        assertExists(msg + "(nested)", items["/clima"]);
+        assertEq('size', 2, Object.keys(items).length);
+
+        //
+        msg = testBlock( "Clima + Meinung -> only topics with Meinung messages");
+
+        items = lookupById( getFilteredData(mockData, "/clima", "."));
+        assertExists(msg + "(topic and nested)", items["/clima/changes"]);
+        assertEq('size', 1, Object.keys(items).length);
+
+        //
+        msg = testBlock( "Clima changes + Meinung -> messages with Meinung");
+
+        items = lookupById( getFilteredData(mockData, "/clima/changes", "."));
+        assertExists(msg + "(direct)", items["/clima/changes/biz"]);
+        assertEq('size', 1, Object.keys(items).length);
+
+
+    }
+
+
+    // test();
+
+
+
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+
+        if (userMode === "show") {
+            showQRCode(tenantId);
+        }
+
+        //test();
+
+        /*
+            EVENTS ...
+        */
+
+
+
+        // Filter data based on selected topic
+        topicFilter.addEventListener("change", () => {
+            console.log("Topic filter changed");
+            selectedTopic = topicFilter.value;
+            const fabAddButton = document.getElementById("fab-add");
+            if (fabAddButton){
+                if (selectedTopic === "/" || selectedTopic === "") {
+                    fabAddButton.style.display = "none";
+                } else {
+                    fabAddButton.style.display = "block";
+                }
+            }
+            updateFilteredData();
+            // set table header to selected topic name
+            const headerTopicName = document.getElementById("header-topic-name");
+            if (headerTopicName) {
+                headerTopicName.textContent = topicMap[selectedTopic] || 'Message';
+            }
+        });
+
+        typeFilter.addEventListener("change", () => {
+            const selectedType = typeFilter.value;
+            console.log("Type filter changed to '" + selectedType + "'");
+            updateSendButtons();
+            updateFilteredData();
+        });
+
+        textFilter.addEventListener("input", () => {
+            console.log("Text filter changed");
+            updateFilteredData();
+        });
+
+        toggleButton.addEventListener("click", () => toggleFilterVisibility() );
+
+        navBackLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            console.log("Back link clicked");
+            selectedTopic = splitKey(selectedTopic)[0]; // go one level up
+            console.log("Navigating back to topic: '" + selectedTopic + "'");
+            topicFilter.value = selectedTopic; // run updates ..
+            topicFilter.dispatchEvent(new Event('change'));
+            updateFilteredData();
+        });
+
+
+        function clickProjectTitle() {
+            console.log("Project title clicked - toggling view mode.");
+            toggleUserModeShowOrWork();
+            if (userMode === "show") {
+                showToast("Wechsel in die Anzeigeansicht.");
+            } else {
+                showToast("Wechsel in die Arbeitsansicht. Like APP");
+            }
+        }
+
+        document.getElementById("search-icon").addEventListener("click", () => {
+            console.log("Search icon clicked - focusing text filter.");
+            const navSearchInput = document.getElementById("navSearchInput");
+            if (navSearchInput) {
+                if (navSearchInput.style.display === "inline-block") {
+                    // already visible - hide it
+                    navSearchInput.style.display = "none";
+                    navSearchInput.value = "";
+                    textFilter.value = "";
+                    textFilter.dispatchEvent(new Event("input"));
+                    return;
+                } else {
+                    navSearchInput.style.display = "inline-block";
+                    navSearchInput.focus();
+                }
+            }
+            // hide backLink on small screens
+            if (window.innerWidth < 800) {
+                navBackLink.style.display = "none";
+            }
+        });
+
+        document.getElementById("navSearchInput").addEventListener("input", function () { /* on every key press */
+            const query = this.value.toLowerCase();
+            console.log("Search query:", query);
+            textFilter.value = query;
+            textFilter.dispatchEvent(new Event("input"));
+            // changing textFilter will trigger updateFilteredData, this will also update/show the navSearchInput value
+            if (window.innerWidth < 800) {
+                navBackLink.style.display = "none";
+            }
+        });
+
+        document.getElementById("navSearchInput").addEventListener("keydown", function (event) {
+            if (event.key === "Escape" || event.key === "Enter") {
+                this.style.display = "none"; // Hide the input field
+                this.value = ""; // Optionally clear the input field
+                if (event.key === "Escape") {
+                    textFilter.value = "";
+                }
+                textFilter.dispatchEvent(new Event("input"));
+            }
+        });
+
+
+    /*
+        Cinema slogans
+    */
+
+
+        const sloganContainer = document.getElementById("cinema-slogans");
+        let index = 0;
+
+        function updateSlogan() {
+            sloganContainer.textContent = slogans[index];
+            index = (index + 1) % slogans.length; // Loop back to the first slogan
+        }
+
+        // Initialize and start the interval
+        updateSlogan();
+        setInterval(updateSlogan, 3000); // Change slogan every 3 seconds
+        // Trigger the filter logic on page load to ensure buttons are in the correct state
+        console.log("Initial type filter dispatch");
+        typeFilter.dispatchEvent(new Event("change"));
+
+
+    //
+    // title in nav bar
+    //
+
+        const header = document.querySelector("header");
+        const headerBottom = header.getBoundingClientRect().bottom;
+        const mediaQuery = window.matchMedia("(min-width: 768px)"); // Adjust width as needed
+        const nav = document.querySelector("nav");
+
+
+        window.addEventListener("scroll", function () {
+            const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+            // nav a is not visible - then keep project title empty
+            const ptFallback = getComputedStyle(document.querySelector("nav a")).display === "none" ? "fayf" : "";
+
+            if (!mediaQuery.matches) {
+                if (window.scrollY < header.offsetHeight) {
+                    nav.classList.remove("sticky");
+                    navProjectTitle.textContent = ptFallback;
+            } else {
+                    nav.classList.add("sticky");
+                    navProjectTitle.textContent = "fayf";
+                }
+                return;
+            }
+            if (currentScroll < headerBottom) {
+                // Above header bottom - set title to empty
+                navProjectTitle.textContent = ptFallback;
+            } else if (navProjectTitle.textContent === "") {
+                // Below header bottom - set title if not already set
+                navProjectTitle.textContent = projectTitle;
+                navProjectTitle.style.transition = "opacity 0.5s";
+                navProjectTitle.style.opacity = 1;
+                navProjectTitle.style.paddingLeft = "1rem";
+                navProjectTitle.style.paddingRight = "1rem";
+            }
+
+            lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; // For mobile or negative scrolling
+        });
+
+        // toggle visibility of sections (except browsing-section) on click of navProjectTitle
+        navProjectTitle.addEventListener("click", () => clickProjectTitle() );
+
+
+
+        /*
+           Edit Button - only visible on hover or focus
+        */
+        const tableRows = document.querySelectorAll("tbody tr");
+
+        tableRows.forEach((row) => {
+            row.addEventListener("click", () => {
+                // Hide all other edit buttons
+                document.querySelectorAll(".edit-button").forEach((btn) => {
+                    btn.style.visibility = "hidden";
+                });
+
+                // Show the edit button for the clicked row
+                const editButton = row.querySelector(".edit-button");
+                if (editButton) {
+                    editButton.style.visibility = "visible";
+                }
+            });
+        });
+
+
+
+    }); // DOMContentLoaded
+
+    /*
+        -- QR Code Generation --
+    */
+    function showQRCode(tenantId) {
+        runtimeCheck("showQRCode");
+        const qrCodeContainer = document.getElementById("qrcode");
+        const qrCodeUrl = window.location.origin + window.location.pathname
+                            + "?tid=" + encodeURIComponent(tenantId);
+        qrCodeContainer.innerHTML = ""; // clear previous QR code if any
+        new QRCode(qrCodeContainer, {
+            text: qrCodeUrl,
+            width: 128,
+            height: 128,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        let tenantInfo = document.getElementById("tenant-info");
+        tenantInfo.textContent = qrCodeUrl;
+        // display the QR code section
+        document.getElementById("qr-code-section").style.display = "block";
+        runtimeCheck("showQRCode-end");
+    }
+
+    /*
+        -- Edit-Section Toggle (optional) --
+    */
+
+        const addEditSection = document.getElementById("add-edit-section");
+        const toggleEditSection = false; // set to false to hide the section
+
+        if (toggleEditSection) {
+            addEditSection.style.display = "block";
+        } else {
+            addEditSection.style.display = "none";
+        }
+
+        // Handle send button clicks
+        document.querySelectorAll(".send-button").forEach((button) => {
+            if (!button.id) { // exclude settings button
+                button.addEventListener("click", () => sendButtonClicks(button) );
+            }
+        });
+
+
+        function sendButtonClicks(button) {
+                runtimeCheck("sendButtonClicks");
+                const topic = document.getElementById("topicFilter").value;
+                // check which input dialog has been used
+                const messageRaw = document.getElementById("entryMessage").value.trim()
+                            || document.getElementById("edit-message").value.trim();
+                const type = button.getAttribute("data-type");
+                const message = matchType(messageRaw, type); // append type indicator
+                console.log("Send button clicked:", button, " for topic:", topic, " with type:", type);
+
+                // type must match one of the type filter options
+                if ( userMode === "show" && typeFilter.value !== "all" && typeFilter.value !== type && type !== "--") {
+                    showToast("Selected type does not match filter type. Please adjust the type filter or select a different type.", "error");
+                    return;
+                }
+
+                if (topic === "/" || topic === "" || topic === null || topic == "all" ) {
+                    showToast("Cannot add entry to root topic. Please select a specific topic.");
+                    return;
+                }
+                if (topic.startsWith("/_/")) {
+                    showToast("Cannot add entry to hidden topics. Please select a different topic.");
+                    return;
+                }
+                if (message === "") {
+                    showToast("Message cannot be empty.");
+                    return;
+                }
+                if (message.length < 5) {
+                    showToast("Message is too short. Please provide a more detailed message.");
+                    return;
+                }
+                // check if topic already has that message
+                const existingEntries = data[topic];
+                if (existingEntries) {
+                    for (const nodeId in existingEntries) {
+                        if (existingEntries[nodeId].message === message) {
+                            showToast("This message already exists in the selected topic. Please provide a different message.", "error");
+                            return;
+                        }
+                    }
+                }
+
+                // send entry/add?sid=www&tid={tenantId}&topic={topic}&data={message}{type}
+                // generate nodeId as timestamp + random
+                const nodeId = currentNodeId || generateNodeId();
+                const entry = topic + " | " + nodeId + " | " + message + type;
+                // timestamp format: YYYY-MM-DD HH:MM:SS
+                let entryTimestamp = new Date().toISOString().slice(0, 19).replace("T", " ");
+                addEntry(topic, nodeId, message, "0", entryTimestamp);
+                const sendUrl = `entry/add?sid=www&tid=${encodeURIComponent(tenantId)}&entry=${encodeURIComponent(entry)}`;
+                if (tenantId === "MOCK") {
+                    console.log("Mock tenant - skipping sending entry to URL:", sendUrl);
+                    mockIO.push(sendUrl);
+                    closeEditOverlay();
+                    return false; // prevent default form submission
+                } else {
+                    fetch(sendUrl)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.text();
+                        })
+                        .then(data => {
+                            showToast("Entry submitted successfully!");
+                        })
+                        .catch(error => {
+                            console.error("Error submitting entry:", error);
+                            showToast("Failed to submit entry.");
+                        });
+
+                    // Clear the form
+                    document.getElementById("addEditForm").reset();
+                    // clear both inputs after reading
+                    document.getElementById("entryMessage").value = "";
+                    closeEditOverlay();
+                    runtimeCheck("sendButtonClicks-end");
+                    return false; // prevent default form submission
+                }
+                runtimeCheck("sendButtonClicks-end");
+        }
+
+        function sendVote(topic, nodeId, vote) {
+            runtimeCheck("sendVote");
+            console.log("Sending vote:", vote, "for topic:", topic, "nodeId:", nodeId);
+            const entry = data[topic] && data[topic][nodeId] ? data[topic][nodeId] : null;
+            if (!entry) {
+                console.error("Entry not found for voting:", topic, nodeId);
+                showToast("Cannot vote: Entry not found.", "error");
+                return;
+            }
+            const entryVote = topic + " | " + nodeId + " | " + entry.message + " | " + vote;
+            const voteUrl = `vote/add?sid=www&tid=${encodeURIComponent(tenantId)}`
+                            + `&entry=${encodeURIComponent(entryVote)}`;
+            if (tenantId === "MOCK") {
+                console.log("Mock tenant - skipping sending vote to URL:", voteUrl);
+                mockIO.push(voteUrl);
+                return;
+            } else {
+                fetch(voteUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            console.error("HTTP error! status:", response.status);
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                    .then(data => {
+                        console.log("Vote submitted successfully.");
+                        showToast("Vote submitted successfully!");
+                    })
+                    .catch(error => {
+                        console.error("Error submitting vote:", error);
+                        showToast("Failed to submit vote.");
+                    });
+            }
+            runtimeCheck("sendVote-end");
+        }
+
+
+    /*
+            SHOW TOAST MESSAGES
+    */
+    function showToast(message, type = "info", duration = 3000) {
+        if ("MOCK" === tenantId) {
+            console.log("Mock tenant - toast message:", message);
+            mockToasts.push({ message: message, type: type, duration: duration });
+            return;
+        }
+        const toastContainer = document.getElementById("toast-container");
+        console.log("Showing toast message:", message);
+        // Create the toast element
+        const toast = document.createElement("div");
+        toast.textContent = message;
+        toast.className = `toast toast-${type}`;
+        toast.style.cssText = `
+            background-color: ${type === "success" ? "#4CAF50" : type === "error" ? "#f44336" : "#333"};
+            color: white;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            animation: fadeInOut ${duration / 1000}s ease-in-out;
+        `;
+        if ("success" === type) {
+            toast.style.backgroundColor = "#4CAF50";
+            toast.style.color = "#fff";
+            toast.style.fontWeight = "bold";
+            toast.style.fontSize = "1.1rem";
+            toast.style.textAlign = "center";
+            toast.style.border = "2px solid #fff";
+            toast.style.boxShadow = "0 0 10px rgba(255, 255, 255, 0.5)";
+            toast.style.opacity = "0.9";
+        } else if ("error" === type) {
+            toast.style.backgroundColor = "#f44336";
+        } else {
+            toast.style.backgroundColor = "#333";
+        }
+
+        // Append the toast to the container
+        toastContainer.appendChild(toast);
+
+        // Remove the toast after the specified duration
+        setTimeout(() => {
+            toastContainer.removeChild(toast);
+        }, duration);
+    }
+
+    function isElementInViewport(el) {
+        const rect = el.getBoundingClientRect();
+        const headerOffset = document.querySelector("nav").offsetHeight; // Adjust based on your sticky header
+        return (
+            rect.top >= headerOffset &&
+            rect.left >= 0 &&
+            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+        );
+    }
+
+    function scrollToElement(el) {
+        if (!isElementInViewport(el)) {
+            const headerOffset = document.querySelector("nav").offsetHeight; // Adjust based on your sticky header
+            const elementPosition = el.getBoundingClientRect().top + window.scrollY;
+            const offsetPosition = elementPosition - headerOffset;
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: "smooth"
+            });
+        }
+    }
+
+        // Add event listener to the FAB button
+    document.getElementById("fab-add").addEventListener("click", () => {
+        // Example: Open the add/edit section or trigger a function
+        const addEditSection = document.getElementById("add-edit-section");
+        // not allowed on root topic or general topic
+        if (topicFilter.value === "/" || topicFilter.value === "" || topicFilter.value === null || topicFilter.value == "all" ) {
+            showToast("Cannot add entry to root topic. Please select a specific topic first.");
+            return;
+        }
+
+        if (addEditSection && false) {
+            document.getElementById("entryMessage").value = ""; // Clear previous input
+            addEditSection.style.display = "block"; // Show the add/edit section
+            scrollToElement(addEditSection); // considering sticky header, scroll only if not visible
+            // Optionally, you can focus on the first input field
+            const firstInput = addEditSection.querySelector("input, textarea, select");
+            if (firstInput) {
+                firstInput.focus();
+            }
+        } else {
+            // console.log("Add/Edit section not found. Implement your logic here.");
+            openEditOverlay(""); // open empty overlay for current topic
+        }
+    });
+
+
+
+    /*
+
+        TESTING
+
+
+    */
+
+    class TestRunner {
+        constructor( stopOnError = false ) {
+            this.stopOnError = stopOnError;
+            this.chain = Promise.resolve();
+            this.blocks = {}; // Store test blocks
+            this.errors = []; // Store errors
+            this.timeout = null; // time to wait to meet condition
+            this.checkCount = 0;
+        }
+
+        check(condition, msgOk, msgFail = null, msg = null) {
+            if (this.stopOnError && this.errors.length > 0) {
+                return false; // Skip further checks if stopping on error - silently
+            }
+            this.checkCount += 1;
+            if (condition) {
+                if (msgOk) { // allow internal checks without messages (msgOK===null) otherwise set msgOk=""
+                    console.log(`OK : ${msgOk}` + (msg && msgOk ? ` - ` : "") + (msg|| '') );
+                }
+            } else if (this.timeout !== null) {
+                console.warn( `WAIT: Condition not met` + (msg ? ` - ${msg}` : ""));
+            } else {
+                const errorMsg = "FAIL: " + (msgFail || `CHECK FAILED (${msgOk})`) + (msg ? ` - ${msg}` : "");
+                console.error(errorMsg);
+                this.errors.push(errorMsg);
+                if (this.stopOnError) { // allow to check error manually
+                    console.log("Stopping test execution due to error. !!!!!! ");
+                    throw new Error(errorMsg);
+                }
+            }
+            return condition;
+        }
+
+        assertEq(expected, actual, msg = null) {
+            this.chain = this.chain.then(() => {
+                let actualValue = typeof actual === "function" ? actual() : actual;
+                this.check( expected === actualValue
+                    , `Assert: expected '${expected}' and got '${actualValue}'`
+                    , `Assert FAILED: expected '${expected}' but got '${actualValue}'`
+                            +  (typeof actual === "function" ? ` (${actual})` : "")
+                    , msg);
+            });
+            return this;
+        }
+
+        assertTrue(actual, msg = null) {
+            return assertEq(true, actual, msg);
+        }
+
+        assertFalse(actual, msg = null) {
+            return assertEq(false, actual, msg);
+        }
+
+        set(selector, value, msg = null) {
+            this.chain = this.chain.then(() => {
+                const element = document.querySelector(selector);
+                if (this.check(element, `Set value of ${selector} to ${value}`, `Element not found: ${selector}`, msg)) {
+                    element.value = value;
+                    if (element.value !== value) { // If value doesn't match, try matching by text
+                        const option = Array.from(element.options).find(opt => opt.text === value);
+                        if (this.check(option, `Found option with text '${value}' in ${selector}`
+                                , `Option with text '${value}' not found in ${selector}`, msg)) {
+                            element.value = option.value;
+                        }
+                    }
+                    if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
+                        console.log(`Triggering 'input' event for ${selector}`);
+                        element.dispatchEvent(new Event("input")); // Trigger input event
+                    } else {
+                        console.log(`Triggering 'change' event for ${selector}`);
+                        element.dispatchEvent(new Event("change")); // Trigger change event
+                    }
+                }
+            });
+            return this;
+        }
+
+        wait(ms, msg = null) {
+            this.chain = this.chain.then(() => {
+                console.log(`     Waiting for ${ms}ms${msg ? ` - ${msg}` : ""}`);
+                return new Promise(resolve => setTimeout(resolve, ms));
+            });
+            return this;
+        }
+
+        waitFor(conditionFn, timeoutMs = 1000, intervalMs = 100, msg = null) {
+            // runner.waitFor( () => document.querySelector("#status").textContent === "Ready"
+            //                          , 5000, 200, "Waiting for status to be Ready" )
+            // runner.waitFor( () => runner.isVisible("#myElement") )
+            // runner.isVisibleOrWaitFor("#myElement", null, "Waiting for myElement to be visible", 5000, 200)
+            //
+            this.chain = this.chain.then(() => {
+                console.log(`Waiting for condition for up to ${timeoutMs}ms${msg ? ` - ${msg}` : ""}`);
+                console.log("Initial condition check at", Date.now(), conditionFn);
+                this.timeout = Date.now() + timeoutMs;
+                return new Promise((resolve, reject) => {
+                    console.log("waitFor (" + timeoutMs + "ms)");
+                    const checkCondition = () => {
+                        console.log("checking condition at", Date.now(), conditionFn);
+                        if (Date.now() >= this.timeout){
+                            this.timeout = null; // reset - timeout reached, final check
+                        }
+                        if (conditionFn() || this.timeout === null) {
+                            clearInterval(intervalId);
+                            resolve(true);
+                        }
+                    };
+                    const intervalId = setInterval(checkCondition, intervalMs);
+                    checkCondition();
+                });
+            });
+            return this;
+        }
+
+        isElementVisible(element) {
+            while (element) { // Traverse up the DOM tree
+                const style = window.getComputedStyle(element);
+                if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+                    return false; // Element or one of its parents is hidden
+                }
+                element = element.parentElement; // Move to the parent element
+            }
+            return true; // No parent has display: none
+        }
+
+        getElementWText(selector, text = null) {
+            const elements = document.querySelectorAll(selector);
+            for (const element of elements) {
+                if (text === null || element.textContent.includes(text)) {
+                    return element;
+                }
+            }
+            return null;
+        }
+
+        isVisible(selector, expectedText = null, msg = null, allowOption = false) {
+            this.chain = this.chain.then(() => {
+                const element = this.getElementWText(selector, expectedText) || this.getElementWText(selector);
+                if (this.check( element && this.isElementVisible(element)
+                        , `Element ${selector} is visible`
+                        , `Element ${selector} is not visible`
+                        , msg )) {
+                    let text = "" + element.textContent;
+                    if (element.tagName === "SELECT") {
+                        text = element.options[element.selectedIndex] ? element.options[element.selectedIndex].text : "";
+                        if (allowOption && expectedText) { // aggregate options to 1 joined text
+                            // gather valid values for debug
+                            text = "<" + Array.from(element.options).map(opt => opt.text).join(">, <") + ">";
+                            for(let i=0; i<element.options.length; i++) {
+                                if (element.options[i].text === expectedText) {
+                                    text = element.options[i].text;
+                                    break;
+                                } else if (element.options[i].text == expectedText.replace(/ /g, "\u00A0")) {
+                                    console.warn("Matching option with non-breaking space");
+                                    text = element.options[i].text.replace(/\u00A0/g, " ");
+                                    break; // non-breaking space
+                                }
+                            }
+                        }
+                        this.check (!expectedText || text == expectedText
+                            , `Element ${selector} is visible${expectedText ? ` and text: '${expectedText}'` : ""}`
+                            , `Element ${selector} is visible but has not expected text: '${expectedText}'`
+                                    + ` (actual text: '${text}')`
+                            , msg);
+                    } else {
+                        this.check (!expectedText || text.includes(expectedText) // includes for partial match
+                            , `Element ${selector} is visible${expectedText ? ` and contains text: '${expectedText}'` : ""}`
+                            , `Element ${selector} is visible but does not contain expected text: '${expectedText}'`
+                                    + ` (actual text: '${text}')`
+                            , msg);
+                    }
+                }
+            });
+            return this;
+        }
+
+        isVisibleOrWaitFor(selector, expectedText = null, msg = null, timeoutMs = 1000, intervalMs = 100) {
+            this.chain = this.chain.then(() => {
+                return this.waitFor( () => this.isVisible(selector, expectedText, msg), timeoutMs, intervalMs, msg );
+            });
+            return this;
+        }
+
+        isAvailable(selector, expectedText, msg = null) { // for options only
+            return this.isVisible(selector, expectedText, msg, true);
+        }
+
+        isNotVisible(selector, expectedText = null, msg = null) {
+            this.chain = this.chain.then(() => {
+                const element = this.getElementWText(selector, expectedText);
+                this.check( !element || this.isElementVisible(element) === false
+                    , `Element ${selector} is not visible`
+                    , `Element ${selector} is visible`
+                    , msg);
+            });
+            return this;
+        }
+
+        isNotVisibleOrWaitFor(selector, expectedText = null, msg = null, timeoutMs = 1000, intervalMs = 100) {
+            this.chain = this.chain.then(() => {
+                return this.waitFor( () => this.isNotVisible(selector, expectedText, msg), timeoutMs, intervalMs, msg );
+            });
+            return this;
+        }
+
+        isNotAvailable(selector, expectedText, msg = null) { // for options only
+            return this.isNotVisible(selector, expectedText, msg);
+        }
+
+
+        click(selector, expectedText = null, msg = null) {
+            this.chain = this.chain.then(() => {
+                const element = this.getElementWText(selector, expectedText);
+                if (this.check( element, `Click on ${selector}`, `Element not found: ${selector}`, msg)) {
+                    element.click();
+                }
+            });
+            return this;
+        }
+
+        execute(fn, msg = null) {
+            if (this.check( typeof fn === "function", `add exec step`, `Provided argument is not a function`, msg)) {
+                this.chain = this.chain.then(() => {
+                        console.log("Executing function...");
+                        fn();
+                });
+            }
+            return this;
+        }
+
+        blockSetupChecks(name) {
+            return this
+                .assertEq( "/", topicFilter.value, "topic filter is reset to / before block '" + name + "'" )
+                .isNotVisible("#topicFilter", "alle Basis-Themen", "topic filter is visible before block '" + name + "'" )
+                .isNotVisible("#typeFilter", null, "type filter is hidden before block '" + name + "'" )
+                .isNotVisible("#add-edit-section", null, "add/edit section is hidden before block '" + name + "'" );
+        }
+
+        start(name) {
+            this.chain = this.chain.then(() => {
+                if (name === "showStart") {
+                    console.log("---------------------------------------------- ");
+                    console.log("Starting test sequence...              ------- ");
+                } else if (name !== "showSummary") {
+                    console.log("| ");
+                    console.log(`|-- Starting test block: ${name}  --- `);
+                    console.log("| ");
+                } else {
+                    console.log("--------------------------------------------- ");
+                    this.showSummary();
+                    console.log("|  Test sequence completed.                     ");
+                    console.log("--------------------------------------------- ");
+                }
+            });
+            return this;
+        }
+
+        showSummary() {
+            console.log("|  Test Summary:  " + this.checkCount + " checks performed.");
+            if (this.errors.length === 0) {
+                console.log("|  All " + this.checkCount + " tests passed successfully!");
+            } else {
+                console.error(`|  Total Errors: ${this.errors.length}`);
+                this.errors.forEach((error, index) => {
+                    console.error(`|  ${index + 1}. ${error}`);
+                });
+            }
+        }
+
+
+        addBlock(name, block) {
+            if (typeof block === "function") {
+                console.log(`Adding test block: ${name}`);
+                this.blocks[name] = block;
+            } else {
+                const error = `Block must be a function for block: ${name}`;
+                console.error(error);
+                this.errors.push(error);
+            }
+        }
+
+        runBlocks( stopOnError = null ) {
+            this.stopOnError = stopOnError !== null ? stopOnError : this.stopOnError;
+            this.blocks = { "showStart": (runner) => {}, ...this.blocks, "showSummary": (runner) => {} };
+
+            Object.entries(this.blocks).forEach(([name, block]) => {
+                this.chain = this.chain.then(() => {
+                    return this.blockSetupChecks(name); // Ensure setup checks are done before each block
+                });
+                this.chain = this.chain.then(() => {
+                    return block(this.start(name)); // Ensure the block returns a Promise
+                });
+            });
+
+            // Chain the summary to ensure it runs last
+            this.chain = this.chain
+                .catch((error) => {
+                    console.error("Error during test execution:", error);
+                });
+
+            return this.chain;
+        }
+
+
+        clearBlocks() {
+            this.blocks = {};
+            console.log("All test blocks cleared");
+        }
+    }
+
+    // Example usage:
+    const tr = new TestRunner();
+
+    // Define test blocks
+    tr.addBlock("Block 0 init", (runner) => {
+        runner
+            .wait(500, "Starting")
+            .assertEq( "MOCK", () => tenantId, "tenantId should be MOCK" )
+            .assertEq( "/", topicFilter.value, "initial topic filter should be /" )
+            .assertEq( "!", typeFilter.value, "initial type filter should be facts" )
+            .assertEq( "", textFilter.value, "initial text filter should be empty" )
+            .assertEq( 0, () => Object.keys(data).length , "data should be loaded" )
+            // check filter options
+            .isNotVisible("#topicFilter", "alle Basis-Themen", "topic filter has all topics")
+            .assertEq( 1, topicFilter.options.length , "only 'all topics' option initially" )
+            .isNotVisible("#typeFilter", null, "type filter is hidden initially")
+            .isNotVisible("#textFilter", null, "text filter is hidden initially")
+            // no entries yet
+            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!")
+            // add 1st (non-)topic without messages
+            .execute( () => {
+                addEntry("/", "bahn", "Bahn-TST", 5, "2023-10-01 12:00:00") }
+            )
+            .isNotAvailable("#topicFilter", "Bahn-TST", "w/o children - it is no topic")
+            .isNotAvailable("#topicFilter", "Bahn-TST >", "w/o children - it is no topic")
+            .assertEq( 1, () => topicFilter.options.length , "still only 'all topics' option")
+            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet")
+            // add 2nd topic with messages
+            .execute( () => {
+                addEntry("/", "corona", "CoronaTST >", 5, "2023-10-01 12:00:00");
+            })
+            .isNotAvailable("#topicFilter", "CoronaTST >", "w/o child - it is no topic")
+            .execute( () => {
+                addEntry("/corona", "msg1", "Fakten zur Pandemie.", 3, "2023-10-01 12:05:00");
+            })
+            //.isAvailable("#topicFilter", "alle Basis-Themen", "topic filter has all topics2")  // hide now
+            .assertEq( "alle Basis-Themen" , () => topicFilter.options[0].text , "first topic is /")
+            // .isAvailable("#topicFilter", "CoronaTST >", "topic filter has Corona topic now - first child") // hide now
+            .assertEq( "CoronaTST >", () => topicFilter.options[1].text.replace(/\u00A0/g, " ") , "second topic is CoronaTST >") // non-breaking space
+            .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
+            .execute( () => {
+                addEntry("/corona", "msg2", "Maßnahmen sind übertrieben.?", 1, "2023-10-01 12:10:00");
+            })
+            .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
+            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet-2")
+            .execute( () =>
+                addEntry("/corona", "msg3", "Impfungen helfen!", 4, "2023-10-01 12:15:00")
+            )
+            .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
+            .isVisible("td", "CoronaTST >", "has facts now")
+            // make first non-topic a topic by adding child
+            .execute( () => {
+                addEntry("/bahn", "msg1", "Züge sind pünktlich.", 2, "2023-10-01 12:20:00");
+            })
+            //.isAvailable("#topicFilter", "Bahn-TST >", "Bahn topic now available after adding child, added suffix") // hide now
+            .assertEq( "Bahn-TST >", () => topicFilter.options[1].text.replace(/\u00A0/g, " ") , "second topic is Bahn-TST >") // non-breaking space
+            .assertEq( 3, () => topicFilter.options.length , "3 topics in filter now")
+    });
+
+
+    tr.addBlock("Block 1 navigate in message list", (runner) => {
+        runner
+            .assertEq( "/", () => topicFilter.value , "topic filter is set to /" )
+            .click("tbody tr td a", "CoronaTST >", "click on message row to enter topic")
+            .isVisible("td", "zurück", "in topic CoronaTST >")
+            .isVisible("td", "Impfungen helfen!", "show content from CoronaTST >")
+            .assertEq( "/corona", () => topicFilter.value , "topic filter is set to /corona" )
+            .click("tbody tr td a", "zurück", "click on zurück to go back")
+            .assertEq( "/", () => topicFilter.value , "topic filter is set to / again" )
+        ;
+    });
+
+    tr.addBlock("Block 2 settings", (runner) => {
+        runner
+            .wait(500)
+            .isNotVisible("#topicFilter", "alle Basis-Themen")
+            .isNotVisible("#typeFilter", "Fakt")
+            .isVisible("td", "CoronaTST >", "has facts, should be visible")
+            .isNotVisible("td", "Bahn-TST", "Bahn has no facts, should be hidden") // !! just partial match
+            ;
+    });
+
+    tr.addBlock("Block 3 change settings ... ", (runner) => {
+        runner
+            .set("#topicFilter", "/")
+            .click("#toggleTypeFilter")
+            .wait(500)
+            .isVisible("#topicFilter", "alle Basis-Themen", "all topics visible")
+            .isVisible("#typeFilter", "Fakt")
+            .set("#typeFilter", "all")
+            .isVisible("#typeFilter", "All Types")
+            .isVisible("td", "Bahn-TST", "show all - even non-facts")
+            // re-check 1
+            .click("tbody tr td a", "CoronaTST >", "click on message row to enter topic")
+            .isVisible("td", "Impfungen helfen!", "show content from CoronaTST >")
+            .assertEq( "/corona", () => topicFilter.value , "topic filter is set to /corona" )
+            .click("tbody tr td a", "zurück", "click on zurück to go back")
+            .assertEq( "/", () => topicFilter.value , "topic filter is set to / again" )
+            // reset
+            .click("#toggleTypeFilter")
+            ;
+    });
+
+    tr.addBlock("Block 4 Topic/Text Filter ... ", (runner) => {
+        runner
+            .set("#topicFilter", "/corona")
+            .click("#toggleTypeFilter")
+            .set("#typeFilter", "all")
+            .set("#textFilter", "pandemie")
+            .isVisible("td", "Fakten zur Pandemie.", "should show facts about Pandemie")
+            .isNotVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
+            .set("#textFilter", "")
+            .isVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
+            .set("#textFilter", "pandemie")
+            .set("#topicFilter", "/corona")
+            .isVisible("td", "Fakten zur Pandemie.", "should - reverse filter set order")
+            .isNotVisible("td", "Maßnahmen sind übertrieben.?", "hide - reverse filter set order")
+            .set("#textFilter", "")
+            .set("#topicFilter", "/")
+            .isVisible("td", "Bahn-TST", "should show Bahn again")
+            .click("#toggleTypeFilter")
+            .set("#topicFilter", "/")
+            ;
+    });
+
+    tr.addBlock("Block 5 unit tests for filtering logic", (runner) => {
+        runner
+            .execute( () => {
+                // todo integrate with testRunner
+                unitTestPassed = [];
+                unitTestFailed = [];
+                test();
+                for (let i=0; i<unitTestPassed.length; i++) {
+                    runner.check( true, `Unit Test Passed[${i}]: ${unitTestPassed[i]}` );
+                }
+                for (let i=0; i<unitTestFailed.length; i++) {
+                    runner.check( false, `Unit Test Failed[${i}]: ${unitTestFailed[i]}` );
+                }
+            })
+            .wait(100)
+            .assertEq( 0, () => unitTestFailed.length , "all unit tests passed" )
+            .assertEq( 18, () => unitTestPassed.length , "KLUDGE log passed tests")
+            ;
+    });
+
+    tr.addBlock("Block 6 add new entry via form", (runner) => {
+        runner
+            .set("#topicFilter", "/corona")
+            .assertEq( 0, () => mockIO.length , "no mock data entries yet" )
+            .click("#fab-add", null, "click FAB to open add section")
+            // sunny case - matching type filter
+            .set("#entryMessage", "neuer Fakt")
+            .click(".send-button[data-type='!']", null, "try - click send button for Fakt")
+            .isVisibleOrWaitFor("td", "neuer Fakt!", "new fact is accepted")
+            .assertEq( 1, () => mockIO.length , "1 mock data entry after adding new fact" )
+            .assertEq( 0, () => mockToasts.length , "no toast messages yet" )
+            // rainy case - non-matching type filter
+            .set("#entryMessage", "Neu eingetragene Nachricht.")
+            .click(".send-button[data-type='.']", null, "try - click send button for Meinung")
+            .wait(100)
+            .isNotVisible("td", "Neu eingetragene Nachricht.!", "new entry is not accepted (not matching type filter)")
+            .assertEq( 1, () => mockIO.length , "still only 1 mock data entry after trying to add non-matching type" )
+            .assertEq( 1, () => mockToasts.length , "1 toast message after trying to add non-matching type" )
+            .assertEq( "Selected type does not match filter type. Please adjust the type filter or select a different type."
+                        , () => mockToasts[mockToasts.length -1 ].message
+                        , "toast message content after trying to add non-matching type" )
+            .execute( () => {
+                mockIO = []; // reset mock data
+                document.getElementById("add-edit-section").style.display = "none"; // hide add/edit section
+            })
+            .isVisible("td", "neuer Fakt!", "new fact is still visible after hiding add/edit section")
+            .set("#topicFilter", "/")
+            ;
+    });
+
+    tr.addBlock("Block 7 verify added entry persists", (runner) => {
+        runner
+            .set("#topicFilter", "/corona")
+            .isVisible("td", "neuer Fakt!", "new fact is still visible in /corona topic")
+            // KLUDGE -- remove added entry for next tests
+            .execute( () => Object.keys(data["/corona"]).forEach( (key) => {
+                    if (data["/corona"][key].message === "neuer Fakt!") {
+                        delete data["/corona"][key];
+                    }
+                })
+            )
+            ;
+    });
+
+
+
+    tr.addBlock("Block 8 edit entry via form", (runner) => {
+        runner
+            .set("#topicFilter", "/corona")
+                .assertEq( 0, () => mockIO.length , "no mock data entries yet" )
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "1+1 entries in /corona topic" )
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            //
+            // clean edit and undo
+            //
+                .isVisible("#edit-message", "", "edit overlay is open")
+                .assertEq( "Impfungen helfen", () => document.getElementById("edit-message").value
+                    , "edit message has correct initial content -  wo type suffix" )
+            .set("#edit-message", "Impfungen helfen wirklich!", "update edit message content")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt")
+                .isNotVisible("#edit-message", "", "edit overlay is closed after sending")
+                // check data
+                .assertEq( 1, () => mockIO.length , "1 mock data entry after edit" )
+                .isNotVisible("tbody tr td", "Impfungen helfen!", "old message not visible anymore")
+                .isVisible("tbody tr td", "Impfungen helfen wirklich!", "updated message is visible now")
+            // undo
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen wirklich!") ) )
+            .set("#edit-message", "Impfungen helfen", "restore original message content - wo type suffix in msg")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt to restore")
+                .isVisible("tbody tr td", "Impfungen helfen!", "old message restored and visible again")
+                // check no duplication
+                .isNotVisible("tbody tr td", "Impfungen helfen!!", "old message not changed - suffix not duplicated")
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic" )
+            //
+            // dirty - type-suffix in message
+            //
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            .set("#edit-message", "Impfungen helfen!", "restore w suffix in msg")
+            .click(".send-button[data-type='!']", null, "click send button - w suffix in msg")
+                .isVisible("tbody tr td", "Impfungen helfen!", "old message restored - w suffix in msg")
+                .isNotVisible("tbody tr td", "Impfungen helfen!!", "old message not changed - w suffix in msg")
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - w suffix in msg" )
+            // dirty - disabled buttons
+            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+                .isVisible("#edit-message", "", "edit overlay is open")
+            .click(".send-button[data-type='?']", null, "try - click send button for Question - currently disabled")
+                .isVisible("#edit-message", "", "edit overlay is still open - send question is disabled")
+            //
+            // dirty - try set duplicate message (direct)
+            //
+            .execute( () => openEditOverlay( null ) )
+            .set("#edit-message", "Impfungen helfen!", "set duplicate message directly")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message")
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - duplicate message not added" )
+            // dirty - try set duplicate message (via edit, add dummy first) + delete dummy
+            .execute( () => openEditOverlay( ) )
+            .set("#edit-message", "Impfungen helfen ~ish!", "prepare duplicate message via edit")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message via edit")
+            .execute( () => openEditOverlay ( runner.getElementWText("tbody tr td", "Impfungen helfen ~ish!") ) )
+            .set("#edit-message", "Impfungen helfen!", "set duplicate message via edit")
+            .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message via edit") // cant close due to DUPL
+                .isVisible("#edit-message", "", "edit overlay is still open - send duplicate message via edit is not allowed")
+                .assertEq( 3, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - duplicate message via edit prehibit" )
+            .click(".send-button[data-type='--']", null, "click send button for DELETE to remove temp dirty entry")
+                .isNotVisible("#edit-message", "", "edit overlay is closed after delete temp dirty entry")
+                .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "back to 1+1 entries in /corona topic after delete temp dirty entry" )
+            .isNotVisible("#edit-message", "", "edit overlay is closed after forced close")
+    });
+
+
+
+    // ----
+
+    let tenantIdOld = tenantId;
+    tr.addBlock("Block 'cleanup' ", (runner) => {
+        runner
+            .wait(500)
+            .execute( () => { // if all tests passed, reload data
+                if (runner.errors.length === 0) {
+                    console.log("All tests passed - reloading data for tenant: " + tenantIdOld);
+                    resetData(tenantIdOld, "cleanup test");
+                    loadData(url);
+                    if (urlParams.get('tenantId') || urlParams.get('tid')) {
+                        toggleUserModeShowOrWork();
+                    }
+                    // show a big big toast
+                    showToast(randomCongratulation("All tests passed !!"), "success", 10000);
+                    showToast("Well done! 🎉", "success", 10000);
+                    showToast(randomCongratulation("Welcome!"), "success", 4000);
+                    showToast("data reloaded for tenant: " + tenantIdOld, "info", 1000);
+                } else {
+                    console.warn("Some tests failed - keeping MOCK data for tenant: " + tenantIdOld);
+                }
+            })
+            ;
+    });
+
+    if (false && window.location.hostname === "localhost") {
+        // Run all test blocks first and stop on error
+        resetData("MOCK", "TESTING"); // MOCK - for testing, disable polling
+        tr.runBlocks( true );
+
+    } else {
+        resetData(tenantId, "normal start");
+        if (urlParams.get('tenantId') || urlParams.get('tid')) {
+            toggleUserModeShowOrWork();
+        }
+        showToast(randomCongratulation("Welcome!"), "success", 4000);
+        showToast("Infopedia loaded" +  ( ""==tenantId ? "" : " for " + tenantId), "info", 2000);
+        // polling every 60 seconds
+        loadData(url);
+        // load votes later
+        setTimeout( () => {
+            loadData(urlVote);
+        }, 5000);
+        setInterval(() => {
+            if (tenantId === "MOCK") {
+                console.log("Mock tenant - skipping polling.");
+            } else if (latestTimestamp) {
+                console.log("Polling data... (ts=" + latestTimestamp +")");
+                // use ts minus 20 seconds to avoid caching issues
+                // let ts = new Date().getTime() - 20000;
+                let pollUrl = url ;
+                let pollUrlVote = urlVote;
+                if (url.endsWith(".json")) {
+                    console.log("Local JSON file detected - inject ts in filename");
+                    pollUrl = url.replace(".json", "_ts" + encodeURIComponent(latestTimestamp.replaceAll(/[^a-zA-Z0-9]/g, "")) + ".json");
+                } else {
+                    pollUrl += "&ts=" + encodeURIComponent(latestTimestamp);
+                    pollUrlVote += "&ts=" + encodeURIComponent(latestTimestamp);
+                }
+                loadData(pollUrl);
+                loadData(pollUrlVote);
+            } else {
+                console.log("SKIPP Polling data... (no latest timestamp yet)");
+            }
+        }, 60000); // 60000 ms = 60 seconds
+    }
+
+    <!-- settings -->
+
+      const overlay = document.getElementById('settings-overlay');
+  const panel = document.getElementById('settings-panel');
+  const openBtn = document.getElementById('settings-open-btn');
+  const closeBtn = document.getElementById('settings-close');
+  const applyBtn = document.getElementById('settings-apply');
+  const qrBtn = document.getElementById('settings-qr');
+  const mainBtn = document.getElementById('settings-main');
+  const tenantInput = document.getElementById('settings-tenant-input');
+  const typeList = document.getElementById('settings-type-list');
+
+  // Mapping for nicer labels
+  const typeLabels = {
+    ".": "Meinung (.)",
+    "?": "Frage (?)",
+    "??": "Gegenfrage (??)",
+    "!": "Fakt (!)",
+    "!-": "Widerspruch (!-)",
+    "@": "Referenz (@)"
+  };
+
+  // Load persisted settings or defaults
+  function loadSettings(){
+    try {
+      const saved = JSON.parse(localStorage.getItem('fayf_settings') || '{}');
+      const allowed = saved.typesAllowed || typesAllowed || [".","?","??","!","!-"];
+      const tenant = saved.tenantId !== undefined ? saved.tenantId : tenantId || "";
+      return { allowed, tenant };
+    } catch(e){
+      return { allowed: typesAllowed || [".","?","??","!","!-"], tenant: tenantId || "" };
+    }
+  }
+
+  function saveSettings(settings){
+    const payload = { typesAllowed: settings.allowed, tenantId: settings.tenant };
+    localStorage.setItem('fayf_settings', JSON.stringify(payload));
+  }
+
+  function buildTypeCheckboxes(allowed){
+    typeList.innerHTML = "";
+    // use typesAvailable if present, fallback to known keys
+    const avail = (typeof typesAvailable !== "undefined" && Array.isArray(typesAvailable)) ? typesAvailable : Object.keys(typeLabels);
+    avail.forEach((t) => { // .->o ?->q !->f '-'->d @->r
+      const t_ = t.replace(/\./g,'o').replace(/\?/g,'q').replace(/!/g,'f').replace(/-/g,'d').replace(/@/g,'r');
+      const id = 'settings-type-' + t_.replace(/[^a-zA-Z0-9]/g,'_');
+      const wrapper = document.createElement('label');
+      wrapper.setAttribute('for', id);
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = id;
+      cb.value = t;
+      cb.checked = allowed.includes(t);
+      cb.style.marginRight = '0.25rem';
+      const span = document.createElement('span');
+      span.textContent = typeLabels[t] || t;
+      wrapper.appendChild(cb);
+      wrapper.appendChild(span);
+      typeList.appendChild(wrapper);
+    });
+  }
+
+  function openSettings(){
+    const s = loadSettings();
+    tenantInput.value = s.tenant;
+    buildTypeCheckboxes(s.allowed);
+    overlay.style.display = 'block';
+    overlay.setAttribute('aria-hidden','false');
+    mainBtn.textContent = userMode === 'show' ? 'APP-Ansicht' : 'Übersicht';
+  }
+
+  function closeSettings(){
+    overlay.style.display = 'none';
+    overlay.setAttribute('aria-hidden','true');
+  }
+
+  function applySettings(){
+    // read checkboxes
+    const checked = Array.from(typeList.querySelectorAll('input[type="checkbox"]'))
+      .filter(i => i.checked)
+      .map(i => i.value);
+
+    // read tenant
+    const newTenant = tenantInput.value.trim();
+
+    // Update global variables (in page scope)
+    if (typeof typesAllowed !== "undefined") {
+      typesAllowed = checked;
+    }
+
+    // persist
+    saveSettings({ allowed: checked, tenant: newTenant });
+
+    // update send buttons enable/disable
+    if (typeof document !== "undefined") {
+      document.querySelectorAll(".send-button[data-type]").forEach(btn => {
+        const t = btn.getAttribute('data-type');
+        // '--' delete and others keep enabled regardless? Keep delete enabled
+        if (t === '--') { btn.disabled = false; btn.style.opacity = ''; return; }
+        const enabled = checked.includes(t);
+        btn.disabled = !enabled;
+        btn.style.opacity = enabled ? '' : '0.45';
+      });
+
+      // update data
+      updateFilteredData();
+
+    }
+
+    // Update typeFilter options
+    try {
+      const tf = document.getElementById('typeFilter');
+      if (tf) {
+        // rebuild options: include 'all' and each allowed type with readable text
+        tf.innerHTML = '';
+        const optAll = document.createElement('option');
+        optAll.value = 'all';
+        optAll.textContent = 'All Types';
+        tf.appendChild(optAll);
+        checked.forEach((t) => {
+          const o = document.createElement('option');
+          o.value = t;
+          o.textContent = typeLabels[t] ? typeLabels[t].replace(/\s*\(.+\)$/,'') : t;
+          tf.appendChild(o);
+        });
+        // keep current selection valid
+        if (![...tf.options].some(o => o.value === (typeFilter ? typeFilter.value : null))) {
+          tf.value = checked[0] || 'all';
+        }
+        tf.dispatchEvent(new Event('change'));
+      }
+    } catch(e){ console.warn("typeFilter update failed", e); }
+
+    // Apply tenant change
+    if (newTenant && newTenant !== tenantId) {
+      tenantId = newTenant;
+      // update URL param without reload
+      const url = new URL(window.location.href);
+      url.searchParams.set('tenantId', tenantId);
+      window.history.replaceState({}, '', url.toString());
+      // reset and reload data using existing functions
+      if (typeof resetData === "function") resetData(tenantId, "changed by settings");
+      if (typeof loadData === "function") {
+        let newUrl = "entry/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
+        if (window.location.protocol === "file:" || window.location.hostname === "localhost") {
+          newUrl = "entries_local_"+ encodeURIComponent(tenantId) +".json";
+        }
+        loadData(newUrl);
+      }
+    }
+
+    closeSettings();
+    showToast("Einstellungen übernommen", "success", 2000);
+  }
+
+  // show QR using existing showQRCode function (uses tenantId)
+  function showQrFromSettings(){
+    closeSettings();
+    const t = tenantInput.value.trim() || tenantId;
+    if (typeof showQRCode === "function") { // toggle qrcode section
+      const qrSection = document.getElementById('qr-code-section');
+      if (qrSection.style.display === 'none' || qrSection.style.display === '')  {
+        showQRCode(t);
+        // scroll to qr section
+        setTimeout(() => {
+          qrSection.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
+      } else {
+        qrSection.style.display = 'none';
+      }
+    } else {
+      showToast("QR-Funktion nicht verfügbar", "error", 2000);
+    }
+  }
+
+  // go to main page
+  function goMain(){
+    // clickProjectTitle(); // available after load ...
+    toggleUserModeShowOrWork();
+    // window.location.href = window.location.origin + window.location.pathname + (tenantId ? "?tenantId=" + encodeURIComponent(tenantId) : "");
+    closeSettings();
+  }
+
+  // wire events
+  openBtn && openBtn.addEventListener('click', (e) => { e.preventDefault(); openSettings(); });
+  closeBtn && closeBtn.addEventListener('click', (e) => { e.preventDefault(); closeSettings(); });
+  applyBtn && applyBtn.addEventListener('click', (e) => { e.preventDefault(); applySettings(); });
+  qrBtn && qrBtn.addEventListener('click', (e) => { e.preventDefault(); showQrFromSettings(); });
+  mainBtn && mainBtn.addEventListener('click', (e) => { e.preventDefault(); goMain(); });
+
+  // close overlay when clicking outside panel
+  overlay.addEventListener('click', (ev) => {
+    if (ev.target === overlay) closeSettings();
+  });
+
+  // initialize initial state from localStorage on DOM ready
+  document.addEventListener('DOMContentLoaded', () => {
+    const s = loadSettings();
+    // apply initial type set immediately
+    if (s.allowed && typeof typesAllowed !== "undefined") {
+      typesAllowed = s.allowed;
+    }
+    // tenant initial
+    if (s.tenant) {
+      tenantId = s.tenant;
+    }
+    // update send buttons to reflect persisted state
+    if (document.querySelectorAll) {
+      document.querySelectorAll(".send-button[data-type]").forEach(btn => {
+        const t = btn.getAttribute('data-type');
+        if (t === '--') { btn.disabled = false; return; }
+        const enabled = s.allowed.includes(t);
+        btn.disabled = !enabled;
+        btn.style.opacity = enabled ? '' : '0.45';
+      });
+    }
+    // update typeFilter options if present
+    const tf = document.getElementById('typeFilter');
+    if (tf) {
+      tf.innerHTML = '';
+      const optAll = document.createElement('option');
+      optAll.value = 'all';
+      optAll.textContent = 'All Types';
+      tf.appendChild(optAll);
+      s.allowed.forEach((t) => {
+        const o = document.createElement('option');
+        o.value = t;
+        o.textContent = typeLabels[t] ? typeLabels[t].replace(/\s*\(.+\)$/,'') : t;
+        tf.appendChild(o);
+      });
+      tf.value = s.allowed[0] || 'all';
+      tf.dispatchEvent(new Event('change'));
+    }
+  });
+
+
+   /*
+       swipe to vote on mobile devices
+   */
+
+    // Swipe-Voting: attach to rows after sie erstellt wurden (z.B. am Ende von displayData())
+    function addSwipeHandlersToAllRows() {
+       console.log("Adding swipe handlers to all rows...");
+       document.querySelectorAll("tbody tr").forEach(addSwipeHandlersToRow);
+    }
+
+    function addSwipeHandlersToRow(row) {
+      // prevent double-binding
+      if (row.__swipeBound) return;
+      row.__swipeBound = true;
+
+      let startX = 0, startY = 0, startTime = 0;
+      const MIN_SWIPE_DISTANCE = 50; // px
+      const MAX_HORIZONTAL_DRIFT = 50; // px
+      const MAX_SWIPE_TIME = 700; // ms
+
+      function getIdsFromRow(r) {
+        // prefer data attributes if set
+        if (r.dataset && r.dataset.topic && r.dataset.nodeId) {
+          return { topic: r.dataset.topic, nodeId: r.dataset.nodeId };
+        }
+        // try anchors with data attributes
+        const a = r.querySelector("a[data-topic][data-node-id], a[data-topic][data-node]");
+        if (a) {
+          return { topic: a.dataset.topic, nodeId: a.dataset.nodeId || a.dataset.node };
+        }
+        // try elements with data-fullkey (format: /topic/nodeId or /nodeId)
+        const fkEl = r.querySelector("[data-fullkey]");
+        if (fkEl && fkEl.dataset.fullkey) {
+          const fk = fkEl.dataset.fullkey;
+          const lastSlash = fk.lastIndexOf("/");
+          if (lastSlash > 0) {
+            return { topic: fk.substring(0, lastSlash) || "/", nodeId: fk.substring(lastSlash+1) };
+          }
+        }
+        // fallback: no ids found
+        return { topic: null, nodeId: null };
+      }
+
+      function debounceKey(key, interval) {
+        const now = Date.now();
+        if (!debounceKey.lastTimes) debounceKey.lastTimes = {};
+        if (debounceKey.lastTimes[key] && (now - debounceKey.lastTimes[key]) < interval) {
+          return true; // still in debounce period
+        }
+        debounceKey.lastTimes[key] = now;
+        return false;
+      }
+
+      function handleVoteAction(topic, nodeId, delta, rowEl) {
+        // debounce - prevent multiple votes on same row in short time
+        if (debounceKey("swipevote_" + topic + "_" + nodeId, 1000)) {
+          console.log("Swipe vote action debounced for", topic, nodeId);
+          return;
+        }
+        if (!topic || !nodeId) {
+          // dispatch event anyway to allow external handling
+          document.dispatchEvent(new CustomEvent("swipevote", { detail: { topic, nodeId, delta, row: rowEl } }));
+          return;
+        }
+        // try existing global function first
+        if (typeof window.voteEntry === "function") {
+          try {
+            window.voteEntry(topic, nodeId, delta);
+            return;
+          } catch (e) {
+            console.warn("voteEntry failed:", e);
+          }
+        }
+        // fallback: dispatch event so host app can process it
+        document.dispatchEvent(new CustomEvent("swipevote", { detail: { topic, nodeId, delta, row: rowEl } }));
+      }
+
+      // Touch events
+      row.addEventListener("touchstart", function (ev) {
+        console.log("touchstart on row");
+        const t = ev.touches[0];
+        startX = t.clientX; startY = t.clientY; startTime = Date.now();
+      }, {passive: true});
+
+      row.addEventListener("touchend", function (ev) {
+        // last touch point not available reliably on touchend; use changedTouches
+        console.log("touchend on row");
+        const t = ev.changedTouches && ev.changedTouches[0];
+        if (!t) return;
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        const dt = Date.now() - startTime;
+        if (dt > MAX_SWIPE_TIME) return;
+        if (Math.abs(dx) >= MIN_SWIPE_DISTANCE && Math.abs(dy) <= Math.abs(dx) / 2) {
+          const ids = getIdsFromRow(row);
+          // debounce to avoid multiple collision with pointer events
+          handleVoteAction(ids.topic, ids.nodeId, dx < 0 ? -1 : 1 , row);
+        } else {
+          console.log("not a valid swipe gesture, ignoring (dx=" + dx + ", dy=" + dy + ")");
+        }
+      }, {passive: true});
+
+      // Pointer / mouse fallback for desktop drag
+      let pointerDown = false;
+      row.addEventListener("pointerdown", (ev) => {
+        console.log("pointerdown on row");
+        pointerDown = true;
+        startX = ev.clientX; startY = ev.clientY; startTime = Date.now();
+        row.setPointerCapture && row.setPointerCapture(ev.pointerId);
+      });
+
+      row.addEventListener("pointerup", (ev) => {
+        if (!pointerDown) return;
+        console.log("pointerup on row");
+        pointerDown = false;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        const dt = Date.now() - startTime;
+        if (dt > MAX_SWIPE_TIME) {
+            console.log("swipe too slow, ignoring (" + dt + " ms)");
+            return;
+        }
+        if (Math.abs(dx) >= MIN_SWIPE_DISTANCE && Math.abs(dy) <= Math.abs(dx) / 2) {
+          const ids = getIdsFromRow(row);
+          handleVoteAction(ids.topic, ids.nodeId, dx < 0 ? -1 : 1 , row);
+        } else {
+          console.log("not a valid swipe gesture, ignoring (dx=" + dx + ", dy=" + dy + ")");
+        }
+        try { row.releasePointerCapture && row.releasePointerCapture(ev.pointerId); } catch(e){}
+      });
+
+      // Optional: visual feedback on swipe start
+      row.addEventListener("pointermove", (ev) => {
+        if (!pointerDown) return;
+        const dx = ev.clientX - startX;
+        // small translate for feedback
+        row.style.transform = `translateX(${Math.max(-10, Math.min(10, dx / 8))}px)`;
+      });
+      ["pointerup","pointercancel","pointerleave"].forEach(evt => {
+        row.addEventListener(evt, () => { row.style.transform = ""; pointerDown = false; });
+      });
+    }
+
+    // Beispiel: consumer kann so auf das Event reagieren
+    document.addEventListener("swipevote", function(e) {
+      let { topic, nodeId, delta, row } = e.detail;
+      [topic, nodeId] = splitKey(row.dataset.fullNodeId); // should be in details ...
+      console.log("Swipe vote event:", { topic, nodeId, delta, row });
+      // Beispiel: zeige Toast (falls showToast vorhanden)
+      if (!topic || !nodeId) {
+        console.warn("No topic/nodeId available for swipe vote - cannot process.");
+        return;
+      }
+      addVoteByGui(topic, nodeId, delta);
+      sendVote(topic, nodeId, delta);
+      // Falls eigene Logik: sende an backend oder update lokale Daten
+      // z.B. send vote via entry/vote?tid=...&topic=...&nodeId=...&delta=...
+    });
+
+    // JS helpers: formatVoteBadge + update helper
+    function formatVoteBadge(votes) {
+      const n = Number(votes) || 0;
+      let cls = 'neutral';
+      let text = String(n);
+      if (n > 0) { cls = 'positive'; text = '+' + n; }
+      else if (n < 0) { cls = 'negative'; }
+      else if (n === 0) { cls = 'zero'; text = '0'; }
+      // use data-votes for easy updates
+      return `<span class="vote-badge ${cls}" role="status" aria-label="Votes" data-votes="${n}">${text}</span>`;
+    }
+
+
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func.apply(this, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+</script>

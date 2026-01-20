@@ -8,9 +8,9 @@
     $allowedFiles = $config['allowedDownloadFiles'] ?? [];
     $debug=true;
     if (!in_array($downloadFile, $allowedFiles)) {
-        log_debug("Allowed files: " . implode(", ", $allowedFiles));
+        //log_debug("Allowed files: " . implode(", ", $allowedFiles));
         log_error("File not allowed: " . $downloadFile);
-        die("File not allowed.");
+        die("Download of file restricted.");
     }
 
     // check file exists
@@ -40,6 +40,6 @@
     readfile($downloadFile);
     $data = "file=" . $downloadFile;
 
-    log_return( str_leng($response) . " bytes saved ( " . $data . ")"  );
+    log_return("downloaded: " . $data . ""  );
 
 ?>

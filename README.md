@@ -1,7 +1,7 @@
 # infopedia_php
 
 
-your are writing a wiki page. wirte a php script to
+your are writing a wiki page. write a php script to
 - dowload a google sheet
 - chache the google sheet content in a file named sheet.cache
 - the chach should be invalid every hour
@@ -26,3 +26,9 @@ your are writing a wiki page. wirte a php script to
   - the entry_content is a link to the page addressing the entry as topic
     - link target is the first part of the entry before the last " | " 
     
+
+
+## helper excel
+# sort by parent+node+time
+  
+  =WECHSELN(LINKS(B2,FINDEN(" | ",WECHSELN(B2," | ","|| ",1)))," | ","/")

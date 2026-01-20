@@ -1,9 +1,40 @@
 RewriteEngine On
 
+RewriteCond %{REQUEST_URI} !^/dev/?(.*)$ [NC]
+
 # Apply rules only if the request contains /infopedia
-RewriteCond %{REQUEST_URI} ^/infopedia
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^infopedia(/.*)$ infopedia/infopedia.php?topic=$1 [QSA,L]
-RewriteRule ^infopedia/$ infopedia/infopedia.php?topic=/ [QSA,L]
-RewriteRule ^infopedia$ infopedia/infopedia.php?topic=/ [QSA,L]
+# RewriteCond %{REQUEST_FILENAME} !-f
+#RewriteRule ^()$ /echo.php?request0=$1 [QSA,L]
+#RewriteRule ^(/?)$ echo.php?request1=$1 [QSA,L]
+RewriteRule ^/?$ infopedia.php?topic=/ [QSA,L]
+RewriteRule ^/?InfoPedia_Steckbrief.pdf$ download.php?file=InfoPedia_Steckbrief.pdf [QSA,L]
+RewriteRule ^/?(infopedia/)?InfoPedia.apk$ download.php?file=InfoPedia.apk [QSA,L]
+RewriteRule ^/?(infopedia/)?fayf.apk$ download.php?file=fayf.apk [QSA,L]
+#RewriteRule ^/?download/?$ download.php [QSA,L]
+#
+RewriteRule ^/?(entries)(/get)?/?$ read.php?type=entry&op=get [QSA,L]
+RewriteRule ^/?(votes)(/get)?/?$ read.php?type=vote&op=get [QSA,L]
+RewriteRule ^/?(entry|vote)(/get)?/?$ read.php?type=$1&op=get [QSA,L]
+RewriteRule ^/?(entry|vote)/add/?$ upload.php?type=$1&op=add [QSA,L]
+RewriteRule ^/?(dump)(/add)?/?$ upload.php?type=$1&op=add [QSA,L]
+#
+RewriteRule ^favicon.ico favicon.ico [NC,L]
+RewriteRule ^favicon-16x16\.png favicon-16x16.png [NC,L]
+RewriteRule ^favicon-32x32\.png favicon-32x32.png [NC,L]
+RewriteRule ^apple-touch-icon\.png apple-touch-icon.png [NC,L]
+RewriteRule ^android-chrome-192x192\.png android-chrome-192x192.png [NC,L]
+RewriteRule ^android-chrome-512x512\.png android-chrome-512x512.png [NC,L]
+RewriteRule ^site.webmanifest site.webmanifest [NC,L]
+RewriteRule ^robots.txt robots.txt [NC,L]
+
+#
+# catch-all rule for other requests
+# -- https://serverfault.com/questions/241907/rewriterules-not-stopping-with-last-flag
+RewriteCond %{REQUEST_URI} !^/(infopedia/)?(favicon\.ico|favicon-16x16\.png|favicon-32x32\.png|apple-touch-icon\.png|android-chrome-192x192\.png|android-chrome-512x512\.png|site\.webmanifest|robots\.txt)$
+RewriteCond %{REQUEST_URI} !^/(infopedia/)?(echo|read|infopedia|upload|statistic|download)\.php$
+RewriteCond %{REQUEST_URI} !^/(infopedia/)?(styles|styles_statistic)\.css$
+RewriteCond %{REQUEST_URI} !^/(infopedia/)?InfoPedia.apk$
+# RewriteRule ^(.*)$ echo.php?request_catch_all=$1 [QSA,L]
+#RewriteRule ^(.*)$ infopedia.php?topic=/ [QSA,L]
+RewriteRule ^(.*)$ infopedia.php?topic=/&missed=$1 [QSA,L]
+# End of .htaccess
