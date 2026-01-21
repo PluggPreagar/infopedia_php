@@ -226,6 +226,21 @@ $timestamp_max_allowed = date('Y-m-d H:i:s', time() - 1);
 // Fetch the content from the Google Sheet
 $response = @file_get_contents($googleSheetUrl);
 
+$creationAllowed=true;
+if ($response === false && $creationAllowed) {
+    // replace "vote" with "entry" in googleSheetUrl
+    $googleSheetEntryUrl = str_replace('votes', 'entries', $googleSheetUrl);
+    if (file_exists($googleSheetEntryUrl)) {
+        // create empty csv with header
+        $header = "Timestamp,Topic | Node | Message | Votes\n";
+        file_put_contents($googleSheetUrl, $header);
+        log_info("Created new vote sheet from entry sheet: {$googleSheetUrl}");
+        $response = @file_get_contents($googleSheetUrl);
+    } else {
+        log_warn("Cannot create vote sheet, entry sheet does not exist: {$googleSheetEntryUrl}");
+    }
+}
+
 if ($response === false) {
 
     //http_response_code(500);

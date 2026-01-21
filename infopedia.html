@@ -871,6 +871,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     let userMode = "show"; // "show" | "work
     let typesAvailable = [".", "?", "??", "!", "!-", "@"];
     let typesAllowed = [".", "?", "??", "!", "!-"];
+    let systemId = "www"; // identifier of the current system
 
     const tableBody = document.querySelector("#browse tbody");
     const topicFilter = document.getElementById("topicFilter");
@@ -936,13 +937,36 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         lastRuntimeCheckValue = currentValue;
         // list call stack
         console.log("Call stack:", new Error().stack);
+        // list last 5 Stack entries
+        console.log("Last stack entries:", lastRuntimeCheckStack.slice(-5));
         console.log("-----------    Runtime Check  --  End    -----------");
     }
 
+    function setTenantId(newTenantId) {
+        runtimeCheck("setTenantId");
+        if (newTenantId === tenantId) {
+            console.log("TenantId unchanged:", newTenantId);
+            return;
+        }
+        console.log("Changing tenantId from", tenantId, "to", newTenantId);
+        tenantId = newTenantId;
+        if (newTenantId === "MOCK") {
+            console.log("Setting tenantId to MOCK for testing purposes.");
+        } else {
+            // modify url - may use tenantId or tid as param
+            const url = new URL(window.location);
+            url.searchParams.set("tid", newTenantId);
+            url.searchParams.delete("tenantId"); // remove old param if present
+            window.history.pushState({}, '', url);
+            //
+            showToast("Tenant gewechselt zu: " + (newTenantId || "PUBLIC"), "info");
+        }
+        runtimeCheck("setTenantId-end");
+    }
 
     function resetData(newTenantId = "", msg="") {
         console.log("-----------    Resetting data. '" + newTenantId + "' " + ( msg ? "( "+ msg + " )" : "" ) + "    -----------");
-        tenantId = newTenantId; // set tenantId, !!! may change data-load-behavior !!!
+        setTenantId(newTenantId); // set tenantId, !!! may change data-load-behavior !!!
         data = {};
         topicMap = {};
         selectedTopic = "/";
@@ -1010,7 +1034,8 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     function addVoteByGui(topic, nodeId, deltaVotes) {
         runtimeCheck("addVoteByGui");
         if (data[topic] && data[topic][nodeId]) {
-            data[topic][nodeId].votes = (data[topic][nodeId].votes || 0) + deltaVotes;
+            // enforce numeric value from votes and than add delta
+            data[topic][nodeId].votes = (Number(data[topic][nodeId].votes) || 0) + Number(deltaVotes);
             // reorder in topic - order by votes - NOT POSSIBLE with numeric keys -> order on redering
             data[topic] = Object.fromEntries(
                 Object.entries(data[topic])
@@ -1028,13 +1053,30 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
     function setVoteByOthers(topic, nodeId, votes) {
         runtimeCheck("setVoteByOthers");
-        if (data[topic] && data[topic][nodeId]) {
-            data[topic][nodeId].votes = votes;
-            if (selectedTopic === topic) {// only update if in current view
-                updateFilteredData(topic, nodeId, data[topic][nodeId].message);
+        // nodeId of votes is <nodeId>"::Vote::"<systemId>  (where systemId is null for my votes)
+        const [baseNodeId, voteSystemId] = nodeId.split("::Vote::");
+        if (data[topic] && data[topic][baseNodeId]) {
+            if (!voteSystemId || voteSystemId == systemId) { // own votes
+                data[topic][baseNodeId].votes = votes;
+                if (selectedTopic === topic) {// only update if in current view
+                    updateFilteredData(topic, nodeId, data[topic][baseNodeId].message);
+                }
+            } else {
+                console.log("Set vote by other system:", voteSystemId, "to", votes, "for topic:", topic, "nodeId:", baseNodeId);
+                if (!data[topic][baseNodeId].voteOthersDetail) {
+                    data[topic][baseNodeId].voteOthersDetail = {};
+                }
+                data[topic][baseNodeId].voteOthersDetail[voteSystemId] = votes; // for now - accept all votes
+                // sum up all votes from others - for ranking
+                let totalVotesFromOthers = 0;
+                Object.values(data[topic][baseNodeId].voteOthersDetail).forEach(v => {
+                    totalVotesFromOthers += Number(v) || 0;
+                });
+                // set total votes = own votes + votes from others
+                data[topic][baseNodeId].votesOthers = totalVotesFromOthers;
             }
         } else {
-            console.log("Cannot set vote - entry not found for topic:", topic, "nodeId:", nodeId);
+            console.log("Cannot set vote - entry not found for topic:", topic, "baseNodeId:", baseNodeId, "from system:", voteSystemId, "nodeId:", nodeId);
         }
         runtimeCheck("setVoteByOthers-end");
     }
@@ -1463,16 +1505,16 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     const urlParams = new URLSearchParams(window.location.search);
 
     // Retrieve the tenantId parameter or default to "tst" if not provided
-    tenantId = urlParams.get('tenantId') || urlParams.get('tid') || '';
+    setTenantId( urlParams.get('tenantId') || urlParams.get('tid') || '');
     // localhost fallback
     if (tenantId === "" && window.location.hostname === "localhost") {
         console.log("No tenantId provided, running on localhost - using default tenant 'tst'.");
-        tenantId = "tst"; // default tenant
+        setTenantId( "tst" ); // default tenant
     }
     // Validate tenantId (alphanumeric, underscores, hyphens, max length 30)
     if (!/^[a-zA-Z0-9_-]+$/.test(tenantId) || tenantId.length > 30) {
         console.error("Invalid tenant ID.");
-        tenantId = "tst"; // fallback to default
+        setTenantId( "tst" ); // fallback to default
     } else {
         console.log("Valid tenant ID:", tenantId);
         if  (tenantId !== 'tst') {
@@ -1481,8 +1523,8 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         }
     }
 
-    let url = "entry/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
-    let urlVote = "vote/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
+    let url = "entry/get?sid=" + encodeURIComponent(systemId)  + "&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
+    let urlVote = "vote/get?sid=" + encodeURIComponent(systemId)  + "&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
     // for local testing, use local CSV file
     // check if running from file://
     if (window.location.protocol === "file:") {
@@ -2469,14 +2511,14 @@ if (overlayContent) {
                     }
                 }
 
-                // send entry/add?sid=www&tid={tenantId}&topic={topic}&data={message}{type}
+                // send entry/add?sid=" + encodeURIComponent(systemId)  + "&tid={tenantId}&topic={topic}&data={message}{type}
                 // generate nodeId as timestamp + random
                 const nodeId = currentNodeId || generateNodeId();
                 const entry = topic + " | " + nodeId + " | " + message + type;
                 // timestamp format: YYYY-MM-DD HH:MM:SS
                 let entryTimestamp = new Date().toISOString().slice(0, 19).replace("T", " ");
                 addEntry(topic, nodeId, message, "0", entryTimestamp);
-                const sendUrl = `entry/add?sid=www&tid=${encodeURIComponent(tenantId)}&entry=${encodeURIComponent(entry)}`;
+                const sendUrl = `entry/add?sid=" + encodeURIComponent(systemId)  + "&tid=${encodeURIComponent(tenantId)}&entry=${encodeURIComponent(entry)}`;
                 if (tenantId === "MOCK") {
                     console.log("Mock tenant - skipping sending entry to URL:", sendUrl);
                     mockIO.push(sendUrl);
@@ -2519,7 +2561,7 @@ if (overlayContent) {
                 return;
             }
             const entryVote = topic + " | " + nodeId + " | " + entry.message + " | " + vote;
-            const voteUrl = `vote/add?sid=www&tid=${encodeURIComponent(tenantId)}`
+            const voteUrl = `vote/add?sid=" + encodeURIComponent(systemId)  + "&tid=${encodeURIComponent(tenantId)}`
                             + `&entry=${encodeURIComponent(entryVote)}`;
             if (tenantId === "MOCK") {
                 console.log("Mock tenant - skipping sending vote to URL:", voteUrl);
@@ -3310,19 +3352,25 @@ if (overlayContent) {
 
   // Load persisted settings or defaults
   function loadSettings(){
+    runtimeCheck("loadSettings");
     try {
       const saved = JSON.parse(localStorage.getItem('fayf_settings') || '{}');
       const allowed = saved.typesAllowed || typesAllowed || [".","?","??","!","!-"];
-      const tenant = saved.tenantId !== undefined ? saved.tenantId : tenantId || "";
+      const tenant = saved.tenantId !== undefined || !saved.tenantId ? saved.tenantId : tenantId || "";
+      runtimeCheck("loadSettings-end");
       return { allowed, tenant };
     } catch(e){
+      runtimeCheck("loadSettings-end");
       return { allowed: typesAllowed || [".","?","??","!","!-"], tenant: tenantId || "" };
     }
+    runtimeCheck("loadSettings-end");
   }
 
   function saveSettings(settings){
+    runtimeCheck("saveSettings");
     const payload = { typesAllowed: settings.allowed, tenantId: settings.tenant };
     localStorage.setItem('fayf_settings', JSON.stringify(payload));
+    runtimeCheck("saveSettings-end");
   }
 
   function buildTypeCheckboxes(allowed){
@@ -3349,12 +3397,14 @@ if (overlayContent) {
   }
 
   function openSettings(){
+    runtimeCheck("openSettings");
     const s = loadSettings();
     tenantInput.value = s.tenant;
     buildTypeCheckboxes(s.allowed);
     overlay.style.display = 'block';
     overlay.setAttribute('aria-hidden','false');
     mainBtn.textContent = userMode === 'show' ? 'APP-Ansicht' : 'Übersicht';
+    runtimeCheck("openSettings-end");
   }
 
   function closeSettings(){
@@ -3363,6 +3413,7 @@ if (overlayContent) {
   }
 
   function applySettings(){
+    runtimeCheck("applySettings");
     // read checkboxes
     const checked = Array.from(typeList.querySelectorAll('input[type="checkbox"]'))
       .filter(i => i.checked)
@@ -3421,20 +3472,18 @@ if (overlayContent) {
 
     // Apply tenant change
     if (newTenant && newTenant !== tenantId) {
-      tenantId = newTenant;
-      // update URL param without reload
-      const url = new URL(window.location.href);
-      url.searchParams.set('tenantId', tenantId);
-      window.history.replaceState({}, '', url.toString());
+      setTenantId( newTenant);
       // reset and reload data using existing functions
       if (typeof resetData === "function") resetData(tenantId, "changed by settings");
       if (typeof loadData === "function") {
-        let newUrl = "entry/get?sid=www&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
+        let newUrl = "entry/get?sid=" + encodeURIComponent(systemId)  + "&tid=" + encodeURIComponent(tenantId)  + "&topicId=/&format=json.0.3";
         if (window.location.protocol === "file:" || window.location.hostname === "localhost") {
           newUrl = "entries_local_"+ encodeURIComponent(tenantId) +".json";
         }
         loadData(newUrl);
       }
+      //
+      runtimeCheck("applySettings-end");
     }
 
     closeSettings();
@@ -3483,6 +3532,7 @@ if (overlayContent) {
 
   // initialize initial state from localStorage on DOM ready
   document.addEventListener('DOMContentLoaded', () => {
+    runtimeCheck("settings-DOMContentLoaded");
     const s = loadSettings();
     // apply initial type set immediately
     if (s.allowed && typeof typesAllowed !== "undefined") {
@@ -3490,7 +3540,7 @@ if (overlayContent) {
     }
     // tenant initial
     if (s.tenant) {
-      tenantId = s.tenant;
+      setTenantId( s.tenant);
     }
     // update send buttons to reflect persisted state
     if (document.querySelectorAll) {
@@ -3519,6 +3569,7 @@ if (overlayContent) {
       tf.value = s.allowed[0] || 'all';
       tf.dispatchEvent(new Event('change'));
     }
+    runtimeCheck("settings-DOMContentLoaded-end");
   });
 
 
