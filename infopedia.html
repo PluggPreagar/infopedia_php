@@ -90,6 +90,15 @@ tr {
             text-align: right;
             padding-left: 1rem;
         }
+        td:first-child, th:first-child, leftRowEnd { /* does not work if column is too small */
+            border-radius: 10px 0 0 10px;
+            min-width: 10px;
+        }
+        td:last-child, th:last-child {
+            border-radius: 0 10px 10px 0;
+        }
+
+
         @media (max-width: 600px) {
             td:nth-last-child(2), td:last-child, th:last-child {
                 padding-left: 0;
@@ -871,7 +880,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     let userMode = "show"; // "show" | "work
     let typesAvailable = [".", "?", "??", "!", "!-", "@"];
     let typesAllowed = [".", "?", "??", "!", "!-"];
-    let systemId = "www"; // identifier of the current system
+    let systemId = "www"; // temporary identifier of the current system, will be set from settings or random
 
     const tableBody = document.querySelector("#browse tbody");
     const topicFilter = document.getElementById("topicFilter");
@@ -944,8 +953,8 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
     function setTenantId(newTenantId) {
         runtimeCheck("setTenantId");
-        if (newTenantId === tenantId) {
-            console.log("TenantId unchanged:", newTenantId);
+        if (newTenantId === tenantId || !newTenantId) {
+            console.log("TenantId unchanged:", newTenantId, "(keep current:", tenantId, ")");
             return;
         }
         console.log("Changing tenantId from", tenantId, "to", newTenantId);
@@ -962,6 +971,22 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             showToast("Tenant gewechselt zu: " + (newTenantId || "PUBLIC"), "info");
         }
         runtimeCheck("setTenantId-end");
+    }
+
+    function setSystemId(newSystemId) {
+        runtimeCheck("setSystemId");
+        if (newSystemId.length < 5) { // as "www"
+            console.log("SystemId too short", newSystemId, "- generating random id"); // will be part of settings
+            newSystemId = "www_" + Math.random().toString(36).substring(2, 10); // e.g. www_k3j9f8l2
+        }
+        if (newSystemId === systemId || !newSystemId) {
+            console.log("SystemId unchanged:", newSystemId, "(keep current:", systemId, ")");
+            return;
+        }
+        console.log("Changing systemId from", systemId, "to", newSystemId);
+        systemId = newSystemId;
+        showToast("System-ID gewechselt zu: " + newSystemId, "info");
+        runtimeCheck("setSystemId-end");
     }
 
     function resetData(newTenantId = "", msg="") {
@@ -3357,8 +3382,9 @@ if (overlayContent) {
       const saved = JSON.parse(localStorage.getItem('fayf_settings') || '{}');
       const allowed = saved.typesAllowed || typesAllowed || [".","?","??","!","!-"];
       const tenant = saved.tenantId !== undefined || !saved.tenantId ? saved.tenantId : tenantId || "";
+      const system = saved.systemId !== undefined || !saved.systemId ? saved.systemId : systemId || "";
       runtimeCheck("loadSettings-end");
-      return { allowed, tenant };
+      return { allowed, tenant , system };
     } catch(e){
       runtimeCheck("loadSettings-end");
       return { allowed: typesAllowed || [".","?","??","!","!-"], tenant: tenantId || "" };
@@ -3368,7 +3394,7 @@ if (overlayContent) {
 
   function saveSettings(settings){
     runtimeCheck("saveSettings");
-    const payload = { typesAllowed: settings.allowed, tenantId: settings.tenant };
+    const payload = { typesAllowed: settings.allowed, tenantId: settings.tenant, systemId: systemId };
     localStorage.setItem('fayf_settings', JSON.stringify(payload));
     runtimeCheck("saveSettings-end");
   }
@@ -3539,9 +3565,8 @@ if (overlayContent) {
       typesAllowed = s.allowed;
     }
     // tenant initial
-    if (s.tenant) {
-      setTenantId( s.tenant);
-    }
+    setTenantId( s.tenant);
+    setSystemId( s.system || systemId );
     // update send buttons to reflect persisted state
     if (document.querySelectorAll) {
       document.querySelectorAll(".send-button[data-type]").forEach(btn => {
