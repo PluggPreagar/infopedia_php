@@ -21,7 +21,9 @@ if (file_exists($filePath)) {
 } else {
     $fileTimestamp = "";
 }
-$response = str_replace("<!-- timestamp -->", "created: $currentTimestamp / data updated: $fileTimestamp / ", $response);
+$response = str_replace("<!-- timestamp -->", "created: $currentTimestamp / data updated: <div id='data-timestamp' style='display: inline-block'> $fileTimestamp </div>/ ", $response);
+$response = str_replace("<!-- created_timestamp -->", $currentTimestamp, $response);
+$response = str_replace("<!-- data_timestamp -->", $fileTimestamp, $response);
 
 echo $response;
 

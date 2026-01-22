@@ -153,6 +153,7 @@ tr {
             padding: 1rem;
             max-width: 800px;
             margin: auto;
+            width: 90%;
         }
         footer {
             background: #333;
@@ -618,7 +619,18 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             border-top: 4px solid hsl(0, 70%, 45%);
         }
 
+        .pulse {
+          animation: pulseAnimation 0.3s;
+        }
+        @keyframes pulseAnimation {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.2); color: #00ff00; }
+          100% { transform: scale(1); }
+        }
 
+        /* optional: einfache Einrückung / Stil für verschachtelte Listen */
+      .top-list { list-style: disc; margin-left: 0.5rem; }
+      .top-list ul { list-style: circle; margin-left: 1.25rem; margin-top: 1rem; margin-bottom: 1rem; font-size: smaller; }
 
     </style>
     <!-- Add this script to include the QRCode.js library -->
@@ -693,16 +705,45 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     </nav>
     <section id="about">
         <h2>About the Project</h2>
-        <p>Das Projekt Fakt Farming widmet sich der Sammlung, Organisation und Präsentation zuverlässiger Informationen
+        <p>Das Projekt Fakt Farming widmet sich der Sammlung, Organisation und Präsentation von pauschalen Meinungen
             auf leicht zugängliche Weise.
             Unsere Mission ist es, Menschen mit Wissen zu stärken, fundierte Entscheidungen zu fördern
             und absichtliche Fehlinformationen sichtbar zu machen.
         </p>
-        <ul>
-            <li>"NutriScore" für öffentliche Äußerungen.</li>
-            <li>Dokumentation öffentlicher Aussagen.</li>
-            <li>Konstruktive (Gegen-) Fragen passend zum Kaffee.</li>
-            <li>Meinungslandkarte für alle.</li>
+        <p>Unser Ansatz basiert auf folgenden 3 Säulen. Diese sind folgende Inhalte untergeordnet:
+        </p>
+        <ul class="top-list">
+            <li><strong>Dokumentation öffentlicher Aussagen.</strong>
+                <ul>
+                    <li><strong>Wer hat</strong> was, wo und wie <strong>gesagt?</strong></li>
+                    <li><strong>Wie häufig</strong> und in welchem Zeitraum wurde es gesagt?</li>
+                    <li>In welchem <strong>Context</strong> wurde es gesagt.</li>
+                    <li>Steht es im <strong>Widerspruch</strong> zu anderen (eigenen) Aussagen.</li>
+                    <li>Wenn ja, wie wurde Meinungsänderung begründet.</li>
+                    <li>Wurde Angst <strong>instrumentalisiert</strong>.</li>
+                    <li>Steht es im Widerspruch zu Fakten.</li>
+                    <li>Welche <strong>Zielgruppe</strong> wurde (nicht) angesprochen.</li>
+                </ul>
+            </li>
+            <li>Sammlung <strong>"weicher Fakten"</strong>.
+                <ul>
+                    <li>Sammlung von <strong>Erkenntnissen</strong> die <strong>für die Meinungsbildung</strong> relevant sind.</li>
+                    <li>Bewertung <strong>Eintrittswahrscheinlichkeit und Variabilität</strong> (z.B. Unsicherheiten, Kontexte).</li>
+                    <li>Bewertung der Aussagekraft (z.B. Studienqualität, Stichprobengröße).</li>
+                    <li>Differenzierung nach Zielgruppen.</li>
+                    <li>Dokumentation von Referenzen, <strong>Original-Quellen</strong></li>
+                    <li>Dokumentation von Autoren und <strong>Supportern</strong> (Institutionen, Personen die diese Meinung unterstützen).</li>
+                    <li>Referenzierung zu (anderen) Meinungen zum Thema.</li>
+                </ul>
+            </li>
+            <li>Fakten <strong>ToGo</strong>.
+                <ul>
+                    <li><strong>"NutriScore"</strong> für öffentliche Aussagen.</li>
+                    <li>Leichtes Einbringen <strong>neuer Sichtweisen</strong>.</li>
+                    <li>Spielerisch mit <strong>Gegenfragen / Denkanstößen</strong> arbeiten.</li>
+                    <li>Filtern und bewerten nach <strong>persönlicher Relevanz</strong>.</li>
+                </ul>
+            </li>
         </ul>
         <!-- https://fayf.info/InfoPedia_Steckbrief.pdf -->
         <p>
@@ -853,8 +894,15 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     </div>
     <!-- footer -->
     <footer>
-        <p>&copy; 2026 Fakt Farming Project | fayf.info</p>
-        <div id="timestamp" style="font-size: 0.9rem; color: #fff; margin-top: 0.5rem;"><!-- timestamp --> version: 0.0.24</div>
+        <p>&copy; 2026 Fakt Farming Project | fayf.info | version: 0.0.25 </p>
+        <div style="display: inline-flex;font-size: 0.9rem;">
+            <div >created:&nbsp;</div>
+            <div id="created_timestamp" style=""><!-- created_timestamp --></div>
+            <div >&nbsp;|&nbsp;data:&nbsp;</div>
+            <div id="data_timestamp" style=""><!-- data_timestamp --></div>
+            <div style="display:none" >&nbsp;|&nbsp;check:&nbsp;</div>
+            <div id="check_timestamp" style="display:none"><!-- check_timestamp --></div>
+        </div>
     </footer>
     <div id="toast-container" style="position: fixed; top: 1rem; right: 1rem; z-index: 1000;"></div>
 </body>
@@ -874,6 +922,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     let topicMap = {}; // Map of topicId to topic name
     let selectedTopic = "/";
     let latestTimestamp = null;
+    let latestCheckTimestamp = null;
     let latestDisplayTs = null;
     let mockIO = []; // to be used in tests instead of real data-fetching/upload
     let mockToasts = []; // to be used in tests instead of real user-notices
@@ -973,11 +1022,34 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         runtimeCheck("setTenantId-end");
     }
 
+
+    function setCookie(name, value, days = 365) {
+      const d = new Date();
+      d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+      const expires = "expires=" + d.toUTCString();
+      // Nur Secure wenn Seite via https läuft
+      const secure = location.protocol === 'https:' ? "; Secure" : "";
+      document.cookie = name + "=" + encodeURIComponent(value) + "; " + expires + "; path=/; SameSite=Lax" + secure;
+    }
+
+    function getCookie(name) {
+      const re = new RegExp("(^|; )" + name.replace(/([.*+?^${}()|[\]\\])/g, "\\$1") + "=([^;]*)");
+      const m = document.cookie.match(re);
+      return m ? decodeURIComponent(m[2]) : null;
+    }
+
+
     function setSystemId(newSystemId) {
         runtimeCheck("setSystemId");
         if (newSystemId.length < 5) { // as "www"
-            console.log("SystemId too short", newSystemId, "- generating random id"); // will be part of settings
-            newSystemId = "www_" + Math.random().toString(36).substring(2, 10); // e.g. www_k3j9f8l2
+            const systemIdFromCookie = getCookie('fayf_systemId');
+            if (systemIdFromCookie && systemIdFromCookie.length >=5 && /^[a-zA-Z0-9_]+$/.test(systemIdFromCookie)) {
+                newSystemId = systemIdFromCookie;
+                console.log("Using systemId from cookie:", systemIdFromCookie);
+            } else {
+                console.log("SystemId too short", newSystemId, "- generating random id"); // will be part of settings
+                newSystemId = "www_" + Math.random().toString(36).substring(2, 10); // e.g. www_k3j9f8l2
+            }
         }
         if (newSystemId === systemId || !newSystemId) {
             console.log("SystemId unchanged:", newSystemId, "(keep current:", systemId, ")");
@@ -985,6 +1057,11 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         }
         console.log("Changing systemId from", systemId, "to", newSystemId);
         systemId = newSystemId;
+        try {
+            setCookie('fayf_systemId', systemId, 365);
+        } catch (e) {
+            console.warn('Could not persist systemId to cookie', e);
+        }
         showToast("System-ID gewechselt zu: " + newSystemId, "info");
         runtimeCheck("setSystemId-end");
     }
@@ -1589,6 +1666,17 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             } else {
                 console.log("Mock tenant - skipping data addition after fetch.");
             }
+            // replace data last-updated-timestamp
+            const divTimestamp = document.getElementById("data_timestamp");
+            const currentTimeStr = latestTimestamp;
+            if (divTimestamp) {
+                divTimestamp.textContent = formatTimestamp(currentTimeStr) || "jetzt";
+                // restart pulse animation
+                divTimestamp.classList.remove("pulse");
+                void divTimestamp.offsetWidth; // trigger reflow
+                divTimestamp.classList.add("pulse");
+            }
+            latestCheckTimestamp = new Date().toISOString();
         } catch (error) {
             console.error("Error loading data (" + url + "):", error);
             // do not clear table - keep old data
@@ -1678,6 +1766,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
 
     function formatTimestamp(timestamp) {
+
         const [datePart, timePart] = timestamp.split(" ");
         // handle date part DD/MM/YYYY and YYYY-MM-DD
         let [day, month, year] = datePart.split(/[-/]/).map(Number);
@@ -1707,6 +1796,34 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             return date.getFullYear().toString();
         }
     }
+
+    function updateTimeSinceLatestCheckTimestamp(){
+        if (latestCheckTimestamp) {
+            const now = new Date();
+            const diffMs = now - new Date(latestCheckTimestamp);
+            const diffSec = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSec / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            let timeSinceStr = "vor ";
+            if (diffDays > 0) {
+                timeSinceStr += diffDays + " Tag" + (diffDays > 1 ? "e" : "");
+            } else if (diffHours > 0) {
+                timeSinceStr += diffHours + " Stunde" + (diffHours > 1 ? "n" : "");
+            } else if (diffMins > 0) {
+                timeSinceStr += diffMins + " Minute" + (diffMins !== 1 ? "n" : "");
+            } else if (diffSec >= 0) {
+                timeSinceStr += diffSec + " Sekunde" + (diffSec !== 1 ? "n" : "");
+            } else {
+                timeSinceStr = "gerade eben";
+            }
+            document.getElementById("check_timestamp").textContent = timeSinceStr;
+        }
+    }
+
+    // schedule update of time since latest check
+    // setInterval(updateTimeSinceLatestCheckTimestamp, 5000); // every 5 seconds
+
 
     /*
         EFFECTS
