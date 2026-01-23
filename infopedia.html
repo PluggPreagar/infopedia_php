@@ -15,6 +15,7 @@
         body {
             display: flex;
             flex-direction: column;
+            background: #CFFCFF8C;
         }
         body {
             font-family: Arial, sans-serif;
@@ -151,7 +152,7 @@ tr {
 
         section {
             padding: 1rem;
-            max-width: 800px;
+            max-width: 1000px;
             margin: auto;
             width: 90%;
         }
@@ -632,6 +633,101 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
       .top-list { list-style: disc; margin-left: 0.5rem; }
       .top-list ul { list-style: circle; margin-left: 1.25rem; margin-top: 1rem; margin-bottom: 1rem; font-size: smaller; }
 
+        /*
+        * Hero Section Styles
+        */
+
+/* Responsive hero layout: text left, image right (falls Platz), else stacked */
+#hero {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap; /* ermöglicht Umbrechen bei kleinen Bildschirmen */
+  padding-bottom: 2rem;
+}
+
+/* Textbereich nimmt verfügbaren Platz */
+#hero-text_container {
+  flex: 1 1 360px; /* wachsen, schrumpfen, Basisbreite */
+  min-width: 200px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Image container behält seine Breite, zentriert den Inhalt */
+#hero-image_container {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  padding-left: 32px;
+}
+
+/* Overlay außen: begrenzte Breite auf großen Bildschirmen, responsive auf kleinen */
+#hero-image_overlay_outside {
+  width: 280px;
+  max-width: 100%;        /* schrumpft auf kleinen Bildschirmen */
+  aspect-ratio: 1 / 2;    /* Höhe = 2 * Breite (entspricht 280x560) */
+  background-color: rgba(0, 0, 0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 40px;
+  position: relative;     /* nötig, falls Innen-Elemente absolut positioniert sind */
+  box-sizing: border-box;
+  padding: 0;             /* innen übernimmt #hero_image_overlay_inside die Abstände */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 60px rgba(6, 223, 110, 0.15);
+}
+
+/* Innenbereich bleibt innerhalb der abgerundeten Fläche */
+#hero_image_overlay_inside {
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255);
+  margin: 8px;
+  border-radius: 32px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+/* Auf kleinen Bildschirmen: Spalten-Layout (Text oben, Bild unten) */
+@media (max-width: 800px) {
+  #hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  /* Stelle sicher, dass Text zuerst kommt und Bild darunter */
+  #hero-text_container { order: 1; }
+  #hero-image_container { order: 2; width: 100%; }
+  /* Overlay füllt dann die Breite */
+  #hero-image_overlay_outside {
+    width: 100%;
+    aspect-ratio: 1 / 2; /* behält Verhältnis bei */
+    max-width: none;
+  }
+  /* zweite Ebene von .top-list kompakter einrücken */
+  .top-list ul {
+    margin-left: 0rem;      /* reduziert äußeren Einzug */
+    padding-left: 1rem;       /* kontrolliert Abstand für den Bullet */
+  }
+
+  /* optional: tiefere Verschachtelungen noch kompakter */
+  .top-list ul ul {
+    margin-left: 0.25rem;
+    padding-left: 0.75rem;
+  }
+
+
+}
+
+
+
     </style>
     <!-- Add this script to include the QRCode.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -705,24 +801,52 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
     </nav>
     <section id="about">
         <h2>About the Project</h2>
-        <p>Das Projekt Fakt Farming widmet sich der Sammlung, Organisation und Präsentation von pauschalen Meinungen
-            auf leicht zugängliche Weise.
-            Unsere Mission ist es, Menschen mit Wissen zu stärken, fundierte Entscheidungen zu fördern
-            und absichtliche Fehlinformationen sichtbar zu machen.
-        </p>
+        <div id="hero">
+            <div id="hero-text_container">
+                <p>Willkommen bei <strong>FAYF.info - Fakten ToGo</strong>!</p>
+                <p>FAYF ist eine Plattform zum Sammeln und Voten von Meinungen. Es ist Teil des Projektes "Fakt Farming".</p>
+                <p>
+                    <strong>Testen Sie unsere <a href="?tid=tst" target="_blank">online App</a> heute schon!</strong>
+                    <br>
+                    Auf Anfrage bieten wir eine Version für Android / IOS an.
+                </p>
+                <p>Wir widmen uns der Sammlung, Organisation und Präsentation von pauschalen Meinungen
+                    auf leicht zugängliche Weise.
+                    Unsere Mission ist es, Menschen mit Wissen zu stärken, fundierte Entscheidungen zu fördern
+                    und absichtliche Fehlinformationen sichtbar zu machen.
+                </p>
+                <p>Dabei konzentrieren wir uns auf drei Eckpfeiler:
+                <ul class="top-list">
+                    <li>Dokumentation öffentlicher Aussagen - um <strong>Absichten</strong> und Wirkungen langfristig <strong>sichtbar zu machen</strong>.</li>
+                    <li>Sammlung "weicher Fakten" - als <strong>Referenz für Bewertung</strong> von Aussagen.</li>
+                    <li>Fakten ToGo - für deine <strong>tägliche</strong> Kommunikation und <strong>persönliche</strong> Entscheidungsfindung.</li>
+                </ul>
+                </p>
+            </div>
+            <div id="hero-image_container"> <!-- create a preview how app looks like -->
+                <div id="hero-image_overlay_outside" >
+                    <div id="hero_image_overlay_inside">
+                        <!-- <span style="font-size: 1.5rem; color: #333; text-align: center;">App Preview<br>(coming soon)</span> -->
+                        <img src="assets/appl_expl_frueher_whiteBckgr.png" alt="App Preview" style="width:100%; height:auto; object-fit:cover; border-radius:28px;align-self: flex-start;">
+
+                    </div>
+                </div>
+            </div>
+        </div>
         <p>Unser Ansatz basiert auf folgenden 3 Säulen. Diese sind folgende Inhalte untergeordnet:
         </p>
         <ul class="top-list">
-            <li><strong>Dokumentation öffentlicher Aussagen.</strong>
+            <li><strong>Dokumentation</strong> öffentlicher Aussagen.
                 <ul>
                     <li><strong>Wer hat</strong> was, wo und wie <strong>gesagt?</strong></li>
                     <li><strong>Wie häufig</strong> und in welchem Zeitraum wurde es gesagt?</li>
-                    <li>In welchem <strong>Context</strong> wurde es gesagt.</li>
-                    <li>Steht es im <strong>Widerspruch</strong> zu anderen (eigenen) Aussagen.</li>
-                    <li>Wenn ja, wie wurde Meinungsänderung begründet.</li>
-                    <li>Wurde Angst <strong>instrumentalisiert</strong>.</li>
-                    <li>Steht es im Widerspruch zu Fakten.</li>
-                    <li>Welche <strong>Zielgruppe</strong> wurde (nicht) angesprochen.</li>
+                    <li>In welchem <strong>Context</strong> wurde es gesagt?</li>
+                    <li>Steht es im Widerspruch zu Fakten?</li>
+                    <li>Steht es im <strong>Widerspruch</strong> zu anderen (eigenen) Aussagen?</li>
+                    <li>Wenn ja, wie wurde Meinungsänderung begründet?</li>
+                    <li>Wird Angst <strong>instrumentalisiert</strong>?</li>
+                    <li>Ist die Verzerrung/ Falschaussage ... offensichtlich absichtlich?</li>
+                    <li>Welche <strong>Zielgruppe</strong> wurde (nicht) angesprochen?</li>
                 </ul>
             </li>
             <li>Sammlung <strong>"weicher Fakten"</strong>.
@@ -821,6 +945,8 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
             <li>leichter Zugang (Web, App)</li>
             <li>einfache Recherche</li>
             <li>intuitive Beteiligung (Ergänzung, Voting)</li>
+            <li>private und gruppeninterne Räume</li>
+            <li>E2E-Verschlüsselung für Räume möglich</li>
         </ul>
     </section>
     <section id="contact">
@@ -1011,12 +1137,17 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         if (newTenantId === "MOCK") {
             console.log("Setting tenantId to MOCK for testing purposes.");
         } else {
-            // modify url - may use tenantId or tid as param
-            const url = new URL(window.location);
-            url.searchParams.set("tid", newTenantId);
-            url.searchParams.delete("tenantId"); // remove old param if present
-            window.history.pushState({}, '', url);
-            //
+            if ("tst" == newTenantId) {
+                console.log("Default tenantId 'tst' detected - do not persist in URL.");
+                // allow just refresh the initial page w/o switching to userWork-mode
+            } else {
+                // modify url - may use tenantId or tid as param
+                const url = new URL(window.location);
+                url.searchParams.set("tid", newTenantId);
+                url.searchParams.delete("tenantId"); // remove old param if present
+                window.history.pushState({}, '', url);
+                //
+            }
             showToast("Tenant gewechselt zu: " + (newTenantId || "PUBLIC"), "info");
         }
         runtimeCheck("setTenantId-end");
@@ -2738,6 +2869,10 @@ if (overlayContent) {
         if ("MOCK" === tenantId) {
             console.log("Mock tenant - toast message:", message);
             mockToasts.push({ message: message, type: type, duration: duration });
+            return;
+        }
+        if (userMode === "show" && type === "info") {
+            console.log("SKIPP toast message in show mode:", message);
             return;
         }
         const toastContainer = document.getElementById("toast-container");
