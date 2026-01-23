@@ -725,7 +725,92 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
 
 }
-
+  /* Hero swipe explainer */
+#hero-swipe {
+  position: absolute; /* bleibt overlay */
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  max-width: 360px;
+  margin: 0 auto;
+  background: rgba(255,255,255,0.92);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  z-index: 50;
+  user-select: none;
+  /* besseres Layout: Track & Buttons überlagern, Dots unten zentriert */
+  display: block;
+  padding: 12px 10px 38px; /* unten Platz für Punkte */
+  box-sizing: border-box;
+}
+.hero-swiper-viewport {
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+  .hero-swiper-track {
+    display: flex;
+    transition: transform 280ms ease;
+    will-change: transform;
+    gap: 12px;
+  }
+  .hero-slide {
+    min-width: 100%;
+    box-sizing: border-box;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+.hero-slide strong { color: #358600; font-weight:700; }
+.hero-swipe-btn {
+  position: absolute;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(53,134,0,0.12);
+  color: #358600;
+  font-size: 1.25rem;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  z-index: 60;
+}
+.hero-swipe-btn.prev { left: 8px; }
+.hero-swipe-btn.next { right: 8px; }
+  .hero-swipe-btn:focus { outline: 2px solid rgba(53,134,0,0.25); border-radius: 6px; }
+.hero-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  z-index: 70;
+  pointer-events: auto;
+}
+.hero-dot {
+width:12px;
+height:12px;
+border-radius:50%;
+background: rgba(0,0,0,0.12);
+cursor: pointer;
+}
+.hero-dot.active { background: #358600; box-shadow:0 0 0 4px rgba(53,134,0,0.08); }
+@media (max-width:600px){
+  #hero-swipe { padding: 8px 8px 36px; max-width: 92%; }
+  .hero-swipe-btn { width: 28px; height: 28px; font-size: 1rem; }
+  .hero-swipe-btn.prev { left: 4px; }
+  .hero-swipe-btn.next { right: 4px; }
+  .hero-dots { gap: 6px; bottom: 6px; }
+}
 
 
     </style>
@@ -827,8 +912,28 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
                 <div id="hero-image_overlay_outside" >
                     <div id="hero_image_overlay_inside">
                         <!-- <span style="font-size: 1.5rem; color: #333; text-align: center;">App Preview<br>(coming soon)</span> -->
-                        <img src="assets/appl_expl_frueher_whiteBckgr.png" alt="App Preview" style="width:100%; height:auto; object-fit:cover; border-radius:28px;align-self: flex-start;">
-
+                        <img id="hero-image" src="assets/app_expl_frueher_whiteBckgr.png" alt="App Preview" style="width:100%; height:auto; object-fit:cover; border-radius:28px;align-self: flex-start;">
+                        <div id="hero-swipe" role="region" aria-label="Visualisierung Erklärung">
+                            <div class="hero-swiper-viewport">
+                                <div class="hero-swiper-track">
+                                    <div class="hero-slide" data-index="0">
+                                        <strong>Ansicht</strong><div>Leicht zugängliche Einträge als geordnete, priorisierte Liste.</div>
+                                    </div>
+                                    <div class="hero-slide" data-index="1">
+                                        <strong>Filter</strong><div>Über Topic, Typ oder Text-Suche können Einträge gefiltert werden.</div>
+                                    </div>
+                                    <div class="hero-slide" data-index="2">
+                                        <strong>Interaktion</strong><div>Swipe, tippe oder klicke auf Einträge für Details und Bearbeitung.</div>
+                                    </div>
+                                    <div class="hero-slide" data-index="3">
+                                        <strong>Ergänzungen</strong><div>Neue Einträge können direkt erfasst werden.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="hero-swipe-btn prev" aria-label="Vorherige">‹</button>
+                            <button class="hero-swipe-btn next" aria-label="Nächste">›</button>
+                            <div class="hero-dots" aria-hidden="false"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4033,5 +4138,143 @@ if (overlayContent) {
         timeout = setTimeout(later, wait);
       };
     }
+
+ (function initHeroSwipe(){
+  const container = document.getElementById('hero-swipe');
+  if(!container) return;
+  const track = container.querySelector('.hero-swiper-track');
+  const slides = Array.from(container.querySelectorAll('.hero-slide'));
+  const prevBtn = container.querySelector('.hero-swipe-btn.prev');
+  const nextBtn = container.querySelector('.hero-swipe-btn.next');
+  const dotsWrap = container.querySelector('.hero-dots');
+  let idx = 0;
+  let startX = 0, currentX = 0, dragging = false;
+  let autoTimer = null;
+  const AUTO_MS = 4500;
+
+  // compute slide percent including gap (updates on resize)
+  let slidePercent = 100;
+  function recomputeSlidePercent(){
+    const gapStyle = getComputedStyle(track).gap || "0px";
+    const gapPx = parseFloat(gapStyle) || 0;
+    const containerWidth = Math.max(1, container.clientWidth);
+    const gapPercent = (gapPx / containerWidth) * 100;
+    slidePercent = 100 + gapPercent;
+  }
+  recomputeSlidePercent();
+  window.addEventListener('resize', recomputeSlidePercent);
+
+  // build dots
+  slides.forEach((s,i)=>{
+    const d = document.createElement('button');
+    d.className = 'hero-dot';
+    d.type = 'button';
+    d.setAttribute('aria-label','Slide ' + (i+1));
+    d.addEventListener('click',()=>{ goTo(i); resetAuto(); });
+    dotsWrap.appendChild(d);
+  });
+  const dots = Array.from(dotsWrap.children);
+
+  function update(){
+    track.style.transform = `translateX(${ -idx * slidePercent }%)`;
+    dots.forEach((d,i)=> d.classList.toggle('active', i===idx));
+  }
+
+  function goTo(i){
+    idx = (i + slides.length) % slides.length;
+    update();
+  }
+  function next(){ goTo(idx+1); }
+  function prev(){ goTo(idx-1); }
+  function resetAuto(){ clearInterval(autoTimer); autoTimer = setInterval(next, AUTO_MS); }
+
+  // button events
+  nextBtn && nextBtn.addEventListener('click',(e)=>{ e.preventDefault(); next(); resetAuto(); });
+  prevBtn && prevBtn.addEventListener('click',(e)=>{ e.preventDefault(); prev(); resetAuto(); });
+
+  // touch events for swipe
+  track.addEventListener('touchstart', (e)=>{
+    if(e.touches.length!==1) return;
+    dragging = true; startX = e.touches[0].clientX;
+    track.style.transition = 'none';
+    clearInterval(autoTimer);
+  }, {passive:true});
+  track.addEventListener('touchmove', (e)=>{
+    if(!dragging) return;
+    currentX = e.touches[0].clientX;
+    const dx = currentX - startX;
+    const movePercent = (dx / container.clientWidth) * slidePercent;
+    track.style.transform = `translateX(${ -idx*slidePercent + movePercent }%)`;
+  }, {passive:true});
+  track.addEventListener('touchend', (e)=>{
+    if(!dragging) return;
+    dragging = false;
+    track.style.transition = '';
+    const dx = (currentX || startX) - startX;
+    if(Math.abs(dx) > 40){
+      if(dx < 0) next(); else prev();
+    } else update();
+    resetAuto();
+    startX = currentX = 0;
+  });
+
+  // mouse support
+  let isMouseDown = false;
+  track.addEventListener('mousedown',(e)=>{
+    isMouseDown = true; dragging = true; startX = e.clientX; track.style.transition = 'none'; clearInterval(autoTimer);
+  });
+  window.addEventListener('mousemove',(e)=>{
+    if(!isMouseDown) return;
+    currentX = e.clientX;
+    const dx = currentX - startX;
+    const movePercent = (dx / container.clientWidth) * slidePercent;
+    track.style.transform = `translateX(${ -idx*slidePercent + movePercent }%)`;
+  });
+  window.addEventListener('mouseup',()=>{
+    if(!isMouseDown) return;
+    isMouseDown = false; dragging = false; track.style.transition = '';
+    const dx = (currentX || startX) - startX;
+    if(Math.abs(dx) > 40){
+      if(dx < 0) next(); else prev();
+    } else update();
+    resetAuto();
+    startX = currentX = 0;
+  });
+
+  // init
+  update();
+  resetAuto();
+  container.addEventListener('mouseenter', ()=> clearInterval(autoTimer));
+  container.addEventListener('mouseleave', ()=> resetAuto());
+})();
+
+(function heroGifToggle() {
+  document.addEventListener('DOMContentLoaded', () => {
+    const img = document.getElementById('hero-image');
+    if (!img) return;
+
+    const defaultSrc = img.src || '';
+    const gifSrc = 'assets/app_expl_frueher_1to5_slow.gif'; // Pfad anpassen falls nötig
+    const INTERVAL_MS = 20_000; // 20 Sekunden
+
+    let showingGif = img.src === gifSrc;
+    let toggleInterval = setInterval(() => {
+      try {
+        if (showingGif) {
+          img.src = defaultSrc;
+        } else {
+          img.src = gifSrc;
+        }
+        showingGif = !showingGif;
+      } catch (e) {
+        console.error('heroGifToggle error:', e);
+      }
+    }, INTERVAL_MS);
+
+    window.addEventListener('beforeunload', () => {
+      if (toggleInterval) clearInterval(toggleInterval);
+    });
+  });
+})();
 
 </script>
