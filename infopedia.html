@@ -932,15 +932,14 @@ cursor: pointer;
                     <br>
                     Auf Anfrage bieten wir eine Version für Android / IOS an.
                 </p>
-                <p>Wir widmen uns der Sammlung, Organisation und Präsentation von pauschalen Meinungen
-                    auf leicht zugängliche Weise.
-                    Unsere Mission ist es, Menschen mit Wissen zu stärken, fundierte Entscheidungen zu fördern
-                    und absichtliche Fehlinformationen sichtbar zu machen.
+                <p>Wir sammeln, strukturieren und präsentieren kurze Aussagen leicht zugänglich.
+                    Unsere Mission: Menschen mit verlässlichem Wissen zu stärken, fundierte Entscheidungen zu fördern
+                    und gezielte Fehlinformationen sichtbar zu machen.
                 </p>
-                <p>Dabei konzentrieren wir uns auf drei Eckpfeiler:
+                <p>Unsere drei Eckpfeiler:
                 <ul class="top-list">
-                    <li>Dokumentation öffentlicher Aussagen - um <strong>Absichten</strong> und Wirkungen langfristig <strong>sichtbar zu machen</strong>.</li>
-                    <li>Sammlung "weicher Fakten" - als <strong>Referenz für Bewertung</strong> von Aussagen.</li>
+                    <li>Dokumentation öffentlicher Aussagen - <strong>Absichten</strong> und Wirkungen langfristig <strong>sichtbar zu machen</strong>.</li>
+                    <li>Sammlung "weicher Fakten" - <strong>Referenz für Bewertung</strong> von Aussagen.</li>
                     <li>Fakten ToGo - für deine <strong>tägliche</strong> Kommunikation und <strong>persönliche</strong> Entscheidungsfindung.</li>
                 </ul>
                 </p>
@@ -1056,19 +1055,19 @@ cursor: pointer;
         </div>
     </section>
     <section id="ansatz">
-        <p>Unser Ansatz basiert auf folgenden 3 Säulen. Diese sind folgende Inhalte untergeordnet:
+        <p>Unser Ansatz basiert auf folgenden 3 Säulen mit folgenden Inhalte:
         </p>
         <ul class="top-list">
             <li><strong>Dokumentation</strong> öffentlicher Aussagen.
                 <ul>
                     <li><strong>Wer hat</strong> was, wo und wie <strong>gesagt?</strong></li>
                     <li><strong>Wie häufig</strong> und in welchem Zeitraum wurde es gesagt?</li>
-                    <li>In welchem <strong>Context</strong> wurde es gesagt?</li>
-                    <li>Steht es im Widerspruch zu Fakten?</li>
+                    <li>In welchem <strong>Kontext</strong> wurde es gesagt?</li>
+                    <li>Steht es im Widerspruch zu belegten Fakten?</li>
                     <li>Steht es im <strong>Widerspruch</strong> zu anderen (eigenen) Aussagen?</li>
                     <li>Wenn ja, wie wurde Meinungsänderung begründet?</li>
                     <li>Wird Angst <strong>instrumentalisiert</strong>?</li>
-                    <li>Ist die Verzerrung/ Falschaussage ... offensichtlich absichtlich?</li>
+                    <li>Ist die Verzerrung oder Falschaussage offensichtlich absichtlich?</li>
                     <li>Welche <strong>Zielgruppe</strong> wurde (nicht) angesprochen?</li>
                 </ul>
             </li>
@@ -1259,6 +1258,8 @@ cursor: pointer;
     <div id="toast-container" style="position: fixed; top: 1rem; right: 1rem; z-index: 1000;"></div>
 </body>
 </html>
+
+
 
 
 
@@ -1594,6 +1595,14 @@ cursor: pointer;
             const topicChildren = data[fullKey(topic, nodeId)];
             if (topicNode === undefined) {
                 console.log("Topic node not found for topic:", topic, "nodeId:", nodeId);
+                // might be just deleted  ... last child of topic - length 0
+                if (topic && Object.keys(data[topic]).length === 0) {
+                    delete data[topic];
+                    const [parentTopic, parentNodeId] = splitKey(topic);
+                    if (parentTopic && parentNodeId && data[parentTopic] && data[parentTopic][parentNodeId]) {
+                        checkData(parentTopic, parentNodeId, data[parentTopic][parentNodeId].message);
+                    }
+                }
                 return;
             }
             if (topicChildren && Object.keys(topicChildren).length > 0) {
@@ -2379,6 +2388,7 @@ cursor: pointer;
         } else {
             deleteButton.disabled = false;
             deleteButton.style.opacity = "1.0";
+            deleteButton.style.display = "inline-block";
             console.log("Delete button enabled for nodeId:", nodeId);
         }
         const overlay = document.getElementById("edit-overlay");
@@ -2392,7 +2402,7 @@ cursor: pointer;
         messageInput.value = message && message.endsWith(currentType) ? message.slice(0, -currentType.length).trim() : message;
         // topicInput.value = topicId;   // Set the topicId
         // nodeInput.value = nodeId;     // Set the nodeId
-
+        document.getElementById("edit-overlay").setAttribute("data-topic", topicId);
         overlay.style.display = "block";
         runtimeCheck("openEditOverlay-end");
     }
@@ -2430,9 +2440,14 @@ cursor: pointer;
                     event.preventDefault(); // Prevent default behavior (e.g., context menu) // may interfere with touch
                     clearSelection();
                     const targetCell = event.target.closest("td");
+                    const targetRow = event.target.closest("tr");
                     if (targetCell) {
                         const originalText = targetCell.textContent.trim();
-                        openEditOverlay(originalText, row.dataset.topic || "", row.dataset.nodeId || "" );
+                        const [topicId, nodeId] = splitKey(row.dataset.fullNodeId || "");
+                        // targetCell might be wrong column - use row dataset
+                        openEditOverlay( data[topicId] && data[topicId][nodeId] ? data[topicId][nodeId].message : ""
+                            , row.dataset.topic || topicId || topicFilter.value
+                            , row.dataset.nodeId || nodeId || currentNodeId || "");
                         clearSelection();
                     }
                 }, 1000); // threshold for long press - more than swipe
@@ -3184,8 +3199,22 @@ if (overlayContent) {
                 firstInput.focus();
             }
         } else {
-            // console.log("Add/Edit section not found. Implement your logic here.");
-            openEditOverlay(""); // open empty overlay for current topic
+            // if edit-overlay is already open - add nested entry - current entry => new Topic
+            if (document.getElementById("edit-overlay").style.display === "block") {
+                let currentTopic = document.getElementById("edit-overlay").getAttribute("data-topic") || topicFilter.value;
+                currentTopic = currentTopic + "/" + currentNodeId;
+                            const option = document.createElement("option");
+                            option.value = currentTopic; // allow indentation in option text
+                            const topicName = document.getElementById("edit-overlay").textContent || "New Topic";
+                            option.textContent = topicName.replace(/ /g, "\u00A0");
+                            topicFilter.appendChild(option);
+                topicFilter.value = currentTopic; // the new TOPIC not already exists - cant be set!
+                openEditOverlay("", currentTopic, generateNodeId() ); // open empty overlay for nested topic
+                return;
+            } else {
+                // console.log("Add/Edit section not found. Implement your logic here.");
+                openEditOverlay(""); // open empty overlay for current topic
+            }
         }
     });
 
