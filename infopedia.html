@@ -72,13 +72,17 @@
            margin-top: 1rem; /* Add space between the header and content */
         }
 table {
-    border-collapse: separate; /* Ensure borders don't collapse */
-    border-spacing: 5px; /* Optional: Adjust spacing between cells */
+   /* border-collapse: separate; /* Ensure borders don't collapse */
+   /* border-spacing: 5px; /* Optional: Adjust spacing between cells */
 }
 
 tr {
     border-radius: 10px; /* Add rounded edges to rows */
     overflow: hidden; /* Ensure the rounded corners are visible */
+}
+
+tr:hover {
+    background-color: #f1f1f1; /* Light hover effect */
 }
 
         td {
@@ -150,6 +154,59 @@ tr {
         .data-row .topic-link:hover {
             cursor: pointer;
         }
+tr.long-press-lock { /* elevate long-press lock rows */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: #e6ffe6;
+}
+tr.long-press-lock:hover { /* elevate long-press lock rows */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    background-color: #d4ffd4;
+}
+
+/* round edges on row */
+table {
+   /* border-collapse: collapse !important;*/ /* must no be used */
+    border-spacing: 0 !important;
+}
+table tr {
+    overflow: hidden;
+}
+/*
+table tr:hover {
+    background-color: #f1f1f1;
+    background-color: white !important;
+    background-clip: padding-box;  -- does not work:  ensure bg color respects rounded corners
+}
+*/
+table tr:hover {
+    background-color: transparent !important; /* prevent bg color on tr */
+}
+data-row:hover {
+    background-color: transparent !important; /* prevent bg color on tr */
+}
+
+/* apply hover on whole td of hovered row - not hover on tr direct - use rounded corner */
+table tr:hover td {
+    background-color: #f1f1f1;
+    background-color: white !important;
+    background-clip: padding-box;  /* ensure bg color respects rounded corners */
+}
+
+table th:first-child, table td:first-child {
+    border-radius: 20px 0 0 20px;
+    border-width: 0px;
+  border-style: solid;
+  border-color: white;
+}
+table th:last-child, table td:last-child {
+    border-radius: 0 20px 20px 0;
+    border-width: 0px;
+  border-style: solid;
+  border-color: white;
+}
+table td, table th {
+    padding: 0.75rem 1rem; /* Adjust padding as needed - compensate for border-spacing 0 due to rounded corners */
+}
 
 
 
@@ -1130,7 +1187,7 @@ cursor: pointer;
                 </div>
             </div>
         </div>
-        <table border="0" style="width:100%; border-collapse: collapse; text-align: left; margin-top: 1rem;">
+        <table border="0" style="width:100%; text-align: left; margin-top: 1rem;">
             <thead>
             <tr>
                 <th></th>
@@ -1966,12 +2023,14 @@ cursor: pointer;
             }
             button.style.display = "block";
             button.addEventListener("click", (event) => {
+                console.log("Edit button clicked");
                 const fullNodeId = button.dataset.id ; // event.target.dataset.id; -> undefined
                 const [nodeTopic, nodeId] = splitKey(fullNodeId);
                 if (!nodeTopic || !nodeId) {
                     console.error("Invalid node ID for edit:", fullNodeId);
                     return;
                 }
+                console.log("Opening edit overlay for topic:", nodeTopic, "nodeId:", nodeId);
                 openEditOverlay( data[nodeTopic] && data[nodeTopic][nodeId] ? data[nodeTopic][nodeId].message : "",
                                  nodeTopic, nodeId );
             });
@@ -2457,12 +2516,22 @@ cursor: pointer;
 
     function enableInlineEditing() {
         document.querySelectorAll("tbody tr").forEach((row) => {
-            let timer;
+            let timer,timerLock;
             let startX, startY;
+            let targetRow = null;
 
             function handleLongPressStart(event) {
                 startX = event.type === "touchstart" ? event.touches[0].clientX : event.clientX;
                 startY = event.type === "touchstart" ? event.touches[0].clientY : event.clientY;
+                timerLock = setTimeout(() => {
+                    targetRow = event.target.closest("tr");
+                    console.log("Long press lock activated.");
+                    if (targetRow) {
+                        targetRow.classList.add("long-press-lock");
+                    }
+                }, 500); // short delay to set lock
+
+
                 timer = setTimeout(() => {
                     runtimeCheck("longPressDetected");
                     // skipp other "overlapping" gui events, like click
@@ -2471,7 +2540,7 @@ cursor: pointer;
                     event.preventDefault(); // Prevent default behavior (e.g., context menu) // may interfere with touch
                     clearSelection();
                     const targetCell = event.target.closest("td");
-                    const targetRow = event.target.closest("tr");
+                    targetRow = event.target.closest("tr");
                     if (targetCell) {
                         const originalText = targetCell.textContent.trim();
                         const [topicId, nodeId] = splitKey(row.dataset.fullNodeId || "");
@@ -2481,7 +2550,21 @@ cursor: pointer;
                             , row.dataset.nodeId || nodeId || currentNodeId || "");
                         clearSelection();
                     }
-                }, 1000); // threshold for long press - more than swipe
+                }, 2000); // threshold for long press - more than swipe
+            }
+
+            function handleLongPressClearUp( bubble = false ) {
+                if (targetRow) {
+                    targetRow.classList.remove("long-press-lock");
+                    targetRow = null;
+                }
+                clearTimeout(timerLock);
+                clearTimeout(timer);
+                if (guiEventsProcessedUntil === 1) {
+                    console.log("Long press handling ended.");
+                    guiEventsProcessedUntil = bubble ? 0 : Date.now(); // mark end of processing
+                }
+                clearSelection();
             }
 
             function handleLongPressEnd(event) {
@@ -2493,16 +2576,11 @@ cursor: pointer;
                     // If the mouse has moved significantly, cancel the long press
                     if (deltaX > 20 || deltaY > 20) {
                         console.log("move detected - cancelling long press.");
-                        clearTimeout(timer); // Clear the timer if it's a swipe
+                        handleLongPressClearUp( true);
                         return;
                     }
-                    clearSelection();
                 } else {
-                    if (guiEventsProcessedUntil === 1) {
-                        console.log("Long press handling ended.");
-                        guiEventsProcessedUntil = Date.now(); // mark end of gui event processing
-                    }
-                    clearTimeout(timer); // Clear the timer if the press is released early
+                    handleLongPressClearUp();
                 }
             }
 
@@ -4175,6 +4253,10 @@ if (overlayContent) {
         if (r.dataset && r.dataset.topic && r.dataset.nodeId) {
           return { topic: r.dataset.topic, nodeId: r.dataset.nodeId };
         }
+        if (r.dataset && r.dataset.fullNodeId) {
+          const [topicPart, nodePart] = splitKey(r.dataset.fullNodeId);
+          return { topic: topicPart, nodeId: nodePart };
+        }
         // try anchors with data attributes
         const a = r.querySelector("a[data-topic][data-node-id], a[data-topic][data-node]");
         if (a) {
@@ -4270,15 +4352,22 @@ if (overlayContent) {
         const dt = Date.now() - startTime;
         if (dt > MAX_SWIPE_TIME) {
             console.log("swipe too slow, ignoring (" + dt + " ms)");
-            return;
-        }
-        if (Math.abs(dx) >= MIN_SWIPE_DISTANCE && Math.abs(dy) <= Math.abs(dx) / 2) {
-          const ids = getIdsFromRow(row);
-          handleVoteAction(ids.topic, ids.nodeId, dx < 0 ? -1 : 1 , row);
         } else {
-          console.log("not a valid swipe gesture, ignoring (dx=" + dx + ", dy=" + dy + ")");
+            if (Math.abs(dx) >= MIN_SWIPE_DISTANCE && Math.abs(dy) <= Math.abs(dx) / 2) {
+              const ids = getIdsFromRow(row);
+              handleVoteAction(ids.topic, ids.nodeId, dx < 0 ? -1 : 1 , row);
+              return;
+            } else {
+                console.log("not a valid swipe gesture, ignoring (dx=" + dx + ", dy=" + dy + ")");
+            }
+            try { row.releasePointerCapture && row.releasePointerCapture(ev.pointerId); } catch(e){}
         }
-        try { row.releasePointerCapture && row.releasePointerCapture(ev.pointerId); } catch(e){}
+        // Kludge: action-cell click was not triggered? if target is action-cell, simulate click
+        if (ev.rangeParent && ev.rangeParent.classList.contains("action-cell")) {
+            console.log("Simulating click on action-cell due to pointerup without swipe");
+            const ids = getIdsFromRow(row);
+            openEditOverlay( data[ids.topic][ids.nodeId].message, ids.topic, ids.nodeId );
+        }
       });
 
       // Optional: visual feedback on swipe start
