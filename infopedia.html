@@ -99,6 +99,9 @@ tr {
             border-radius: 0 10px 10px 0;
         }
 
+        td.col-hide {
+            display: none;
+        }
 
         @media (max-width: 600px) {
             td:nth-last-child(2), td:last-child, th:last-child {
@@ -617,7 +620,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
         .vote-badge.negative { background: #f79696b2 ; /* linear-gradient(180deg,#f79696,#cb5a5a); */ }
         .vote-badge.neutral  { background: #9aa+d6b2 ; /* linear-gradient(180deg,#8aa6d6,#5f83b8); color:#fff; */ }
         .vote-badge.zero__     { background: rgba(0,0,0,0.06); color:#222; font-weight:600; box-shadow:none; }
-        .vote-badge.zero     {  font-weight:600; box-shadow:none; }
+        .vote-badge.zero     {  font-weight:600; box-shadow:none; color: transparent;  }
 
         /* subtle pulse when value changes */
         .vote-badge.pulse {
@@ -1231,6 +1234,14 @@ cursor: pointer;
                 <input id="settings-tenant-input" type="text" placeholder="Tenant ID" />
             </div>
 
+            <div class="row">
+                <strong>Inhalte</strong>
+                <label for="settings-show-timestamp-fd">
+                    <input type="checkbox" id="settings-show-timestamp-fd" style="margin-right: 0.25rem;">
+                    <span>Show TimeStamps</span>
+                </label>
+            </div>
+
             <div class="row" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
                 <button id="settings-apply" class="send-button-settings" style="background:#4CAF50; color:#fff;">Anwenden</button>
                 <button id="settings-qr" class="send-button-settings" style="background:#2196F3; color:#fff;">QR anzeigen</button>
@@ -1283,6 +1294,8 @@ cursor: pointer;
     let typesAvailable = [".", "?", "??", "!", "!-", "@"];
     let typesAllowed = [".", "?", "??", "!", "!-"];
     let systemId = "www"; // temporary identifier of the current system, will be set from settings or random
+    let showTimeStamp = false;
+    let guiEventsProcessedUntil = 0;
 
     const tableBody = document.querySelector("#browse tbody");
     const topicFilter = document.getElementById("topicFilter");
@@ -1891,7 +1904,7 @@ cursor: pointer;
                     <td>${topicFilter.value === "" ? ( topicMap[row.topic] || row.topic) : "" }</td>
                     <td>${messageContent}</td>
                     <td class="vote-cell">${formatVoteBadge(row.votes||"")}</td>
-                    <td class="ts-cell" tooltip="${row.timestamp}">${formatTimestamp(row.timestamp).replace(" ","&nbsp;")}</td>
+                    <td class="ts-cell ${showTimeStamp ? "" : "col-hide"}" tooltip="${row.timestamp}">${formatTimestamp(row.timestamp).replace(" ","&nbsp;")}</td>
                     <td class="action-cell">
                         <button class="edit-button" data-id="${fullNodeId}" style="background: none; border: none; cursor: pointer;">
                             <i class="fas fa-edit" style="color: #4CAF50;"></i>
@@ -1918,6 +1931,16 @@ cursor: pointer;
         // Add click event for topic links
         document.querySelectorAll(".topic-link, .parent-topic-link").forEach((link) => {
             link.addEventListener("click", (event) => {
+                // prevent double action, when already fired long-press event - the editOverlay
+                const editOverlay = document.getElementById("edit-overlay");
+                if (guiEventsProcesseHandeled()) {
+                    console.log("SKIPP Topic link click ignored due to recent GUI event handling.");
+                    return;
+                }
+                if (editOverlay.style.display === "block") {
+                    console.log("SKIPP Topic link click ignored due to edit overlay open.");
+                    return;
+                }
                 console.log("Topic link clicked"); // TODO merge with topicFilter change
                 event.preventDefault();
                 // get to parent element if undefined - tr may be clicked
@@ -1961,6 +1984,10 @@ cursor: pointer;
         runtimeCheck("displayData-end");
     }
 
+    function guiEventsProcesseHandeled() {
+        const now = Date.now(); // 1 === currently running, not released yet
+        return 1 === guiEventsProcessedUntil || (now - guiEventsProcessedUntil) < 200; // 1 second threshold
+    }
 
     /*
         IO -
@@ -2376,10 +2403,12 @@ cursor: pointer;
         // update
         // enable deletion button, if not in root and no votes
         // other buttons available depending in typeFilter - see typeFilter.addEventListener
+        const adminMode = systemId === "www_23n5ypk1";
         const deleteButton = document.querySelector("#edit-overlay .send-button[data-type='--']");
-        if (!nodeId || nodeId == "" || !topicId || topicId == "/"
+        if ((!nodeId || nodeId == "" || !topicId || topicId == "/"
                     || !data[topicId] || !data[topicId][nodeId]
                     || (data[topicId][nodeId].votesOthers ?? 0 ) > 0
+             ) && !adminMode
                 ) {
             // deleteButton.disabled = true;
             deleteButton.style.opacity = "0.25";
@@ -2436,6 +2465,8 @@ cursor: pointer;
                 startY = event.type === "touchstart" ? event.touches[0].clientY : event.clientY;
                 timer = setTimeout(() => {
                     runtimeCheck("longPressDetected");
+                    // skipp other "overlapping" gui events, like click
+                    guiEventsProcessedUntil = 1; // mark as running - wait for end event, mouseup
                     console.log("Long press detected!");
                     event.preventDefault(); // Prevent default behavior (e.g., context menu) // may interfere with touch
                     clearSelection();
@@ -2467,6 +2498,10 @@ cursor: pointer;
                     }
                     clearSelection();
                 } else {
+                    if (guiEventsProcessedUntil === 1) {
+                        console.log("Long press handling ended.");
+                        guiEventsProcessedUntil = Date.now(); // mark end of gui event processing
+                    }
                     clearTimeout(timer); // Clear the timer if the press is released early
                 }
             }
@@ -3863,7 +3898,7 @@ if (overlayContent) {
 
     <!-- settings -->
 
-      const overlay = document.getElementById('settings-overlay');
+  const overlay = document.getElementById('settings-overlay');
   const panel = document.getElementById('settings-panel');
   const openBtn = document.getElementById('settings-open-btn');
   const closeBtn = document.getElementById('settings-close');
@@ -3872,6 +3907,7 @@ if (overlayContent) {
   const mainBtn = document.getElementById('settings-main');
   const tenantInput = document.getElementById('settings-tenant-input');
   const typeList = document.getElementById('settings-type-list');
+  const showTimestampCheckbox = document.getElementById('settings-show-timestamp-fd');
 
   // Mapping for nicer labels
   const typeLabels = {
@@ -3891,8 +3927,9 @@ if (overlayContent) {
       const allowed = saved.typesAllowed || typesAllowed || [".","?","??","!","!-"];
       const tenant = saved.tenantId !== undefined || !saved.tenantId ? saved.tenantId : tenantId || "";
       const system = saved.systemId !== undefined || !saved.systemId ? saved.systemId : systemId || "";
+      const showTimeStamp = saved.showTimestamp !== undefined ? saved.showTimestamp : showTimestamps || false;
       runtimeCheck("loadSettings-end");
-      return { allowed, tenant , system };
+      return { allowed, tenant , system , showTimeStamp };
     } catch(e){
       runtimeCheck("loadSettings-end");
       return { allowed: typesAllowed || [".","?","??","!","!-"], tenant: tenantId || "" };
@@ -3902,7 +3939,8 @@ if (overlayContent) {
 
   function saveSettings(settings){
     runtimeCheck("saveSettings");
-    const payload = { typesAllowed: settings.allowed, tenantId: settings.tenant, systemId: systemId };
+    const payload = { typesAllowed: settings.allowed, tenantId: settings.tenant, systemId: systemId
+                        , showTimestamp: settings.showTimeStamp || false };
     localStorage.setItem('fayf_settings', JSON.stringify(payload));
     runtimeCheck("saveSettings-end");
   }
@@ -3934,6 +3972,7 @@ if (overlayContent) {
     runtimeCheck("openSettings");
     const s = loadSettings();
     tenantInput.value = s.tenant;
+    showTimestampCheckbox.checked = s.showTimeStamp || false;
     buildTypeCheckboxes(s.allowed);
     overlay.style.display = 'block';
     overlay.setAttribute('aria-hidden','false');
@@ -3961,8 +4000,13 @@ if (overlayContent) {
       typesAllowed = checked;
     }
 
+    // showTimestamp
+    const showTimestampCheckbox = document.getElementById('settings-show-timestamp-fd');
+    showTimeStamp = showTimestampCheckbox ? showTimestampCheckbox.checked : false;
+
+
     // persist
-    saveSettings({ allowed: checked, tenant: newTenant });
+    saveSettings({ allowed: checked, tenant: newTenant, system: systemId, showTimeStamp: showTimeStamp });
 
     // update send buttons enable/disable
     if (typeof document !== "undefined") {
