@@ -4,6 +4,7 @@ function formatEntry($entry) {
     $timestamp = null;
     $path = null;
     $node = null;
+    $path_node = null;
     $message = null;
     $vote = null;
     // empty
@@ -13,6 +14,7 @@ function formatEntry($entry) {
     }
     if (!str_starts_with($entry, "/")) { // expect old format - contain delimiter "," and nested " | "
         // 2025-01-01 12:00:00 , /parent | node | message [ | vote]
+        // /parent | node | message [ | vote]     --- w/o timestamp
         log_debug("formatEntry: old format detected");
         $parts = explode(",", $entry, 2);
         if (count($parts) == 2) {
@@ -52,6 +54,14 @@ function formatEntry($entry) {
                 $vote = trim($matches[2]);
             }
         }
+    }
+    if (empty($path_node)) {
+        log_warn("formatEntry: mandatory fields missing - cannot format entry: '" . $entry . "'\n");
+        return "";
+    }
+    // add timestamp  YYYYY-MM-DD HH:MM:SS  if missing
+    if (empty($timestamp)) {
+        $timestamp = date("Y-m-d H:i:s");
     }
     // validate mandatory fields - starts with multiple "//+" -> "/"
     if (str_starts_with($path_node, "//")) {

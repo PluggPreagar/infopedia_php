@@ -1,6 +1,6 @@
 <?php
  include_once 'util.php';
- include_once 'util_entry.php'
+ include_once 'util_entry.php';
 
 log_info("upload config: " . print_r($config, true) );
 
@@ -36,6 +36,34 @@ if (strpos($data, '/_/bug | bug_') === 0) {
     $data = preg_replace('/^\/_(.+?)(\r?\n|$)/', '$1 ' . $tenant_id . ' $2', $data, 1);
     $tenant_id = 'fayfBug__1754128928';
 }
+
+
+
+
+
+$dataDir = $config['cacheDir'] ?? 'data/';
+$dataLog = $dataDir . $tenant_id . '.log';
+$dataCsv = $dataDir . $tenant_id . '.csv';
+$dataCleanedCsv = $dataDir . $tenant_id . '.clean.csv';
+$dataCsvOldEntries = 'data/entries_' . $tenant_id . '.csv'; // data/entries_tenant1.csv
+$dataCsvOldVotes = 'data/votes_' . $tenant_id . '.csv';     // data/votes_tenant1.csv
+//
+file_put_contents($dataLog, $data . "\n", FILE_APPEND); // log all data
+if (file_exists($dataCsv)){
+    $timestamp = date('Y-m-d H:i:s'); //help to see old format
+    $dataNew = formatEntry($timestamp.",".$data);
+    if ($dataNew !== "") {
+        print("bbbbb");
+        file_put_contents($dataCsv, $dataNew . "\n", FILE_APPEND); // append formatted data
+    }
+}
+
+
+
+
+
+
+
 
 // use local file for tenant specific data
 if ($tenant_id == '') {
@@ -204,23 +232,6 @@ if (!$dataIsLog) {
 
 */
 
-$dataDir = $config['cacheDir'] ?? 'data/';
-$dataLog = $dataDir . $tenant_id . '.log';
-$dataCsv = $dataDir . $tenant_id . '.csv';
-$dataCleanedCsv = $dataDir . $tenant_id . '.clean.csv';
-$dataCsvOldEntries = 'data/entries_' . $tenant_id . '.csv'; // data/entries_tenant1.csv
-$dataCsvOldVotes = 'data/votes_' . $tenant_id . '.csv';     // data/votes_tenant1.csv
-//
-if (!is_dir($dataDir)) {
-    mkdir($dataDir, 0755, true);
-}
-if (file_exists($dataLog)) {
-    file_put_contents($dataLog, $data . "\n", FILE_APPEND); // log all data
-    $dataNew = formatEntry($data);
-    if ($dataNew !== "") {
-        file_put_contents($dataCsv, $dataNew . "\n", FILE_APPEND); // append formatted data
-    }
-}
 
 
 

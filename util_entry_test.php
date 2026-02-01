@@ -34,6 +34,9 @@
         frmt( "/p/n,2025-01-01 12:00:00,d" , "//p/n,2025-01-01 12:00:00,d" , "new line with double slash");
         frmt( "/p/n::Vote::unknown,2025-01-01 12:00:00,d,1" , "/p/n,2025-01-01 12:00:00,d,1" , "vote w/o set vote-attribute");
 
+        // REST-Call beginnt wie neues Format !!!
+        // frmt( "", "/1754140907 | 3wxh565purs5 | Es auch gezeigt, dass wir zusammenhalten können..", "");
+
     }
 
 
