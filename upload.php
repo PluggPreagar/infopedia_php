@@ -53,7 +53,6 @@ if (file_exists($dataCsv)){
     $timestamp = date('Y-m-d H:i:s'); //help to see old format
     $dataNew = formatEntry($timestamp.",".$data);
     if ($dataNew !== "") {
-        print("bbbbb");
         file_put_contents($dataCsv, $dataNew . "\n", FILE_APPEND); // append formatted data
     }
 }
