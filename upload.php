@@ -36,7 +36,6 @@ if (strpos($data, '/_/bug | bug_') === 0) {
     $tenant_id = 'fayfBug__1754128928';
 }
 
-
 // use local file for tenant specific data
 if ($tenant_id == '') {
 
@@ -111,5 +110,91 @@ if (file_exists($cacheOutdatedFile)) {
 if (!$dataIsLog) {
     log_return( strlen($response ?? "") . " bytes saved ( " . $data . ")"  );
 }
+
+
+/*
+    new version of tenant data file format:
+    - one line per entry - newline replaced by \n
+    - path/node[:<attr>:<sid>],timestamp,(message|[message],attr-value)
+        - value quoted with '"' when containing ',' (existing quotes are doubled)
+        - votes   : path/node:vote:<sid>,timestamp,[message],(+1|-1)
+        - deletion: path/node:delete:<sid>,timestamp,<message>,(reason)
+                    path/node,timestamp,<message>--                        -- deprecated format
+
+    advantages:
+    - easier to parse (only 1 delimiter, no multi-line entries)
+    - easier to sort by topic/path (most used sorting)
+    - allow to sort by attributes
+
+
+    files:
+    - data/<tenant1>_entries.csv    -- append only
+    - data/<tenant1>_entries.cache  -- cache file (sorted and cleaned)
+    - data/<tenant1>_votes.csv      -- append only for votes
+    - data/<tenant1>_votes.cache    -- cache file (sorted, cleaned)
+    - for delta updates:            -- allow to fastly get new entries since last update (<=5 min Slots)
+        - data/<tenant1>_entries.delta0.cache   - delta file, entries, partitioned by 5 Minutes
+        - data/<tenant1>_entries.delta1.cache   - delta file, entries, partitioned by 5 Minutes
+        - data/<tenant1>_votes.delta0.cache     - delta file, votes, partitioned by 5 Minutes
+        - data/<tenant1>_votes.delta1.cache     - delta file, votes, partitioned by 5 Minutes
+    - data/<tenant1>.log             -- log all entries and votes for tenant, for debugging, archiving (raw input)
+
+
+    processing:
+    - add new entry
+        - log to <tenant1>.log
+        - fix format, sanitize input ...
+        - appended to <tenant1>_entries.csv + <tenant1>_entries.delta?.cache
+        - if deletion-entry
+            - append to <tenant1>_votes.csv
+            - append to votes-Delta as well (!)
+    - add new vote
+        - log to <tenant1>.log
+        - fix format, sanitize input ...
+        - appended to <tenant1>_votes.csv + <tenant1>_votes.delta?.cache + <tenant1>.log
+    - read all entries/votes
+        - read <tenant1>_entries.cache / <tenant1>_votes.cache
+        - if cache outdated
+            - read <tenant1>_entries.csv
+            - clean (remove deletions, duplicates, aggregate anonymous votes)
+            - sort by path/topic
+            - write <tenant1>_entries.cache / <tenant1>_votes.cache
+    - read delta entries/votes less than 5 minutes old
+        - return entries from delta?.cache files (max 10 minutes old)
+    - read delta entries older than 5 minutes
+        - parse full csv file since last known timestamp
+
+
+    delta file management:
+        - write
+            - append to delta file that is not older then 6 minutes
+            - IDX = current time in minutes % 10 / 5 - file will cleared on switch of 5 minute slot
+            - if delta file with IDX does not exist
+                - create new delta file with IDX (allow concurrent creation)
+            - else if delta file is older than 6 minutes - reset delta file IDX
+                - atomic rename to delta?.bak & create new delta file
+                - append content from bak-file (if modified since rename) & remove bak-file
+        - read
+            - determine current IDX
+            - read both delta files (IDX and (IDX+1)%2) to get all entries since last 5 minute slot
+                - if last modification time of delta file is older than 5 minutes - skip file
+
+
+*/
+
+$csvFileNameOld = $googleSheetUrl; // data/entries_tenant1.csv
+
+$cacheFileTemplName = $cacheFile; // data/entries.cache
+$cacheFileName = str_replace('/', "/{$tenant_id}_", $cacheFileTemplName); //  data/tenant1_entries.cache
+$csvFileName = str_replace('.cache', '.csv', $cacheFileName); //  data/tenant1_entries.csv
+
+// if new csv file does not exist, but old csv file exists, migrate data
+$lines = [];
+if (!file_exists($csvFileName) && file_exists($csvFileNameOld)) {
+    log_warn("migrating tenant data from old file: " . $csvFileNameOld  );
+    $lines = file($csvFileNameOld, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+}
+
+
 
 ?>
