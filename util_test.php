@@ -10,10 +10,32 @@
  *          - fayf-style-0v02e: | <parent-node>/<node> | <parent-node> | <node> | <timestamp> | <data><data-type-hint>
  */
 
+    $test_counter = 0;
+    $test_passed = 0;
+    $test_failed = 0;
+
+
+    function log_debug($message) {
+        // indent debug messages for better readability
+        $message = str_replace("\n", "\n          ", $message);
+        print "   DEBUG: " . $message . "\n";
+    }
+
+    function log_warn($message) {
+        $message = str_replace("\n", "\n          ", $message);
+        print "   WARN : " . $message . "\n";
+    }
+
+
     function log_test($message, $ok = false, $expected = null, $actual = null) {
+        global $test_counter, $test_passed, $test_failed;
         if ($ok) {
+            $test_counter++;
+            $test_passed++;
             print "OK: " . $message . "\n";
         } else {
+            $test_counter++;
+            $test_failed++;
             print "FAIL: " . $message . "\n";
             if ($expected !== null || $actual !== null) {
                 print "      EXPECT:" . $expected . "\n";
@@ -27,6 +49,13 @@
     }
 
 
+    function print_test_summary() {
+        global $test_counter, $test_passed, $test_failed;
+        print "\nTEST SUMMARY: \n";
+        print "   Total tests: " . $test_counter . "\n";
+        print "   Passed     : " . $test_passed . "\n";
+        print "   Failed     : " . $test_failed . "\n";
+    }
 
 
 

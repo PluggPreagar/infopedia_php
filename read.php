@@ -7,6 +7,7 @@
 
 
 require 'util.php';
+include_once 'util_entry.php';
 
 // Cache settings
 $cacheTime = isset($_GET['force_update']) ? 0 : $config['cache_time'] ?? 3600; // Default to 1 hour if not set
@@ -21,6 +22,46 @@ $format = $_GET['format'] ?? ''; // default format is csv
 $cacheOutdated= false;
 $cacheOutdatedFile = $config['cacheOutdatedFile'] ?? null;
 $cache_time_delay = $config['cache_time_delay'] ?? 10; // default 60 seconds
+
+
+// migrate FORMAT
+$dataDir = $config['cacheDir'] ?? 'data/';
+$dataLog = $dataDir . $tenant_id . '.log';
+$dataCsv = $dataDir . $tenant_id . '.csv';
+$dataCleanedCsv = $dataDir . $tenant_id . '.clean.csv';
+$dataCsvOldEntries = 'data/entries_' . $tenant_id . '.csv'; // data/entries_tenant1.csv
+$dataCsvOldVotes = 'data/votes_' . $tenant_id . '.csv';     // data/votes_tenant1.csv
+//
+// if $dataCsv does not exist, init with re-formatted content from old csv file
+if (!file_exists($dataCsv) && file_exists($dataCsvOldEntries)) {
+    $linesOld = file($dataCsvOldEntries, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    // merge with votes file if exists
+    if (file_exists($dataCsvOldVotes)) {
+        $linesOldVotes = file($dataCsvOldVotes, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $linesOld = array_merge($linesOld, $linesOldVotes);
+        unset($linesOldVotes);
+    }
+    // merge uneven quoted lines - simple approach
+    $lineLeftover = '';
+    $newData = [];
+    foreach ($linesOld as $lineOld) {
+        $lineOld = $lineLeftover . $lineOld;
+        if (substr_count($lineOld, '"') % 2 != 0) { // uneven quotes - merge with next line
+            $lineLeftover = $lineOld . "\n";
+        } else {
+            $lineLeftover = '';
+            $lineFormatted = formatEntry($lineOld);
+            if ($lineFormatted !== null && $lineFormatted !== '' && strlen($lineFormatted) > 10) {
+                $newData[] = $lineFormatted;
+            }
+        }
+    }
+    // sort newData as string array
+    sort($newData);
+    // write new data to dataCsv
+    file_put_contents($dataCsv, "Topic_Node_Attr, Timestamp, Message, Votes\n" . implode("\n", $newData) . "\n");
+    log_info("Initialized new data file from old format: " . $dataCsvOldEntries . " -> " . $dataCsv );
+}
 
 
 // use local file for tenant specific data
@@ -546,6 +587,16 @@ if ($response === false) {
 
     log_return( strlen($response) . " bytes" );
 }
+
+
+
+
+
+//
+
+
+
+
 
 
 ?>

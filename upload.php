@@ -1,5 +1,6 @@
 <?php
  include_once 'util.php';
+ include_once 'util_entry.php'
 
 log_info("upload config: " . print_r($config, true) );
 
@@ -126,43 +127,64 @@ if (!$dataIsLog) {
     - easier to sort by topic/path (most used sorting)
     - allow to sort by attributes
 
+    use case:
+    - add new entry
+    - add new vote
+    - delete entry
+    - change vote
+    - read entries only (obsolete)
+    - read votes only (obsolete)
+    - init/reset tenant - read all data (entries and votes)
+    - incremental update, regular - read delta entries + votes, less than 5 minutes old
+    - incremental update, long - read all entries + votes since last known timestamp
+    - maintenance
+        - fix entry tree
+        - reset votes
+        - backup, proof archiving
 
     files:
-    - data/<tenant1>_entries.csv    -- append only
-    - data/<tenant1>_entries.cache  -- cache file (sorted and cleaned)
-    - data/<tenant1>_votes.csv      -- append only for votes
-    - data/<tenant1>_votes.cache    -- cache file (sorted, cleaned)
-    - for delta updates:            -- allow to fastly get new entries since last update (<=5 min Slots)
-        - data/<tenant1>_entries.delta0.cache   - delta file, entries, partitioned by 5 Minutes
-        - data/<tenant1>_entries.delta1.cache   - delta file, entries, partitioned by 5 Minutes
-        - data/<tenant1>_votes.delta0.cache     - delta file, votes, partitioned by 5 Minutes
-        - data/<tenant1>_votes.delta1.cache     - delta file, votes, partitioned by 5 Minutes
-    - data/<tenant1>.log             -- log all entries and votes for tenant, for debugging, archiving (raw input)
+    - data/<tenant1>.log                -- log all entries and votes for tenant, for debugging, archiving (raw input)
+    - data/<tenant1>.csv                -- append only (entries + vote) (formatted, not sorted)
+    - data/<tenant1>.clean.csv          -- cache file (entries + vote) (sorted and cleaned)
+    - data/<tenant1>.clean.csv.bak      -- temporary cache file during re-generation
+    - data/<tenant1>_entries.csv        -- append only for entries - eases reset to entries only    (optional)
+    - data/<tenant1>_votes.csv          -- append only for votes - eases reset to entries + selected votes (optional)
+    - for delta updates:                -- allow to fastly get new entries since last update (<=5 min Slots)
+        - data/<tenant1>.delta0.cache   -- delta file, partitioned by 5 Minutes (entries + votes)
+        - data/<tenant1>.delta1.cache   -- delta file, partitioned by 5 Minutes (entries + votes)
+    - for delta update - variant seek
+        - data/<tenant1>.delta.pos      -- offset position in <data/<tenant1>.csv with ts > 5 minutes, new as possible
 
 
     processing:
-    - add new entry
+    - add new entry / deletion / vote
         - log to <tenant1>.log
         - fix format, sanitize input ...
-        - appended to <tenant1>_entries.csv + <tenant1>_entries.delta?.cache
-        - if deletion-entry
-            - append to <tenant1>_votes.csv
-            - append to votes-Delta as well (!)
-    - add new vote
-        - log to <tenant1>.log
-        - fix format, sanitize input ...
-        - appended to <tenant1>_votes.csv + <tenant1>_votes.delta?.cache + <tenant1>.log
-    - read all entries/votes
-        - read <tenant1>_entries.cache / <tenant1>_votes.cache
-        - if cache outdated
-            - read <tenant1>_entries.csv
-            - clean (remove deletions, duplicates, aggregate anonymous votes)
+        - append to <tenant1>.csv
+        - if entry    -> append to <tenant1>_entries.csv
+        - if vote     -> append to <tenant1>_votes.csv
+        - if deletion -> append to <tenant1>_entries.csv + <tenant1>_votes.csv
+        - append to delta?.cache as well (!)
+    - ... read <tenant1>.cache
+        - if <tenant1>.cache exists and up-to-date (newer than <tenant1>.csv)
+            - return <tenant1>.cache
+        - else
+            - if <tenant1>.cache.bak exists
+                if <tenant1>.cache.bak not older than 1 sek
+                    return <tenant1>.cache.bak  (to avoid concurrent regeneration)
+            - else atomic move <tenant1>.cache to <tenant1>.cache.bak
+            - read <tenant1>.csv
+            - fix format
             - sort by path/topic
-            - write <tenant1>_entries.cache / <tenant1>_votes.cache
+            - clean (remove deletions, duplicates, aggregate anonymous votes)
+            - write <tenant1>.cache.tmp
+            - atomic rename <tenant1>.cache.tmp -> <tenant1>.cache
+    - read all data -> read <tenant1>.cache
+    - read all entries/votes -> read <tenant1>.cache and FILTER by type
     - read delta entries/votes less than 5 minutes old
         - return entries from delta?.cache files (max 10 minutes old)
     - read delta entries older than 5 minutes
-        - parse full csv file since last known timestamp
+        - read <tenant1>.cache and FILTER by timestamp
 
 
     delta file management:
@@ -182,18 +204,24 @@ if (!$dataIsLog) {
 
 */
 
-$csvFileNameOld = $googleSheetUrl; // data/entries_tenant1.csv
-
-$cacheFileTemplName = $cacheFile; // data/entries.cache
-$cacheFileName = str_replace('/', "/{$tenant_id}_", $cacheFileTemplName); //  data/tenant1_entries.cache
-$csvFileName = str_replace('.cache', '.csv', $cacheFileName); //  data/tenant1_entries.csv
-
-// if new csv file does not exist, but old csv file exists, migrate data
-$lines = [];
-if (!file_exists($csvFileName) && file_exists($csvFileNameOld)) {
-    log_warn("migrating tenant data from old file: " . $csvFileNameOld  );
-    $lines = file($csvFileNameOld, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+$dataDir = $config['cacheDir'] ?? 'data/';
+$dataLog = $dataDir . $tenant_id . '.log';
+$dataCsv = $dataDir . $tenant_id . '.csv';
+$dataCleanedCsv = $dataDir . $tenant_id . '.clean.csv';
+$dataCsvOldEntries = 'data/entries_' . $tenant_id . '.csv'; // data/entries_tenant1.csv
+$dataCsvOldVotes = 'data/votes_' . $tenant_id . '.csv';     // data/votes_tenant1.csv
+//
+if (!is_dir($dataDir)) {
+    mkdir($dataDir, 0755, true);
 }
+if (file_exists($dataLog)) {
+    file_put_contents($dataLog, $data . "\n", FILE_APPEND); // log all data
+    $dataNew = formatEntry($data);
+    if ($dataNew !== "") {
+        file_put_contents($dataCsv, $dataNew . "\n", FILE_APPEND); // append formatted data
+    }
+}
+
 
 
 
