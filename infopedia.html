@@ -3273,7 +3273,7 @@ cursor: pointer;
                     // send entry/add?sid=" + encodeURIComponent(systemId)  + "&tid={tenantId}&topic={topic}&data={message}{type}
                     // generate nodeId as timestamp + random
                     const nodeId = currentNodeId || generateNodeId();
-                    const entry = topic + " | " + nodeId + " | " + message + type;
+                    const entry = topic + " | " + nodeId + " | " + message;
                     // timestamp format: YYYY-MM-DD HH:MM:SS
                     let entryTimestamp = new Date().toISOString().slice(0, 19).replace("T", " ");
                     addEntry(topic, nodeId, message, "0", entryTimestamp);
