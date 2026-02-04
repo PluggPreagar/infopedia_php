@@ -3308,8 +3308,8 @@ cursor: pointer;
                         return;
                     }
 
-                    if (topic === "/" || topic === "" || topic === null || topic == "all" ) {
-                        showToast("Cannot add entry to root topic. Please select a specific topic.");
+                    if (protectRootAndVotedEntries && (topic === "/" || topic === "" || topic === null || topic == "all") ) {
+                        showToast("Cannot add/change entry to root topic. Please select a specific topic.");
                         return;
                     }
                     if (topic.startsWith("/_/")) {
