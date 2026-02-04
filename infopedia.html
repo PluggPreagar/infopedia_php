@@ -137,7 +137,7 @@ tr:hover {
             color: #4CAF50;
             // font-weight: bold;
             font-size: 1.2rem;
-            margin-bottom: 1rem;
+            // margin-bottom: 1rem;
         }
 
         /* Show edit icon when hovering over the row - slow transition */
@@ -1115,10 +1115,18 @@ cursor: pointer;
             </div>
             <div id="hero-image_container" onclick="idx=((Number(this.dataset.idx)||0) + 1) % 3; this.dataset.idx=idx;
                         console.log('Hero idx:', idx);
-                        document.getElementById('hero-simulation').style.display= idx===0 ? 'block' : 'none';
-                        document.getElementById('hero-image').style.display= idx===0 ? 'none' : 'block'; // no image on simulation
-                        document.getElementById('hero-swipe').style.display= idx===1 || idx===0 ? 'block' : 'none';
-                        document.getElementById('hero-gesture').style.display= idx===2 ? 'block' : 'none';
+                        if (document.getElementById('hero-simulation'))
+                           document.getElementById('hero-simulation').style.display= idx===0 ? 'block' : 'none';
+                        console.log('Hero hero-simulation');
+                        if (document.getElementById('hero-image'))
+                            document.getElementById('hero-image').style.display= idx===0 ? 'none' : 'block'; // no image on simulation
+                        console.log('Hero hero-image');
+                        if (document.getElementById('hero-swipe'))
+                            document.getElementById('hero-swipe').style.display= idx===1 || idx===0 ? 'block' : 'none';
+                        console.log('Hero hero-swipe');
+                        if (document.getElementById('hero-gesture'))
+                            document.getElementById('hero-gesture').style.display= idx===2 ? 'block' : 'none';
+                        console.log('Hero hero-gesture');
                         ">
                 <!-- create a preview how app looks like -->
                 <div id="hero-image_overlay_outside" >
@@ -1357,8 +1365,8 @@ cursor: pointer;
     <div id="utils-send-buttons" style="">
         <!-- Overlay Div -->
         <div id="edit-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000;">
-            <div id="edit-overlay-content" style="position: relative; top: 3em; max-width: 600px; margin: 5% auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);" >
-                <h2 style="margin-top: 0;">Edit</h2>
+            <div id="edit-overlay-content" style="position: relative; top: 3em; max-width: 600px; margin: 5% auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);padding-top: 3rem" >
+                <!--<h2 style="margin-top: 0;">Edit</h2>-->
                 <form id="edit-form" onsubmit="return false;">
                     <textarea id="edit-message" name="message"
                               style="width: 100%; box-sizing: border-box; min-height: 150px; resize: none; padding: 0.5rem; border: 1px solid #ccc; border-radius: 5px;"
@@ -1368,7 +1376,7 @@ cursor: pointer;
                         <button id="cancel-edit" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; color: #f44336; cursor: pointer;" onclick="closeEditOverlay();">&times;</button>
                         <div id="send-buttons" style="display: flex; gap: 0.5rem; margin-left: auto;">
                             <button type="button" class="send-button" data-type="--" style="background: transparent ; color: red; padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer;">
-                                <img src="assets/icons8-trash-100-2.svg" class="filter-red" alt="Delete" style="width: 1rem; height: 1rem; vertical-align: middle;">
+                                <img src="assets/icons8-trash-100-2.svg" class="filter-red" alt="Delete" style="width: 2rem; height: 2rem; vertical-align: middle;">
                             </button>
                             <!-- spacer -->
                             <button type="button" id="spacer-button"  style="background: transparent; border: none; cursor: default; width: 5rem;"></button>
@@ -1442,7 +1450,7 @@ cursor: pointer;
     </div>
     <!-- footer -->
     <footer>
-        <p>&copy; 2026 Fakt Farming Project | fayf.info | version: 0.0.25 </p>
+        <p>&copy; 2026 Fakt Farming Project | fayf.info | version: 0.0.36 </p>
         <div style="display: inline-flex;font-size: 0.9rem;">
             <div >created:&nbsp;</div>
             <div id="created_timestamp" style=""><!-- created_timestamp --></div>
@@ -1485,6 +1493,7 @@ cursor: pointer;
         let systemId = "www"; // temporary identifier of the current system, will be set from settings or random
         let showTimeStamp = false;
         let guiEventsProcessedUntil = 0;
+        let ignoreOwnData = {}; // to ignore own data on next fetch
 
         const tableBody = document.querySelector("#browse tbody");
         const topicFilter = document.getElementById("topicFilter");
@@ -1616,13 +1625,16 @@ cursor: pointer;
                 return;
             }
             console.log("Changing systemId from", systemId, "to", newSystemId);
+            const oldSystemId = systemId;
             systemId = newSystemId;
             try {
                 setCookie('fayf_systemId', systemId, 365);
             } catch (e) {
                 console.warn('Could not persist systemId to cookie', e);
             }
-            showToast("System-ID gewechselt zu: " + newSystemId, "info");
+            if ("www" !== oldSystemId) { // skip initial
+                showToast("System-ID gewechselt zu: " + newSystemId, "info");
+            }
             runtimeCheck("setSystemId-end");
         }
 
@@ -1652,7 +1664,6 @@ cursor: pointer;
 
         resetData(tenantId, "init");
 
-
         function addEntryWoCheck(topic, nodeId, message, votes, timestamp) {
             runtimeCheck("addEntryWoCheck");
             if (!topic || topic === "") {
@@ -1662,7 +1673,7 @@ cursor: pointer;
                 data[topic] = {};
             }
             if (!timestamp) {
-                timestamp = formatTimestamp(new Date().toLocaleString("de-DE"));
+                timestamp = newLocalTimestamp();
             }
             if (message && message.endsWith("--")) {
                 console.log("Deleting entry: " + ("/" == topic ? "" : topic) + "/" + nodeId);
@@ -1684,11 +1695,13 @@ cursor: pointer;
 
         function addEntry(topic, nodeId, message, votes, timestamp) {
             runtimeCheck("addEntry");
+            messageOld = data[topic] && data[topic][nodeId] ? data[topic][nodeId].message : null;
             addEntryWoCheck(topic, nodeId, message, votes, timestamp);
             checkData(topic, nodeId, message);
             updateFilteredData(topic, nodeId, message);
             if ("MOCK" !== tenantId) {
-                showToast(randomCongratulation("Eintrag hinzugefügt!"), "success");
+                msg = !messageOld ? "hinzugefügt!" : messageOld !== message ? "aktualisiert!" : "unverändert.";
+                showToast(randomCongratulation("Eintrag " + msg), "success");
             }
             runtimeCheck("addEntry-end");
         }
@@ -2243,9 +2256,9 @@ cursor: pointer;
                 // recheck for MOCK - due to async run
                 if (tenantId !== "MOCK") {
                     if (url.includes("vote/get")) {
-                        addVotesData(dataLoaded);
+                        addVotesData(dataLoaded, url);
                     } else {
-                        addData(dataLoaded);
+                        addData(dataLoaded, url);
                     }
                 } else {
                     console.log("Mock tenant - skipping data addition after fetch.");
@@ -2271,7 +2284,7 @@ cursor: pointer;
             runtimeCheck("loadData-end");
         }
 
-        function addVotesData(dataLoaded) {
+        function addVotesData(dataLoaded, url) {
             runtimeCheck("addVotesData");
             console.log("Votes data loaded:", dataLoaded);
             if (!dataLoaded || Object.keys(dataLoaded).length === 0) {
@@ -2306,33 +2319,60 @@ cursor: pointer;
             } else {
                 //
                 let foundSelectedTopic = false;
+                let foundNewEntry = false;
                 //
                 Object.entries(dataLoaded).forEach(([topic, nodes]) => {
                     Object.entries(nodes).forEach(([nodeId, entry]) => {
-                        addEntryWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
-                        if (topic === selectedTopic) {
-                            foundSelectedTopic = true;
-                        }
+                        //
+                        const entryString = topic + " | " + nodeId + " | " + entry.message ;
+                        const data_node = data[topic] && data[topic][nodeId] ? data[topic][nodeId] : null;
+                        if (ignoreOwnData[ entryString ] ) {
+                            delete ignoreOwnData[ entryString ]
+                            console.log("SKIP  entry:", topic + "/" + nodeId + " -> '"
+                                + entry.message + "' (votes: " + entry.votes + ", ts: " + entry.timestamp + ")");
+                            // timestamp might differ - own time at entry and server time in response data
+                            // but only if message had not changed since
+                            if (data_node && data_node.message === entry.message) {
+                                data_node.timestamp = entry.timestamp; // might cause highlightNewRow ...
+                            }
+                        } else {
+                            console.log("new  entry:", topic + "/" + nodeId + " -> '"
+                                + entry.message + "' (votes: " + entry.votes + ", ts: " + entry.timestamp + ")");
+                            // show old entry if already exists
+                            if (data_node) {
+                                console.log("old  entry:", topic + "/" + nodeId + " -> '"
+                                    + data_node.message + "' (votes: " + data_node.votes
+                                    + ", ts: " + data_node.timestamp + ")" );
+                            }
+                            addEntryWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
+                            foundNewEntry = true;
+                            if (topic === selectedTopic) {
+                                foundSelectedTopic = true;
+                            }
+                        } // reply or change?
                         // robust: if pattern YYYY-MM-DD HH:MM:SS
                         if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
                             if (!latestTimestamp || entry.timestamp > latestTimestamp) {
                                 latestTimestamp = entry.timestamp;
                             }
-                        }
+                        } // latest timestamp update
                     });
                 });
-                checkData();
-                // FIXME KLUDGE delta contains ts=
-                if (!url.includes("&ts=") || !url.includes("entries_local_tst_ts")) {
-                    initializeTopicMap();
-                    populateFilterOptions();
-                }
-                // only display data for selected topic is changed
-                if (foundSelectedTopic) {
-                    updateFilteredData();
-                    showToast( "Topic updated (" + Object.keys(dataLoaded).length + " entries loaded)");
-                } else {
-                    showToast( "Data updated (" + Object.keys(dataLoaded).length + " entries)");
+                console.log("Updated latest timestamp to:", latestTimestamp);
+                if (foundNewEntry) {
+                    checkData();
+                    // FIXME KLUDGE delta contains ts=
+                    if (!url.includes("&ts=") || !url.includes("entries_local_tst_ts")) {
+                        initializeTopicMap();
+                        populateFilterOptions();
+                    }
+                    // only display data for selected topic is changed
+                    if (foundSelectedTopic) {
+                        updateFilteredData();
+                        showToast( "Topic updated (" + Object.keys(dataLoaded).length + " entries loaded)");
+                    } else {
+                        showToast( "Data updated (" + Object.keys(dataLoaded).length + " entries)");
+                    }
                 }
             } // dataLoaded not empty
             //
@@ -2346,8 +2386,12 @@ cursor: pointer;
             UTIL
         */
 
-
-
+        function newLocalTimestamp() {
+            let ts = new Date().toLocaleString("de-DE"); // TimeZone !!!
+            ts = ts.replace(/^([0-9]+)[.-]([0-9]+)[.-]([0-9]+)[^0-9]+([0-9:]+).*/,"$3.0$2.0$1 $4");
+            ts = ts.replace(/([^0-9])0([0-9][0-9])/,"$1$2");
+            return ts;
+        }
 
         function formatTimestamp(timestamp) {
 
@@ -2412,6 +2456,27 @@ cursor: pointer;
         /*
             EFFECTS
         */
+
+
+        function toggle( eOrId, cmd = "display") {
+            let element = (typeof eOrId === "string") ? document.getElementById(eOrId) : eOrId;
+            if (!element) {
+                console.error("toggle: Element not found:", eOrId);
+                return;
+            }
+            // cmd = true -> display = block // cmd = false -> display = none
+            if ( cmd === true ) {
+                element.style.display = "block";
+            } else if ( cmd === false ) {
+                element.style.display = "none";
+            } else if (cmd === "display") {
+                element.style.display = (element.style.display === "none" || getComputedStyle(element).display === "none") ? "block" : "none";
+            } else if (cmd === "visibility") {
+                element.style.visibility = (element.style.visibility === "hidden") ? "visible" : "hidden";
+            } else {
+                console.error("toggle: Unknown command:", cmd);
+            }
+        }
 
 
         function highlightNewRow(rowElement) {
@@ -3274,8 +3339,15 @@ cursor: pointer;
                     // generate nodeId as timestamp + random
                     const nodeId = currentNodeId || generateNodeId();
                     const entry = topic + " | " + nodeId + " | " + message;
-                    // timestamp format: YYYY-MM-DD HH:MM:SS
-                    let entryTimestamp = new Date().toISOString().slice(0, 19).replace("T", " ");
+                    // timestamp format: YYYY-MM-DD HH:MM:SS // TODO-Match with server time?
+                    // use local time for now
+                    // let entryTimestamp = new Date().toISOString().slice(0, 19).replace("T", " ");
+                    let entryTimestamp = newLocalTimestamp();
+                    // WO ignore own changes on delta
+                    if (Object.keys(ignoreOwnData).length > 20) {
+                        ignoreOwnData = {}; // reset if to large
+                    }
+                    ignoreOwnData[ entry ] = entryTimestamp;
                     addEntry(topic, nodeId, message, "0", entryTimestamp);
                     const sendUrl = `entry/add?sid=" + encodeURIComponent(systemId)  + "&tid=${encodeURIComponent(tenantId)}&entry=${encodeURIComponent(entry)}`;
                     if (tenantId === "MOCK") {
@@ -3292,7 +3364,7 @@ cursor: pointer;
                                 return response.text();
                             })
                             .then(data => {
-                                showToast("Entry submitted successfully!");
+                                console.log("Entry submitted successfully!");
                             })
                             .catch(error => {
                                 console.error("Error submitting entry:", error);
