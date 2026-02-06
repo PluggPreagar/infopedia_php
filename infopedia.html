@@ -2505,6 +2505,9 @@ cursor: pointer;
                 if (!ignoreIds.includes(section.id))
                     section.style.display = newDisplay;
             });
+            // toggle fab-add
+            const fabAdd = document.getElementById("fab-add");
+            fabAdd.style.display = userMode === "work" ? "block" : "none";
             // toggle QR code section
             const qrCodeSection = document.getElementById("qr-code-section");
             qrCodeSection.style.display = newDisplay;
