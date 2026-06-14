@@ -1,4 +1,4 @@
-﻿# AGENTS.md ÔÇö InfoPedia_PHP
+﻿# AGENTS.md -- InfoPedia_PHP
 
 > ## ⛔ HIGHEST PRIORITY — NON-NEGOTIABLE
 > Before any task, on **every** request, you MUST read and obey:
@@ -38,19 +38,19 @@ The Android/web client talks to thin PHP endpoints; `infopedia.html` is the SPA 
   instead of Google. New tenants auto-created if `tenantAutoCreationEnabled=true`.
 
 ## Data formats (critical, easy to break)
-- **Old (Sheet) format:** `timestamp,"/path | node | message | vote"` ÔÇö comma-split,
+- **Old (Sheet) format:** `timestamp,"/path | node | message | vote"` -- comma-split,
   then ` | `-split; messages may be quoted and span multiple lines (odd `"` count = wrapped).
-- **New (0v02) format:** `/path/node[::Vote::sid],timestamp,message[,vote]` ÔÇö single line,
+- **New (0v02) format:** `/path/node[::Vote::sid],timestamp,message[,vote]` -- single line,
   newlines as literal `\n`. `formatEntry()` in `util_entry.php` converts old ÔåÆ new.
 - `read.php` re-emits via `?format=` switch: `csv` (default), `txt.0.2`, `txt.0.3`, `json.0.3`.
   Vote rows aggregate by `::Vote::` marker; `entry_type` is inferred from the last char
   (`>!?.-`) of the message.
 - When parsing/serializing CSV always handle: doubled `""` escaping, multi-line quoted
-  messages, and date variants (`DD/MM/YYYY`, swapped `YYYY-DD-MM`) ÔÇö see `read.php` regexes.
+  messages, and date variants (`DD/MM/YYYY`, swapped `YYYY-DD-MM`) -- see `read.php` regexes.
 
 ## Conventions
 - Self-documenting names; comments explain **why**, not what (keep them short).
-- No classes/namespaces ÔÇö plain functions + global `$config`. Reuse `util_file.php`
+- No classes/namespaces -- plain functions + global `$config`. Reuse `util_file.php`
   (cache I/O) and `util_entry.php` (entry formatting) rather than re-implementing parsing.
 - Logging: use `log_debug/info/warn/error/log_return($msg)` (never `echo` for diagnostics).
   `log_return` records elapsed time and ends a request; logs go to `infopedia.log`.
@@ -70,9 +70,9 @@ The Android/web client talks to thin PHP endpoints; `infopedia.html` is the SPA 
   `/entry/get?sid=tst&tid=tenant1&force_update=1`, `/entry/add?...&entry=/path%20|%20node%20|%20msg`.
 
 ## Gotchas
-- `infopedia.html` is huge (~4.9k lines, 231k chars) and is the client SPA ÔÇö avoid loading
+- `infopedia.html` is huge (~4.9k lines, 231k chars) and is the client SPA -- avoid loading
   it wholesale; edit surgically. `infopedia.php` only string-replaces `<!-- timestamp -->` etc.
-- `read.php` may `sleep()` up to ~50s in timestamp ("ts") long-poll mode ÔÇö expected.
+- `read.php` may `sleep()` up to ~50s in timestamp ("ts") long-poll mode -- expected.
 - Routes like `/entry/get` map to `read.php` via server rewrite (not in repo); the `type`
   (`entry`/`vote`) selects the config section.
 
