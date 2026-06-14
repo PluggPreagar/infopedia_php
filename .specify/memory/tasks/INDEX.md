@@ -4,8 +4,10 @@
 **Design:** [`../design-refactor-php-functions.md`](../design-refactor-php-functions.md)
 **Constitution:** [`.ai/constitution.md`](../../../.ai/constitution.md)
 **Step requirements:** load `.ai/requirements/S<n>-*.md` for the step you are in.
+**Agent dispatch:** [`../dispatch/refactor-php-functions-dispatch.md`](../dispatch/refactor-php-functions-dispatch.md)
 
 Each task file is self-contained: constitution refs, step gate, files to touch, code, commit.
+Dispatch policy: one fresh agent per task; see `../dispatch/agents/AGENT-TASK-*.md`.
 
 | Task | File | Step | Status |
 |---|---|---|---|
