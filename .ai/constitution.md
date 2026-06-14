@@ -242,5 +242,8 @@ Concrete commands and tools that support The Basic Workflow on Windows/XAMPP.
   `feat(entry)!: introduce 0v03 line format`.
 - **CV3 -- Commit <-> SemVer link:** `fix:` -> PATCH, `feat:` -> MINOR, `!`/`BREAKING CHANGE:` ->
   MAJOR. A bugfix commit MUST reference the reproduction test from *Assume Bugs Exist* (CC1).
+- **CV4 -- show commit message to be verified:** when requesting review, include the commit message in the PR description or
+  comment, so reviewers can verify the type/scope and rationale (especially for breaking
+  changes). / wait for edits to be accepted before committing.
 
 **Version**: 1.6.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-14

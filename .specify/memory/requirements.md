@@ -1,4 +1,4 @@
-﻿# Requirements per Development Step ÔÇö Index
+﻿# Requirements per Development Step -- Index
 
 Derived from [`constitution.md`](./constitution.md) (v1.6.0). Requirements are split into
 **one file per step** so each task loads only its own context. Each requirement traces
@@ -17,7 +17,7 @@ Requirement IDs follow `REQ-S<step>-<n>`. Treat **MUST** as blocking.
 
 ---
 
-## Traceability matrix (ID ÔåÆ steps)
+## Traceability matrix (ID -> steps)
 
 | Constitution ID | Covered in |
 | --- | --- |
@@ -57,10 +57,6 @@ Requirement IDs follow `REQ-S<step>-<n>`. Treat **MUST** as blocking.
 | CV1, CV3 | S2, S6 |
 | CV2 | S1, S6 |
 
-> Not step-gated (situational references): **CA3, CA10, CD4, CT2, CT3, CT4, CT5, CW4** ÔÇö
+> Not step-gated (situational references): **CA3, CA10, CD4, CT2, CT3, CT4, CT5, CW4** --
 > apply whenever relevant (e.g. `CW4` when dispatching subagents / parallel agents,
 > `CD4` when touching `infopedia.html`).
-
-
-
-
