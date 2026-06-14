@@ -61,10 +61,6 @@ function log_debug($message) {
 }
 
 function log_warn($message) {
-    // Uncomment the next line to enable warning output
-    if (!$GLOBALS['debug']) {
-        return; // Skip debug output if debug mode is off
-    }
     log_to_file( "WARNING: " . $message );
 }
 

@@ -1,8 +1,11 @@
 <?php
+$type = "stat";
+include_once 'util.php';
+
 header('Content-Type: text/html; charset=utf-8');
 
 // Path to the log file
-$logFile = 'infopedia.log';
+$logFile = $config['logFile'] ?? 'infopedia.log';
 
 echo "<!DOCTYPE html>";
 echo "<html>";
@@ -131,4 +134,5 @@ echo "</ul>";
 
 
 
+log_return("statistic rendered");
 ?>

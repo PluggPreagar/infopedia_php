@@ -1,6 +1,9 @@
 <?php
 
-  require 'util.php';
+$type = "web";
+require 'util.php';
+require_once 'util_file.php';
+require_once 'util_entry.php';
 
 
 /*
@@ -14,29 +17,6 @@
 ### Code:
 */
 $debug=false;
-
-// Function to download Google Sheet and cache it
-function downloadAndCacheGoogleSheet($url, $cacheFile) {
-    $sheetData = file_get_contents($url);
-    if ($sheetData !== false) {
-        file_put_contents($cacheFile, $sheetData);
-        log_debug("Google Sheet data downloaded and cached successfully.\n");
-    } else {
-        log_debug("Failed to download Google Sheet data.\n");
-    }
-}
-
-// Function to check if cache is valid
-function isCacheValid($cacheFile) {
-    global $cacheTime;
-    if (!file_exists($cacheFile)) {
-        log_debug("Cache file does not exist.\n");
-        return false;
-    }
-    $lastModified = filemtime($cacheFile);
-    log_debug("Cache file last modified at: " . date('Y-m-d H:i:s', $lastModified) . "\n");
-    return (time() - $lastModified) < $cacheTime ; // Cache valid for 1 hour
-}
 
 // Function to load filtered content from cache
 function loadFilteredContent($cacheFile, $filter, $parentsToTopicFilters = []) {
@@ -57,9 +37,13 @@ function loadFilteredContent($cacheFile, $filter, $parentsToTopicFilters = []) {
             foreach ($parentsToTopicFilters as $parentFilter) {
                 //log_debug("Checking parent filter: " . $parentFilter . " for line: " . $line);
                 if (strpos($line_, $parentFilter) != 0) {
-                    $parts = str_getcsv($line);
-                    $entry = $parts[1] ?? '';
-                    list($topic, $node, $content) = explode(" | ", $entry);
+                    $parsed = parseEntryLine($line);
+                    if (empty($parsed)) {
+                        continue;
+                    }
+                    $topic = $parsed['topic'];
+                    $node = $parsed['node'];
+                    $content = $parsed['content'];
                     $parentContent[ $topic."/".$node ] = $content;
                     log_debug("matched parent filter: " . $parentFilter . " for " . $topic."/".$node . " with: " . $content);
                     $found = true;
@@ -85,19 +69,13 @@ function parseData($lines, $filter = '', $parentsToTopicFilters = []) {
     $data = [];
     $topicIndex = [];
     foreach ($lines as $line) {
-        // use delimiter as comma, but handle quotes "
-        $parts = str_getcsv($line);
-        if (count($parts) < 2) {
+        $parsed = parseEntryLine($line);
+        if (empty($parsed)) {
             continue;
         }
 
-        $timestamp = $parts[0];
-        $entry = $parts[1];
-        // Assuming the entry is in the format "Topic | Node | Content"
-        // when entry starts with '|' insert the trimmed space before the pipe
-        if (strpos($entry, '|') === 0) {
-            $entry = ' ' . $entry;
-        }
+        $timestamp = $parsed['timestamp'];
+        $entry = $parsed['topic'] . ' | ' . $parsed['node'] . ' | ' . $parsed['content'];
         // if a filter is set, check if the entry starts with the filter
         // (we can't filter the file as it contains multiple columns and delimiters before the entry)
         if ($filter && strpos($entry, $filter) !== 0) {
@@ -107,8 +85,10 @@ function parseData($lines, $filter = '', $parentsToTopicFilters = []) {
             }
             continue; // Skip entries that do not match the filter
         }
-        list($topic, $node, $content) = explode(" | ", $entry);
-        $entryType = substr($content, -1);
+        $topic = $parsed['topic'];
+        $node = $parsed['node'];
+        $content = $parsed['content'];
+        $entryType = $parsed['entry_type'];
 
         /* does not work as childs are already skipped */
 
@@ -122,7 +102,6 @@ function parseData($lines, $filter = '', $parentsToTopicFilters = []) {
                     $data[$parentIndex]['child_count']++;
                 }
 
-        echo "topic: " . $topic . " node: " . $node . " myTopic: " . $myTopic . "\n";
 
         $data[] = [
             'timestamp' => $timestamp,
@@ -227,26 +206,7 @@ function parentsToTopicFilter($topic){
 
 
 
-// Read configurations from the configuration file
-$configFile = 'infopedia.cfg';
-$type = "web";
-if (file_exists($configFile)) {
-    $configGeneral = parse_ini_file($configFile, true); // Enable section parsing
-    if ($configGeneral === false) {
-        die("Failed to parse configuration file.");
-    }
-
-    // Check if the 'general' and 'votes' sections exist
-    $config = [];
-    if (isset($configGeneral['general'])) {
-        $config = $configGeneral['general'];
-    }
-    if (isset($configGeneral[$type])) {
-        $config = array_merge($config, $configGeneral[$type]);
-    }
-} else {
-    die("Configuration file not found.");
-}
+// Configuration is loaded by util.php after $type selects the [web] section.
 /*
 // Main script execution
 $googleSheetUrl = $config['googleSheetUrl'] ?? die("Google Sheet URL not set in configuration file.");
@@ -269,7 +229,7 @@ $parentContent = array();
 
 generateHtmlHead($topic);
 
-if (!isCacheValid($cacheFile)) {
+if (!isCacheValid($cacheFile, $cacheTime)) {
     if ($useReadPhp) {
         // Use read.php to fetch and cache the Google Sheet data
         log_debug("Using read.php to fetch and cache Google Sheet data...");
@@ -293,9 +253,14 @@ if (!isCacheValid($cacheFile)) {
             log_debug("Exception when calling read.php: " . $e->getMessage());
         }
     } else {
-        // Download and cache the Google Sheet data
         log_debug("Downloading and caching Google Sheet data...");
-        downloadAndCacheGoogleSheet($googleSheetUrl, $cacheFile);
+        $sheetData = @file_get_contents($googleSheetUrl);
+        if ($sheetData !== false) {
+            writeCache($cacheFile, $sheetData);
+            log_debug("Google Sheet data downloaded and cached successfully.");
+        } else {
+            log_warn("Failed to download Google Sheet data for infopedia.");
+        }
     }
 }
 

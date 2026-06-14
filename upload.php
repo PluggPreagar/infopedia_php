@@ -1,5 +1,7 @@
 <?php
- include_once 'util.php';
+$type = "upload";
+include_once 'util.php';
+require_once 'util_file.php';
 
 // forward data to google formular
 $googlePostUrl = $config['googlePostUrl'] ?? 'https://docs.google.com/forms/d/YOUR_GOOGLE_FORM_ID/formResponse'; // Replace with your Google Form ID
@@ -11,6 +13,8 @@ $data = $_POST['entry'] ?? $_GET['entry']
     ?? $_POST[$googlePostEntryId] ?? $_GET[$googlePostEntryId]
     ?? $_POST[$googlePostEntryId_] ?? $_GET[$googlePostEntryId_]
     ?? '';
+$rawLog = $config['rawLog'] ?? 'data/upload_raw.log';
+appendRaw($rawLog, date('Y-m-d H:i:s') . ',' . $data);
 $cacheFile = $config['cacheFile']; // Path to the cache file
 $cacheOutdatedFile = $config['cacheOutdatedFile']; // Path to the cache file
 $dryRun = isset($config['dryRun']) && $config['dryRun'] == 'true'; // Check if dry run is requested
@@ -43,6 +47,6 @@ if ($response === false) {
 if (file_exists($cacheOutdatedFile)) {
     touch($cacheOutdatedFile);
 }
-log_return( str_leng($response) . " bytes saved ( " . $data . ")"  );
+log_return(strlen($data) . " bytes queued (" . $data . ")");
 
 ?>
