@@ -36,9 +36,18 @@ function parseEntryLine(string $line): array {
 
 function parseFormattedEntryLine(array $parts, string $line): array {
     $path = $parts[0];
-    $timestamp = $parts[1] ?? '';
-    $content = isset($parts[2]) ? str_replace('\\n', "\n", $parts[2]) : '';
-    $vote = $parts[3] ?? '';
+    $attributes = [];
+    $valueIndex = 1;
+
+    while (isset($parts[$valueIndex]) && isEntryAttributeToken($parts[$valueIndex])) {
+        [$key, $value] = explode('::', $parts[$valueIndex], 2);
+        $attributes[$key] = $value;
+        $valueIndex++;
+    }
+
+    $timestamp = $parts[$valueIndex] ?? '';
+    $content = isset($parts[$valueIndex + 1]) ? str_replace('\\n', "\n", $parts[$valueIndex + 1]) : '';
+    $vote = $parts[$valueIndex + 2] ?? ($attributes['vote'] ?? '');
     $lastSlash = strrpos($path, '/');
 
     if ($lastSlash === false || $lastSlash === 0) {
@@ -57,8 +66,18 @@ function parseFormattedEntryLine(array $parts, string $line): array {
         'entry_type' => $content === '' ? '' : substr($content, -1),
         'delete' => trim($content) === '--',
         'vote' => $vote,
+        'attributes' => $attributes,
         'raw' => $line,
     ];
+}
+
+function isEntryAttributeToken(string $token): bool {
+    if (!str_contains($token, '::')) {
+        return false;
+    }
+
+    [$key] = explode('::', $token, 2);
+    return preg_match('/^[a-zA-Z][a-zA-Z0-9_-]*$/', $key) === 1;
 }
 
 function sortAndDeduplicateCsv(string $csvData): string {
