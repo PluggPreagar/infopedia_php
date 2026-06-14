@@ -3503,8 +3503,10 @@ cursor: pointer;
             const addEditSection = document.getElementById("add-edit-section");
             // not allowed on root topic or general topic
             if (topicFilter.value === "/" || topicFilter.value === "" || topicFilter.value === null || topicFilter.value == "all" ) {
-                showToast("Cannot add entry to root topic. Please select a specific topic first.");
-                return;
+                if (protectRootAndVotedEntries) {
+                    showToast("Cannot add entry to root topic. Please select a specific topic first.");
+                    return;
+                }
             }
 
             if (addEditSection && false) {
