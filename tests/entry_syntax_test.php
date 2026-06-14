@@ -27,15 +27,15 @@ assert_equals($new['entry_type'], '.', '0v02 syntax: entry type from last char')
 $vote = parseEntryLine('/clima/biz,2025-09-14 07:17:33,Some fact.,+1');
 assert_equals($vote['vote'], '+1', '0v02 syntax: optional vote column');
 
-// Attributes may appear before the timestamp: /path,nodeAttr::value,timestamp,message
-$signed = parseEntryLine('/clima/biz,sign::bhfhjjjk,2025-09-14 07:17:33,Some fact.');
+// Attributes may appear before the timestamp: /path,attr:value,timestamp,message
+$signed = parseEntryLine('/clima/biz,sign:bhfhjjjk,2025-09-14 07:17:33,Some fact.');
 assert_equals($signed['topic'], '/clima', '0v02 attributed syntax: topic');
 assert_equals($signed['node'], 'biz', '0v02 attributed syntax: node');
 assert_equals($signed['timestamp'], '2025-09-14 07:17:33', '0v02 attributed syntax: timestamp after attrs');
 assert_equals($signed['content'], 'Some fact.', '0v02 attributed syntax: content');
 assert_equals($signed['attributes']['sign'], 'bhfhjjjk', '0v02 attributed syntax: sign attribute');
 
-$votedAndSigned = parseEntryLine('/clima/biz,vote::+1,sign::abc123,2025-09-14 07:17:33,Some fact.');
+$votedAndSigned = parseEntryLine('/clima/biz,vote:+1,sign:abc123,2025-09-14 07:17:33,Some fact.');
 assert_equals($votedAndSigned['attributes']['vote'], '+1', '0v02 attributed syntax: vote attribute');
 assert_equals($votedAndSigned['attributes']['sign'], 'abc123', '0v02 attributed syntax: second attribute');
 assert_equals($votedAndSigned['timestamp'], '2025-09-14 07:17:33', '0v02 attributed syntax: timestamp after multiple attrs');

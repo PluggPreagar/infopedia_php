@@ -42,7 +42,7 @@ until the quote count is even, then parses with `str_getcsv()`.
 ## 2. New 0v02-style input/output
 
 ```csv
-<path>/<node>,[<attribute>::<value>,...],<timestamp>,<message>[,<vote>]
+<path>/<node>,[<attribute>:<value>,...],<timestamp>,<message>[,<vote>]
 ```
 
 Example:
@@ -54,8 +54,8 @@ Example:
 With attributes before the timestamp:
 
 ```csv
-/clima/biz,sign::bhfhjjjk,2025-09-14 07:17:33,Some fact.
-/clima/biz,vote::+1,sign::abc123,2025-09-14 07:17:33,Some fact.
+/clima/biz,sign:bhfhjjjk,2025-09-14 07:17:33,Some fact.
+/clima/biz,vote:+1,sign:abc123,2025-09-14 07:17:33,Some fact.
 ```
 
 Parsed as:
@@ -68,10 +68,10 @@ Parsed as:
 | `content` | `Some fact.` |
 | `vote` | optional fourth CSV column |
 
-Attributes are optional `key::value` tokens placed between `<path>/<node>` and
+Attributes are optional `key:value` tokens placed between `<path>/<node>` and
 `<timestamp>`. Supported keys are intentionally open-ended (`sign`, `vote`, etc.);
 keys must start with a letter and may contain letters, digits, `_`, or `-`.
-When `vote::...` appears as an attribute, it is also exposed as parsed field `vote`.
+When `vote:...` appears as an attribute, it is also exposed as parsed field `vote`.
 
 Literal `\n` inside `<message>` is decoded to a real newline when parsing 0v02 input.
 `formatEntry()` emits real newlines as literal `\n`.

@@ -40,7 +40,7 @@ function parseFormattedEntryLine(array $parts, string $line): array {
     $valueIndex = 1;
 
     while (isset($parts[$valueIndex]) && isEntryAttributeToken($parts[$valueIndex])) {
-        [$key, $value] = explode('::', $parts[$valueIndex], 2);
+        [$key, $value] = splitEntryAttributeToken($parts[$valueIndex]);
         $attributes[$key] = $value;
         $valueIndex++;
     }
@@ -72,12 +72,21 @@ function parseFormattedEntryLine(array $parts, string $line): array {
 }
 
 function isEntryAttributeToken(string $token): bool {
-    if (!str_contains($token, '::')) {
+    $attribute = splitEntryAttributeToken($token);
+    if ($attribute === null) {
         return false;
     }
 
-    [$key] = explode('::', $token, 2);
+    [$key] = $attribute;
     return preg_match('/^[a-zA-Z][a-zA-Z0-9_-]*$/', $key) === 1;
+}
+
+function splitEntryAttributeToken(string $token): ?array {
+    if (substr_count($token, ':') !== 1) {
+        return null;
+    }
+
+    return explode(':', $token, 2);
 }
 
 function sortAndDeduplicateCsv(string $csvData): string {
