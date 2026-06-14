@@ -1,7 +1,7 @@
 <?php
-require_once 'util_test.php';
+require_once __DIR__ . '/util_test.php';
 
-$src = file_get_contents('util.php');
+$src = file_get_contents(__DIR__ . '/../util.php');
 $start = strpos($src, 'function log_warn');
 $end = strpos($src, 'function log_error', $start);
 $body = $start === false || $end === false ? '' : substr($src, $start, $end - $start);
@@ -11,4 +11,5 @@ assert_equals(str_contains($body, '$GLOBALS[\'debug\']') || str_contains($body, 
 assert_contains($body, 'WARNING:', 'log_warn writes WARNING prefix');
 
 print_test_summary();
+
 

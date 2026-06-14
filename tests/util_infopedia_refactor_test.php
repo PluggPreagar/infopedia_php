@@ -1,7 +1,7 @@
 <?php
-require_once 'util_test.php';
+require_once __DIR__ . '/util_test.php';
 
-$src = file_get_contents('infopedia.php');
+$src = file_get_contents(__DIR__ . '/../infopedia.php');
 
 assert_contains($src, "require_once 'util_file.php'", 'infopedia.php: requires util_file.php');
 assert_contains($src, "require_once 'util_entry.php'", 'infopedia.php: requires util_entry.php');
@@ -11,4 +11,5 @@ assert_contains($src, 'parseEntryLine(', 'infopedia.php: parseData uses parseEnt
 assert_contains($src, 'writeCache(', 'infopedia.php: downloads write through util_file.php');
 
 print_test_summary();
+
 

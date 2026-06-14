@@ -1,6 +1,6 @@
 <?php
-require_once 'util_test.php';
-require_once 'util_file.php'; // RED: does not exist yet
+require_once __DIR__ . '/util_test.php';
+require_once __DIR__ . '/../util_file.php'; // RED: does not exist yet
 
 $tmp = sys_get_temp_dir() . '/infopedia_test_' . uniqid() . '.cache';
 
@@ -22,4 +22,5 @@ assert_equals(substr_count($content, "\n"), 2, 'appendRaw: two lines appended');
 @unlink($raw);
 
 print_test_summary();
+
 

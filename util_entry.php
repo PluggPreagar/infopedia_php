@@ -7,6 +7,10 @@ function parseEntryLine(string $line): array {
         return [];
     }
 
+    if (str_starts_with($parts[0], '/')) {
+        return parseFormattedEntryLine($parts, $line);
+    }
+
     $entry = $parts[1];
     if (str_starts_with($entry, '|')) {
         $entry = ' ' . $entry;
@@ -26,6 +30,33 @@ function parseEntryLine(string $line): array {
         'content' => $content,
         'entry_type' => substr($content, -1),
         'delete' => trim($content) === '--',
+        'raw' => $line,
+    ];
+}
+
+function parseFormattedEntryLine(array $parts, string $line): array {
+    $path = $parts[0];
+    $timestamp = $parts[1] ?? '';
+    $content = isset($parts[2]) ? str_replace('\\n', "\n", $parts[2]) : '';
+    $vote = $parts[3] ?? '';
+    $lastSlash = strrpos($path, '/');
+
+    if ($lastSlash === false || $lastSlash === 0) {
+        $topic = '/';
+        $node = ltrim($path, '/');
+    } else {
+        $topic = substr($path, 0, $lastSlash);
+        $node = substr($path, $lastSlash + 1);
+    }
+
+    return [
+        'timestamp' => $timestamp,
+        'topic' => $topic,
+        'node' => $node,
+        'content' => $content,
+        'entry_type' => $content === '' ? '' : substr($content, -1),
+        'delete' => trim($content) === '--',
+        'vote' => $vote,
         'raw' => $line,
     ];
 }

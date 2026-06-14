@@ -1,7 +1,7 @@
 <?php
-require_once 'util_test.php';
+require_once __DIR__ . '/util_test.php';
 
-$src = file_get_contents('infopedia.php');
+$src = file_get_contents(__DIR__ . '/../infopedia.php');
 $inParseData = false;
 $braceDepth = 0;
 $found = false;
@@ -25,4 +25,5 @@ foreach (explode("\n", $src) as $line) {
 assert_equals($found, false, 'infopedia.php parseData: no diagnostic echo present');
 
 print_test_summary();
+
 

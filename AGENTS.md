@@ -59,10 +59,10 @@ The Android/web client talks to thin PHP endpoints; `infopedia.html` is the SPA 
   matching section in `infopedia.cfg`, not hardcoded.
 
 ## Developer workflows (Windows / XAMPP)
-- **Run unit tests** (custom harness, no PHPUnit): `*_test.php` use `assert_equals`,
-  `log_test`, `print_test_summary` from `util_test.php`.
+- **Run unit tests** (custom harness, no PHPUnit): tests live in `tests/`; `*_test.php`
+  use `assert_equals`, `log_test`, `print_test_summary` from `tests/util_test.php`.
   ```powershell
-  D:\_progs\xampp\php\php.exe util_entry_test.php   # or run start_php_test.bat
+  D:\_progs\xampp\php\php.exe tests\run_all.php
   ```
 - **Static file server** for the HTML shell: `start_http.bat` ÔåÆ `python -m http.server`.
 - **Pull live tenant data** for inspection: `start_collect_all_txt_0_2.bat` (curl `?format=txt.0.2`).

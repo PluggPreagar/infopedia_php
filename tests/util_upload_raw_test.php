@@ -1,7 +1,7 @@
 <?php
-require_once 'util_test.php';
+require_once __DIR__ . '/util_test.php';
 
-$src = file_get_contents('upload.php');
+$src = file_get_contents(__DIR__ . '/../upload.php');
 $lines = explode("\n", $src);
 $appendRawLine = null;
 $postLine = null;
@@ -23,7 +23,8 @@ assert_equals($requireUtilFileLine !== null, true, 'upload.php: util_file.php re
 assert_equals($appendRawLine !== null, true, 'upload.php: appendRaw() call exists');
 assert_equals($postLine !== null, true, 'upload.php: Google POST exists');
 assert_equals($appendRawLine < $postLine, true, 'upload.php: appendRaw before Google POST');
-assert_contains(file_get_contents('infopedia.cfg'), 'rawLog', 'infopedia.cfg: rawLog configured');
+assert_contains(file_get_contents(__DIR__ . '/../infopedia.cfg'), 'rawLog', 'infopedia.cfg: rawLog configured');
 
 print_test_summary();
+
 

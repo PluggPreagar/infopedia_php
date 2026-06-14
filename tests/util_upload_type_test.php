@@ -1,7 +1,7 @@
 <?php
-require_once 'util_test.php';
+require_once __DIR__ . '/util_test.php';
 
-$src = file_get_contents('upload.php');
+$src = file_get_contents(__DIR__ . '/../upload.php');
 $lines = explode("\n", $src);
 $typeSetLine = null;
 $includeLine = null;
@@ -20,4 +20,5 @@ assert_equals($includeLine !== null, true, 'upload.php: include util.php exists'
 assert_equals($typeSetLine < $includeLine, true, 'upload.php: $type set before include');
 
 print_test_summary();
+
 

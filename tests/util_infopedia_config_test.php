@@ -1,7 +1,7 @@
 <?php
-require_once 'util_test.php';
+require_once __DIR__ . '/util_test.php';
 
-$src = file_get_contents('infopedia.php');
+$src = file_get_contents(__DIR__ . '/../infopedia.php');
 $lines = explode("\n", $src);
 $typeSetLine = null;
 $requireLine = null;
@@ -25,4 +25,5 @@ assert_equals($typeSetLine < $requireLine, true, 'infopedia.php: $type before re
 assert_equals($parseIniCount, 0, 'infopedia.php: no duplicate parse_ini_file call');
 
 print_test_summary();
+
 
