@@ -71,16 +71,18 @@ refresh tid="":
 # just e2e-add-entry "/climate/solutions | Solar panels." demo
 e2e-add-entry entry="/demo/hello | Hello from just." tid="demo":
     {{php}} test/e2e_run.php POST /entries "sid=just&tid={{tid}}" "entry={{entry}}"
+    just e2e-read tid="{{tid}}"
 
 # Add a vote
 # just e2e-add-vote                              (uses default poll path)
 # just e2e-add-vote "/poll/q1 | votes:just:1 | Good idea?" demo
 e2e-add-vote entry="/demo/poll | votes:just:1 | Good idea?" tid="demo":
     {{php}} test/e2e_run.php POST /votes "sid=just&tid={{tid}}" "entry={{entry}}"
+    just e2e-read tid="{{tid}}"
 
 # Read entries + votes for a tenant
-# just e2e-read
-# just e2e-read myproject
+# just read
+# just read myproject
 e2e-read tid="demo":
     @echo "── entries ──"
     {{php}} test/e2e_run.php GET /entries "sid=just&tid={{tid}}&format=txt.0.2&refresh"
