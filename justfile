@@ -41,15 +41,15 @@ serve:
 
 # Fetch entries as JSON
 entries tid="":
-    curl -s "{{base}}/entries?format=json{{if tid != ""}}&tid={{tid}}{{endif}}"
+    @T="{{tid}}"; curl -s "{{base}}/entries?format=json${T:+&tid=$T}"
 
 # Fetch entries as txt.0.2  (one line per entry, human-readable)
 collect tid="":
-    curl -s "{{base}}/entries?format=txt.0.2{{if tid != ""}}&tid={{tid}}{{endif}}"
+    @T="{{tid}}"; curl -s "{{base}}/entries?format=txt.0.2${T:+&tid=$T}"
 
 # Fetch votes as JSON
 votes tid="":
-    curl -s "{{base}}/votes?format=json{{if tid != ""}}&tid={{tid}}{{endif}}"
+    @T="{{tid}}"; curl -s "{{base}}/votes?format=json${T:+&tid=$T}"
 
 # Health check
 health:
@@ -57,12 +57,12 @@ health:
 
 # Post an entry  (usage: just post "/my/node | Hello world.")
 post entry tid="":
-    curl -s -X POST "{{base}}/entries{{if tid != ""}}&tid={{tid}}{{endif}}" \
+    @T="{{tid}}"; curl -s -X POST "{{base}}/entries${T:+?tid=$T}" \
          --data-urlencode "entry={{entry}}"
 
 # Force cache refresh and dump entries
 refresh tid="":
-    curl -s "{{base}}/entries?format=txt.0.2&refresh{{if tid != ""}}&tid={{tid}}{{endif}}"
+    @T="{{tid}}"; curl -s "{{base}}/entries?format=txt.0.2&refresh${T:+&tid=$T}"
 
 # ── E2E — manual sequence (no server needed) ─────────────────────────────────
 
