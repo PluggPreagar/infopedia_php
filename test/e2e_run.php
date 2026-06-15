@@ -17,7 +17,16 @@ fclose($pipes[1]);
 fclose($pipes[2]);
 proc_close($proc);
 
-// Strip "STATUS:xxx\n" prefix — print body only
-$nl = strpos($raw, "\n");
-echo $nl !== false ? substr($raw, $nl + 1) : $raw;
+// Parse status + body
+$nl     = strpos($raw, "\n");
+$status = $nl !== false ? substr($raw, 0, $nl) : 'STATUS:?';
+$body_s = $nl !== false ? substr($raw, $nl + 1) : $raw;
+
+// Debug header: request line + status, then full body
+echo "> $method $path" . ($qs ? "?$qs" : '') . ($body ? " [$body]" : '') . "\n";
+echo "< $status\n";
 if ($stderr) fwrite(STDERR, $stderr);
+
+$lines = explode("\n", rtrim($body_s));
+foreach (array_slice($lines, 0, 5) as $line) echo "  $line\n";
+if (count($lines) > 5) echo "  ... (" . (count($lines) - 5) . " more lines)\n";
