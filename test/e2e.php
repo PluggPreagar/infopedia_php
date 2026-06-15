@@ -35,7 +35,9 @@ function req(string $method, string $path, string $qs = '', string $body = ''): 
 
     if ($debug) {
         echo "  > $method $path" . ($qs ? "?$qs" : '') . ($body ? " [$body]" : '') . "\n";
-        echo "  < $status  " . substr($body_s, 0, 160) . "\n";
+        $lines = explode("\n", rtrim($body_s));
+        foreach (array_slice($lines, 0, 5) as $line) echo "  < $status  $line\n";
+        if (count($lines) > 5) echo "  < ... (" . (count($lines) - 5) . " more lines)\n";
         if ($stderr) echo "  ! " . trim($stderr) . "\n";
     }
     return ['status' => $status, 'body' => $body_s, 'json' => $json];
