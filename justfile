@@ -88,6 +88,14 @@ e2e-read tid="demo":
     @echo "── votes ────"
     {{php}} test/e2e_run.php GET /votes   "sid=just&tid={{tid}}&format=txt.0.2&refresh"
 
+# Quick smoke: add two entries, read both back
+# just smoke
+# just smoke myproject
+smoke tid="demo":
+    @{{php}} test/e2e_run.php POST /entries "sid=just&tid={{tid}}" "entry=/demo/hello | Hello from just."
+    @{{php}} test/e2e_run.php POST /entries "sid=just&tid={{tid}}" "entry=/demo/world | Second entry."
+    @{{php}} test/e2e_run.php GET  /entries "sid=just&tid={{tid}}&format=txt.0.2&refresh"
+
 # Full manual sequence: add entry, add vote, read back
 # just e2e-demo
 # just e2e-demo myproject
