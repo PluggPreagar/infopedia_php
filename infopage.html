@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fakt Farming Project - fayf.info">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background: #4CAF50;
+            color: #fff;
+            padding: 1rem 0;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+        }
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: left;
+            background: #333;
+            color: #fff;
+            padding: 0.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 1rem;
+            transition: color 0.3s ease;
+        }
+        nav a:hover {
+            color: #2c6e00;
+        }
+        a {
+            color: #358600;
+            text-decoration: none;
+        }
+        a:hover {
+            color: #2c6e00;
+        }
+        main {
+            flex: 1;
+        }
+        section {
+            padding: 1rem;
+            max-width: 800px;
+            margin: auto;
+        }
+        footer {
+            background: #333;
+            color: #fff;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: auto;
+        }
+        #cinema-slogans {
+            text-align: center;
+            padding: 1rem;
+            overflow: hidden;
+            white-space: nowrap;
+            min-height: 2.5rem;
+        }
+        @media (max-width: 600px) {
+            #cinema-slogans {
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        .cta-browse {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.6rem 1.4rem;
+            background: #4CAF50;
+            color: #fff;
+            border-radius: 5px;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+        .cta-browse:hover {
+            background: #45a049;
+            color: #fff;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Fakt Farming Project | fayf.info</title>
+</head>
+<body>
+    <header>
+        <h1>Fakt Farming Project</h1>
+        <div id="cinema-slogans"></div>
+    </header>
+    <nav>
+        <a href="#about"><i class="fas fa-info-circle"></i> About</a>
+        <a href="app.html"><i class="fas fa-search"></i> Browse</a>
+        <a href="#features"><i class="fas fa-star"></i> Features</a>
+        <a href="#contact"><i class="fas fa-envelope"></i> Contact</a>
+    </nav>
+    <section id="about">
+        <h2>About the Project</h2>
+        <p>Das Projekt Fakt Farming widmet sich der Sammlung, Organisation und Präsentation zuverlässiger Informationen
+            auf leicht zugängliche Weise.
+            Unsere Mission ist es, Menschen mit Wissen zu stärken, fundierte Entscheidungen zu fördern
+            und absichtliche Fehlinformationen sichtbar zu machen.
+        </p>
+        <ul>
+            <li>"NutriScore" für öffentliche Äußerungen.</li>
+            <li>Dokumentation öffentlicher Aussagen.</li>
+            <li>Konstruktive (Gegen-) Fragen passend zum Kaffee.</li>
+            <li>Meinungslandkarte für alle.</li>
+        </ul>
+        <p>
+            Hier finden Sie unseren <a href="https://fayf.info/InfoPedia_Steckbrief.pdf" target="_blank">one pager (PDF)</a>.
+        </p>
+    </section>
+    <section id="browse-cta">
+        <h2>Browse Example Dataset</h2>
+        <p>Explore the data collected by the Fakt Farming Project.</p>
+        <a href="app.html" class="cta-browse"><i class="fas fa-search"></i> Start browsing →</a>
+    </section>
+    <section id="features">
+        <h2>Key Features</h2>
+        <ul>
+            <li>generische Wissensdatenbank</li>
+            <li>leichter Zugang (Web, App)</li>
+            <li>einfache Recherche</li>
+            <li>intuitive Beteiligung (Ergänzung, Voting)</li>
+        </ul>
+    </section>
+    <section id="contact">
+        <h2>Get in Touch</h2>
+        <p>Haben Sie Fragen oder möchten Sie beitragen?
+            Kontaktieren Sie uns unter <a href="mailto:info@fayf.info">info@fayf.info</a>.</p>
+    </section>
+    <footer>
+        <p>&copy; 2026 Fakt Farming Project | fayf.info</p>
+        <div id="timestamp" style="font-size: 0.9rem; color: #fff; margin-top: 0.5rem;"><!-- timestamp --> version: 0.0.24</div>
+    </footer>
+    <div id="toast-container" style="position: fixed; top: 1rem; right: 1rem; z-index: 1000;"></div>
+<script>
+    const slogans = [
+        "Welcome to fayf.info - Cultivating Knowledge.",
+        "Welcome to fayf.info - 'Fakt' on time.",
+        "Welcome to fayf.info - 'Fakt' everywhere.",
+        "Fakt Farming - Fakten pflegen, als wäre es Wissen.",
+        "Widersprüche sind für alle widersprüchlich.",
+        "Fakt Farming macht Wissen leicht zugänglich.",
+        "Der Nutri-Score für Fakten.",
+        "Fakt Farming - deine Quelle für Gegenfragen.",
+        "Differenzierte Sicht - ganz persönlich, für dich."
+    ];
+
+    function runtimeCheck(msg = "") {
+        // stub — kept so call sites can be added later
+    }
+
+    function showToast(message, type = "info", duration = 3000) {
+        const toastContainer = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.textContent = message;
+        toast.style.cssText = `
+            background-color: ${type === "success" ? "#4CAF50" : type === "error" ? "#f44336" : "#333"};
+            color: white;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        `;
+        toastContainer.appendChild(toast);
+        setTimeout(() => {
+            if (toastContainer.contains(toast)) toastContainer.removeChild(toast);
+        }, duration);
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const sloganContainer = document.getElementById("cinema-slogans");
+        let index = 0;
+
+        function updateSlogan() {
+            sloganContainer.textContent = slogans[index];
+            index = (index + 1) % slogans.length;
+        }
+
+        updateSlogan();
+        setInterval(updateSlogan, 3000);
+
+        // Handle ?tid= URL param: save to localStorage and redirect to app.html
+        const urlParams = new URLSearchParams(window.location.search);
+        const tid = urlParams.get('tid') || urlParams.get('tenantId');
+        if (tid) {
+            try {
+                const saved = JSON.parse(localStorage.getItem('fayf_settings') || '{}');
+                saved.tenantId = tid;
+                localStorage.setItem('fayf_settings', JSON.stringify(saved));
+            } catch(e) {}
+            window.location.href = 'app.html?tid=' + encodeURIComponent(tid);
+        }
+    });
+</script>
+</body>
+</html>

@@ -3,10 +3,10 @@
     include_once 'util.php';
 
 
-$filePath = 'infopedia.html';
+$filePath = 'infopage.html';
 $response = @file_get_contents($filePath);
 if ($response === false) {
-    log_error("Failed to load infopedia.html");
+    log_error("Failed to load infopage.html");
     die("Error loading page.");
 }
 
@@ -16,6 +16,7 @@ if (file_exists($filePath)) {
 } else {
     $fileTimestamp = "";
 }
+
 $response = str_replace("<!-- timestamp -->", "created: $currentTimestamp / data updated: $fileTimestamp / ", $response);
 
 echo $response;
