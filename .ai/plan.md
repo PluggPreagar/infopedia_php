@@ -93,7 +93,7 @@ Keep old functions (`transform_0v02`, `cleanData`, `data_entry_line_sortable`) c
 
 **File:** `test/util_entry_test.php` (append)
 
-Test `sortCsvData(string $csv): string` — input: raw Google Sheets CSV, output: sorted+deduped CSV.
+Test `sortCsvData(string $csv): string` — input: raw CSV string, output: sorted+deduped CSV.
 
 Test cases:
 - Single row → passes through
@@ -294,7 +294,7 @@ Same as `entries.php` but calls `aggregateVotes()` after `sortCsvData()` on GET.
 
 **File:** `dumps.php` (new)
 
-POST only. Reads `dump` param → forwards to Google Forms dump endpoint (from config) → respond 201.
+POST only. Reads `dump` param → appends to local `dumpFile` (from config, default `data/dumps.log`) → respond 201.
 
 ### T15 · files.php
 

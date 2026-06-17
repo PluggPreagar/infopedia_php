@@ -20,8 +20,8 @@ SYNC IMPACT REPORT
 # InfoPedia_PHP Constitution
 
 InfoPedia_PHP is a procedural PHP wiki backend (no framework, no Composer) that
-serves a hierarchical "topic/node" knowledge tree, edited via Google Forms/Sheets
-and cached on disk. These principles are binding for all changes by humans and AI agents.
+serves a hierarchical "topic/node" knowledge tree stored in local CSV files on disk.
+These principles are binding for all changes by humans and AI agents.
 
 > **Traceability:** every normative statement carries a stable identifier (prefix by
 > section -- `CG`, `CA`, `CC`, `CW`, `CD`, `CP`, `CT`, `CV`). Reference these IDs in
@@ -173,9 +173,9 @@ features -- but the order and gates hold.
 ## Data & Compatibility Constraints
 
 - **CD1 -- Backward compatibility is non-negotiable:** existing `data/<tid>.csv|.cache|.log`
-  and Google-Sheet exports MUST remain readable after any change.
-- **CD2 -- Tenant isolation:** when `tid` is set, data lives in local `data/<tid>.*` files;
-  Google is bypassed. Auto-creation only when `tenantAutoCreationEnabled=true`.
+  files MUST remain readable after any change.
+- **CD2 -- Tenant isolation:** when `tid` is set, data lives in `data/<tid>.*` files;
+  the global default dataset is used when `tid` is empty. Auto-creation only when `tenantAutoCreationEnabled=true`.
 - **CD3 -- Format switch contract:** `read.php?format=` MUST keep emitting `csv` (default),
   `txt.0.2`, `txt.0.3`, and `json.0.3` with their established shapes; vote rows
   aggregate by the `::Vote::` marker and `entry_type` derives from the last message

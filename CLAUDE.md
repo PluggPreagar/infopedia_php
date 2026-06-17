@@ -8,7 +8,7 @@ Branch `refactor/202606` — complete PHP refactor in progress.
 Spec and test files (RED phase) are done. **No new implementation files exist yet.**
 
 ## What this project is
-Procedural PHP wiki backend. No framework, no Composer. Serves a hierarchical topic/node knowledge tree from Google Sheets + disk cache. Single-page HTML app frontend (`infopedia.html`).
+Procedural PHP wiki backend. No framework, no Composer. Serves a hierarchical topic/node knowledge tree from local CSV files on disk. Single-page HTML app frontend (`infopedia.html`).
 
 ## Key documents
 | File | Purpose |

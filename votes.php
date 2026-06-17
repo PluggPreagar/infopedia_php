@@ -9,16 +9,10 @@ require_once 'util_throttle.php';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-$googleSheetId     = $config['googleSheetId']     ?? '';
-$googleSheetGridId = $config['googleSheetGridId'] ?? '0';
-$googleSheetUrl    = "https://docs.google.com/spreadsheets/d/{$googleSheetId}/export?format=csv&gid={$googleSheetGridId}";
-$googlePostUrl     = $config['googlePostUrl']     ?? '';
-$googlePostEntryId = $config['googlePostEntryId'] ?? 'entry.1234567890';
 $cacheFile         = $config['cacheFile']         ?? 'data/votes.cache';
 $cacheOutdatedFile = $config['cacheOutdatedFile'] ?? null;
 $cacheMaxAge       = (int)($config['cache_time']       ?? 3600);
 $cacheDelay        = (int)($config['cache_time_delay'] ?? 5);
-$dryRun            = !empty($config['dryRun']);
 
 $throttle_max    = (int)($config['throttle_max']    ?? 0);
 $throttle_window = (int)($config['throttle_window'] ?? 60);
@@ -31,13 +25,12 @@ if (!empty($tenant_id) && !preg_match('/^[a-zA-Z0-9_-]{1,30}$/', $tenant_id)) {
     respond_error('INVALID_TID', 'Tenant ID must be alphanumeric (max 30 chars).', 400);
 }
 
-// Tenant-specific files use a local CSV instead of Google Sheets.
-$tenantMode = ($tenant_id !== '');
-if ($tenantMode) {
-    $cacheFile  = 'data/votes_' . $tenant_id . '.cache';
-    $localCsv   = 'data/votes_' . $tenant_id . '.csv';
+// Local CSV for this tenant (or global default).
+if ($tenant_id !== '') {
+    $cacheFile = 'data/votes_' . $tenant_id . '.cache';
+    $localCsv  = 'data/votes_' . $tenant_id . '.csv';
 } else {
-    $localCsv   = null;
+    $localCsv = preg_replace('/\.cache$/', '.csv', $cacheFile);
 }
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -59,49 +52,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
     }
 
-    // Load CSV: tenant local file, or cache/upstream for global.
-    if ($tenantMode) {
-        $csv = readCache($localCsv);
-        if ($csv === '') {
-            // New tenant — return empty dataset.
-            $csv = "Timestamp,entry\n";
-        }
-    } else {
-        // Check disk cache validity.
-        $useCache = !$refresh && isCacheValid($cacheFile, $cacheMaxAge, $cacheOutdatedFile, $cacheDelay);
-        if ($useCache) {
-            $csv = readCache($cacheFile);
-        } else {
-            // Fetch from upstream.
-            $csv = @file_get_contents($googleSheetUrl);
-            if ($csv === false) {
-                // Fall back to stale cache if available.
-                $csv = readCache($cacheFile);
-                if ($csv === '') {
-                    respond_error('UPSTREAM_UNAVAILABLE', 'Upstream unreachable and no local cache.', 503);
-                }
-                log_warn('votes: upstream fetch failed, serving stale cache');
-            } else {
-                // Sort, dedup, persist.
-                $csv = sortCsvData($csv);
-                if (!is_dir('data')) {
-                    mkdir('data', 0775, true);
-                }
-                writeCache($cacheFile, $csv);
-            }
-        }
-    }
-
-    // Sort + dedup (always for tenant mode; upstream path has already done it).
-    if ($tenantMode) {
-        $csv = sortCsvData($csv);
-    }
+    // Load from local CSV.
+    $csv = @file_get_contents($localCsv) ?: "Timestamp,entry\n";
+    $csv = sortCsvData($csv);
 
     // Aggregate votes — the key difference from entries.php.
     $csv = aggregateVotes($csv, $session_id);
 
     // Long-poll: if ?since= given and no new rows exist, wait up to 50 s.
-    if (!empty($since) && $tenantMode && $localCsv !== null) {
+    if (!empty($since) && file_exists($localCsv)) {
         $deadline = time() + 50;
         while (time() < $deadline) {
             $newCsv = sortCsvData(readCache($localCsv));
@@ -199,60 +158,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $timestamp = date('Y-m-d H:i:s');
 
-    if ($tenantMode) {
-        // Write to local CSV file.
-        if (!is_dir('data')) {
-            mkdir('data', 0775, true);
-        }
-
-        // CSV-quote the entry if it contains commas, quotes, or newlines.
-        $entry_csv = $entry;
-        if (strpos($entry_csv, ',') !== false
-            || strpos($entry_csv, '"') !== false
-            || strpos($entry_csv, "\n") !== false) {
-            $entry_csv = '"' . str_replace('"', '""', $entry_csv) . '"';
-        }
-        $line = $timestamp . ',' . $entry_csv . "\n";
-
-        if (!file_exists($localCsv)) {
-            file_put_contents($localCsv, "Timestamp,entry\n");
-        }
-        file_put_contents($localCsv, $line, FILE_APPEND);
-
-        // Signal that the cache for this tenant is outdated.
-        if ($cacheOutdatedFile !== null) {
-            touchOutdated($cacheOutdatedFile);
-        }
-
-        log_return('votes POST tenant ' . $tenant_id . ' saved ' . strlen($line) . ' bytes');
-    } else {
-        // Forward to Google Forms.
-        if ($dryRun) {
-            log_info('votes POST dryRun — would post: ' . $entry);
-        } else {
-            $options = [
-                'http' => [
-                    'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
-                    'method'  => 'POST',
-                    'content' => http_build_query([$googlePostEntryId => $entry]),
-                    'timeout' => 10,
-                ],
-            ];
-            $ctx      = stream_context_create($options);
-            $response = @file_get_contents($googlePostUrl, false, $ctx);
-            if ($response === false) {
-                log_error('votes POST upstream failed: ' . (error_get_last()['message'] ?? 'unknown'));
-                respond_error('UPSTREAM_UNAVAILABLE', 'Failed to submit vote to upstream.', 503);
-            }
-        }
-
-        // Signal cache outdated so next GET refresh fetches fresh data.
-        if ($cacheOutdatedFile !== null) {
-            touchOutdated($cacheOutdatedFile);
-        }
-
-        log_return('votes POST global submitted');
+    // Write to local CSV file.
+    if (!is_dir('data')) {
+        mkdir('data', 0775, true);
     }
+
+    // CSV-quote the entry if it contains commas, quotes, or newlines.
+    $entry_csv = $entry;
+    if (strpos($entry_csv, ',') !== false
+        || strpos($entry_csv, '"') !== false
+        || strpos($entry_csv, "\n") !== false) {
+        $entry_csv = '"' . str_replace('"', '""', $entry_csv) . '"';
+    }
+    $line = $timestamp . ',' . $entry_csv . "\n";
+
+    if (!file_exists($localCsv)) {
+        file_put_contents($localCsv, "Timestamp,entry\n");
+    }
+    file_put_contents($localCsv, $line, FILE_APPEND);
+
+    if ($cacheOutdatedFile !== null) {
+        touchOutdated($cacheOutdatedFile);
+    }
+
+    log_return('votes POST saved ' . strlen($line) . ' bytes to ' . $localCsv);
 
     respond_json(['status' => 'ok', 'timestamp' => $timestamp], 201);
 }

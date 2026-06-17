@@ -76,7 +76,7 @@ function parseEntry(string $entry): array {
 /**
  * Normalise, sort, and deduplicate a raw CSV string.
  *
- * @param string $csv  Raw CSV (Google Sheets export or local file).
+ * @param string $csv  Raw CSV string.
  * @return string      Normalised CSV, header + one line per surviving path.
  */
 function sortCsvData(string $csv): string {

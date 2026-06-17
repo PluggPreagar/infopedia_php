@@ -26,23 +26,9 @@ if ($dump === '') {
     respond_error('INVALID_ENTRY', 'dump body must not be empty', 400);
 }
 
-$googlePostUrl     = $config['googlePostUrl']     ?? '';
-$googlePostEntryId = $config['googlePostEntryId'] ?? 'entry.1234567890';
+$dump_file = $config['dumpFile'] ?? 'data/dumps.log';
+$timestamp = date('Y-m-d H:i:s');
+@file_put_contents($dump_file, $timestamp . "\t" . $dump . "\n", FILE_APPEND);
 
-$options = [
-    'http' => [
-        'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
-        'method'  => 'POST',
-        'content' => http_build_query([$googlePostEntryId => $dump]),
-        'timeout' => 10,
-    ],
-];
-$context  = stream_context_create($options);
-$response = @file_get_contents($googlePostUrl, false, $context);
-if ($response === false) {
-    // best-effort: log and continue — client must not retry dumps on failure
-    log_warn('dump upstream failed: ' . (error_get_last()['message'] ?? 'unknown'));
-}
-
-log_return('dump posted (' . strlen($dump) . ' bytes)');
+log_return('dump saved (' . strlen($dump) . ' bytes)');
 respond_json(['status' => 'ok'], 201);
