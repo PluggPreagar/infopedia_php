@@ -8,7 +8,7 @@
 
 ## 1. Design Principles
 
-- **CSV is the core format.** Data flows as CSV at every layer: Google Sheets → disk cache → API I/O → tests. JSON and txt variants are read-side transforms only.
+- **CSV is the core format.** Data flows as CSV at every layer: local disk → cache → API I/O → tests. JSON and txt variants are read-side transforms only.
 - **Flat file structure.** No subdirectories. Route files and `util_*.php` helpers sit at the project root.
 - **One resource, one file.** `entries.php` handles both `GET` and `POST /entries`.
 - **Thin route files.** Validate, dispatch, respond. All logic lives in `util_*.php`.
@@ -117,7 +117,7 @@ GET  /                     → index.php  (SPA shell)
 | Name | Type | Constraint | Description |
 |------|------|------------|-------------|
 | `sid` | string | optional | Session ID. Auto-generated if empty. |
-| `tid` | string | optional | Tenant ID — `[a-zA-Z0-9_-]{1,30}`. Empty = global Google Sheets. |
+| `tid` | string | optional | Tenant ID — `[a-zA-Z0-9_-]{1,30}`. Empty = global default dataset. |
 
 ---
 

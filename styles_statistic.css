@@ -3,19 +3,19 @@ body {
     font-family: Arial, sans-serif;
     font-size: small;
     margin: 20px;
-    background-color: #CFFCFF; /* Adjusted to match styles.css */
-    color: #358600; /* Adjusted to match styles.css */
+    background-color: #f0f4ef;
+    color: #2d2d2d;
 }
 
 /* Headings */
 h1 {
-    color: #63C132; /* Adjusted to match styles.css */
-    border-bottom: 2px solid #63C132; /* Adjusted to match styles.css */
+    color: #3e6b29;
+    border-bottom: 2px solid #85ac6a;
     padding-bottom: 5px;
 }
 
 h2 {
-    color: #63C132; /* Adjusted to match styles.css */
+    color: #3e6b29;
     margin-top: 20px;
 }
 
@@ -26,7 +26,7 @@ ul {
 }
 
 ul li {
-    background: #CFFCFF; /* Adjusted to match styles.css */
+    background: #f0f4ef;
     margin: 5px 0;
     padding: 5px;
     border-radius: 5px;
@@ -38,28 +38,29 @@ table {
     border-collapse: collapse;
     margin-top: 20px;
     background-color: #fff;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     font-size: xx-small;
 }
 
 table th, table td {
-    border: 1px solid #63C132; /* Adjusted to match styles.css */
+    border: 1px solid #b8d4a4;
     padding: 5px;
     text-align: left;
 }
 
 table th {
-    background-color: #63C132; /* Adjusted to match styles.css */
-    color: #fff;
+    background-color: #d4e8c4;
+    color: #2d4a1a;
     text-transform: uppercase;
+    font-weight: 600;
 }
 
 table tr:nth-child(even) {
-    background-color: #f2f2f2;
+    background-color: #f6f9f4;
 }
 
 table tr:hover {
-    background-color: #CFFCFF; /* Adjusted to match styles.css */
+    background-color: #e8f2e3;
 }
 
 /* Details column */

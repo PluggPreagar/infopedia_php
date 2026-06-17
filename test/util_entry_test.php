@@ -96,7 +96,7 @@ pe('/a/b | url:https://example.com | Content.',
 
 
 // ─── sortCsvData ─────────────────────────────────────────────────────────────
-// Input:  raw CSV string from Google Sheets or local file (may have legacy date format)
+// Input:  raw CSV string (may have legacy date format)
 // Output: clean CSV, sorted asc by path, deduped (newest timestamp wins), deletes removed
 //         outer timestamp normalised to YYYY-MM-DD HH:MM:SS
 //         header row: "Timestamp,entry"
