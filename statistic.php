@@ -97,6 +97,59 @@ $last_ts  = $parsed ? $parsed[count($parsed)-1]['timestamp'] : null;
 $recent_errors   = array_slice(array_reverse($errors),   0, 10);
 $recent_warnings = array_slice(array_reverse($warnings), 0,  5);
 
+// ─── Chart data ──────────────────────────────────────────────────────────────
+
+// A: requests by hour of day
+$by_hour  = array_fill(0, 24, 0);
+foreach ($returns as $r) {
+    if (preg_match('/ (\d{2}):\d{2}:\d{2}/', $r['timestamp'], $m))
+        $by_hour[(int)$m[1]]++;
+}
+$hour_max = max(1, max($by_hour));
+
+// B: response-time histogram
+$rt_labels  = ['<1ms', '1–10ms', '10–100ms', '100ms–1s', '>1s'];
+$rt_buckets = array_fill_keys($rt_labels, 0);
+foreach ($returns as $r) {
+    if ($r['ms'] === null) continue;
+    $ms = $r['ms'];
+    if      ($ms < 1)    $rt_buckets['<1ms']++;
+    elseif  ($ms < 10)   $rt_buckets['1–10ms']++;
+    elseif  ($ms < 100)  $rt_buckets['10–100ms']++;
+    elseif  ($ms < 1000) $rt_buckets['100ms–1s']++;
+    else                 $rt_buckets['>1s']++;
+}
+$rt_max = max(1, max($rt_buckets));
+
+// C: requests over time (SVG polyline)
+$timeline  = [];
+$tl_bucket = 3600;
+$tl_label  = '1h buckets';
+$tl_min_ts = null;
+if ($returns) {
+    $ts_vals = array_filter(array_map(fn($r) => strtotime($r['timestamp']), $returns));
+    if ($ts_vals) {
+        $tl_min_ts = min($ts_vals);
+        $tl_range  = max($ts_vals) - $tl_min_ts;
+        if      ($tl_range < 7200)   { $tl_bucket = 300;   $tl_label = '5-min buckets'; }
+        elseif  ($tl_range < 86400)  { $tl_bucket = 900;   $tl_label = '15-min buckets'; }
+        elseif  ($tl_range < 604800) { $tl_bucket = 3600;  $tl_label = '1h buckets'; }
+        else                         { $tl_bucket = 86400; $tl_label = '1-day buckets'; }
+
+        foreach ($returns as $r) {
+            $t = strtotime($r['timestamp']);
+            if ($t === false) continue;
+            $key = (int)floor(($t - $tl_min_ts) / $tl_bucket);
+            $timeline[$key] = ($timeline[$key] ?? 0) + 1;
+        }
+        $n_buckets = max(2, (int)ceil($tl_range / $tl_bucket) + 1);
+        $tl_full   = [];
+        for ($i = 0; $i < $n_buckets; $i++) $tl_full[$i] = $timeline[$i] ?? 0;
+        $timeline  = $tl_full;
+    }
+}
+$tl_max = $timeline ? max(1, max($timeline)) : 1;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function qs(array $set = [], array $unset = []): string {
     $p = $_GET;
@@ -154,6 +207,14 @@ function ms_fmt(?float $ms): string {
 .rx-input:focus{border-color:#4a7535}
 .rx-input.invalid{border-color:#c00;background:#fff8f8}
 .rx-count{font-size:0.8em;color:#888;margin-left:4px}
+.bc-row{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:0.78em}
+.bc-lbl{flex-shrink:0;min-width:72px;text-align:right;color:#666}
+.bc-track{flex:1;height:9px;background:#eef4ec;border-radius:2px}
+.bc-bar{height:9px;background:#6a9a52;border-radius:2px}
+.bc-val{flex-shrink:0;min-width:24px;color:#888}
+.vchart{display:flex;align-items:flex-end;gap:1px;height:60px}
+.vc-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.vc-bar{width:100%;background:#6a9a52;border-radius:2px 2px 0 0}
 </style>
 </head>
 <body>
@@ -283,6 +344,99 @@ function ms_fmt(?float $ms): string {
   </table>
   <?php endif ?>
 </div>
+
+<!-- Charts -->
+<?php if ($total > 0): ?>
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px">
+
+  <!-- A: by hour of day -->
+  <div class="section" style="flex:1 1 240px">
+    <h2>Requests by Hour</h2>
+    <div class="vchart">
+      <?php for ($h = 0; $h < 24; $h++):
+          $bar_h = $by_hour[$h] > 0 ? max(1, (int)round($by_hour[$h] / $hour_max * 56)) : 0;
+      ?>
+      <div class="vc-col" title="<?= sprintf('%02dh', $h) ?>: <?= $by_hour[$h] ?> req">
+        <?php if ($bar_h > 0): ?>
+        <div class="vc-bar" style="height:<?= $bar_h ?>px"></div>
+        <?php endif ?>
+      </div>
+      <?php endfor ?>
+    </div>
+    <div style="display:flex;gap:1px;font-size:0.6em;color:#aaa;margin-top:2px">
+      <?php for ($h = 0; $h < 24; $h++): ?>
+      <div style="flex:1;text-align:center"><?= ($h % 6 === 0) ? sprintf('%02d', $h) : '' ?></div>
+      <?php endfor ?>
+    </div>
+  </div>
+
+  <!-- B: response-time histogram -->
+  <div class="section" style="flex:1 1 200px">
+    <h2>Response Time Dist.</h2>
+    <?php if (array_sum($rt_buckets) > 0): ?>
+    <div style="margin-top:10px">
+      <?php foreach ($rt_buckets as $label => $count):
+          $pct = $count > 0 ? max(2, (int)round($count / $rt_max * 100)) : 0;
+      ?>
+      <div class="bc-row">
+        <span class="bc-lbl"><?= h($label) ?></span>
+        <div class="bc-track"><div class="bc-bar" style="width:<?= $pct ?>%"></div></div>
+        <span class="bc-val"><?= $count ?: '' ?></span>
+      </div>
+      <?php endforeach ?>
+    </div>
+    <?php else: ?>
+    <p class="dim" style="margin-top:10px">No timing data.</p>
+    <?php endif ?>
+  </div>
+
+</div>
+
+<!-- C: requests over time -->
+<?php if (count($timeline) > 1): ?>
+<div class="section" style="margin-bottom:18px">
+  <h2>Requests Over Time <span style="font-weight:400;font-size:0.8em;color:#888">(<?= h($tl_label) ?>)</span></h2>
+  <?php
+      $n   = count($timeline);
+      $svw = 580; $svh = 72; $pl = 28; $pt = 8; $pr = 10; $pb = 14;
+      $pw  = $svw - $pl - $pr;
+      $ph  = $svh - $pt - $pb;
+      $pts = [];
+      foreach ($timeline as $i => $v) {
+          $x     = $pl + ($n > 1 ? round($i / ($n - 1) * $pw, 1) : $pw / 2);
+          $y     = $pt + round((1 - $v / $tl_max) * $ph, 1);
+          $pts[] = "$x,$y";
+      }
+      $pts_str = implode(' ', $pts);
+      $bx0  = explode(',', $pts[0])[0];
+      $bxN  = explode(',', end($pts))[0];
+      $base = $pt + $ph;
+      $area = "$bx0,$base $pts_str $bxN,$base";
+      $fl   = $tl_min_ts ? date('d.m H:i', $tl_min_ts) : '';
+      $ll   = $tl_min_ts ? date('d.m H:i', $tl_min_ts + ($n - 1) * $tl_bucket) : '';
+  ?>
+  <svg viewBox="0 0 <?= $svw ?> <?= $svh ?>" style="width:100%;height:<?= $svh ?>px;display:block"
+       xmlns="http://www.w3.org/2000/svg">
+    <line x1="<?= $pl ?>" y1="<?= $pt ?>" x2="<?= $svw-$pr ?>" y2="<?= $pt ?>"
+          stroke="#e8f2e3" stroke-width="1"/>
+    <line x1="<?= $pl ?>" y1="<?= $pt+$ph/2 ?>" x2="<?= $svw-$pr ?>" y2="<?= $pt+$ph/2 ?>"
+          stroke="#e8f2e3" stroke-width="1"/>
+    <polygon points="<?= $area ?>" fill="#d4e8c4" opacity="0.65"/>
+    <polyline points="<?= $pts_str ?>" fill="none" stroke="#4a7535" stroke-width="1.5" stroke-linejoin="round"/>
+    <line x1="<?= $pl ?>" y1="<?= $pt ?>" x2="<?= $pl ?>" y2="<?= $base ?>"
+          stroke="#b8d4a4" stroke-width="1"/>
+    <line x1="<?= $pl ?>" y1="<?= $base ?>" x2="<?= $svw-$pr ?>" y2="<?= $base ?>"
+          stroke="#b8d4a4" stroke-width="1"/>
+    <text x="<?= $pl-2 ?>" y="<?= $pt+3 ?>" font-size="8" fill="#aaa" text-anchor="end"><?= $tl_max ?></text>
+    <?php if ($fl): ?>
+    <text x="<?= $pl ?>" y="<?= $base+11 ?>" font-size="8" fill="#aaa"><?= h($fl) ?></text>
+    <text x="<?= $svw-$pr ?>" y="<?= $base+11 ?>" font-size="8" fill="#aaa" text-anchor="end"><?= h($ll) ?></text>
+    <?php endif ?>
+  </svg>
+</div>
+<?php endif ?>
+
+<?php endif ?>
 
 <!-- Log viewer -->
 <div class="section">
