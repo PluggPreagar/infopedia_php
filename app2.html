@@ -587,6 +587,74 @@ document.getElementById("card-list").addEventListener("click", e => {
     navigateTo(key);
 });
 
+// ── Data loading ──────────────────────────────────────────────────────────────
+let pollActive = false;
+let pollController = null;
+
+function buildEntriesUrl(extra = {}) {
+    const p = new URLSearchParams({ sid, tid: tenantId, topicId: "/", format: "json.0.3", ...extra });
+    return "entry/get?" + p.toString();
+}
+function buildVotesUrl(extra = {}) {
+    const p = new URLSearchParams({ sid, tid: tenantId, topicId: "/", format: "json.0.3", ...extra });
+    return "vote/get?" + p.toString();
+}
+
+async function loadInitialData() {
+    if (!tenantId) { showToast("Kein Tenant gesetzt — öffne Einstellungen.", "error"); return; }
+    runtimeCheck("loadInitialData");
+    try {
+        const [eRes, vRes] = await Promise.all([
+            fetch(buildEntriesUrl()),
+            fetch(buildVotesUrl()),
+        ]);
+        if (eRes.ok) addData(await eRes.json());
+        if (vRes.ok) addVotesData(await vRes.json());
+        updateView();
+        showToast("Daten geladen.", "success", 1500);
+    } catch (err) {
+        showToast("Ladefehler: " + err.message, "error");
+    }
+    runtimeCheck("loadInitialData-end");
+}
+
+async function startLongPoll() {
+    pollActive = true;
+    async function poll() {
+        if (!pollActive || document.hidden) {
+            setTimeout(poll, 2000);
+            return;
+        }
+        runtimeCheck("poll");
+        try {
+            pollController = new AbortController();
+            const res = await fetch(buildEntriesUrl(latestTimestamp ? { since: latestTimestamp } : {}), { signal: pollController.signal });
+            if (res.status === 200) {
+                addData(await res.json());
+                updateView();
+            }
+            // 204 = nothing new → backend already held 50 s, re-poll immediately
+        } catch (err) {
+            if (err.name !== "AbortError") {
+                await new Promise(r => setTimeout(r, 5000)); // retry after 5 s on network error
+            }
+        }
+        poll();
+    }
+    poll();
+}
+
+function stopLongPoll() {
+    pollActive = false;
+    if (pollController) { pollController.abort(); pollController = null; }
+}
+
+// Pause poll when tab hidden
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopLongPoll();
+    else if (tenantId) startLongPoll();
+});
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 (function init() {
     const params = new URLSearchParams(window.location.search);
@@ -600,6 +668,9 @@ document.getElementById("card-list").addEventListener("click", e => {
     if (topicParam) selectedTopic = topicParam;
     document.getElementById("settings-tenant").value = tenantId;
     updateView();
+    if (tenantId) {
+        loadInitialData().then(() => startLongPoll());
+    }
 })();
 </script>
 </body>
