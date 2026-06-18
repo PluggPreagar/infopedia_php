@@ -637,6 +637,31 @@ function navigateTo(topic) {
     runtimeCheck("navigateTo-end");
 }
 
+// ── Signing ───────────────────────────────────────────────────────────────────
+async function signEntry(topic, nodeId) {
+    runtimeCheck("signEntry");
+    if (!tenantId) return;
+    const key = fullKey(topic, nodeId);
+    const entry = data[topic] && data[topic][nodeId];
+    if (!entry) return;
+    const body = new URLSearchParams({
+        sid, tid: tenantId,
+        entry: `${key} | ${nodeId} | ${entry.message} | signed:${sid}:1`
+    });
+    try {
+        const res = await fetch("vote/add?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (res.ok) {
+            if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+            votesData[key].signed = (votesData[key].signed || 0) + 1;
+            showToast("Bestätigt!", "success", 1500);
+            updateView();
+        }
+    } catch (err) {
+        showToast("Fehler beim Bestätigen", "error");
+    }
+    runtimeCheck("signEntry-end");
+}
+
 // ── Event wiring ──────────────────────────────────────────────────────────────
 document.getElementById("chip-bar").addEventListener("click", e => {
     const chip = e.target.closest(".type-chip");
@@ -662,6 +687,15 @@ document.getElementById("card-list").addEventListener("click", e => {
     const dnBtn = e.target.closest(".downvote-btn");
     if (upBtn) { e.stopPropagation(); handleVote(upBtn.dataset.key, 1); }
     if (dnBtn) { e.stopPropagation(); handleVote(dnBtn.dataset.key, -1); }
+});
+
+// sign button delegation
+document.getElementById("card-list").addEventListener("click", e => {
+    const btn = e.target.closest(".sign-btn");
+    if (!btn) return;
+    e.stopPropagation();
+    const [topic, nodeId] = splitKey(btn.dataset.key);
+    signEntry(topic, nodeId);
 });
 
 // ── Data loading ──────────────────────────────────────────────────────────────
