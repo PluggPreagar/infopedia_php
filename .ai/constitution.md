@@ -1,6 +1,6 @@
 <!--
 SYNC IMPACT REPORT
-- Version: 1.5.0 -> 1.6.0  (added CA14 "raw-first, replayable ingestion"; CA4 cross-refs it)
+- Version: 1.6.0 -> 1.7.0  (added CA15 "user-friendly errors, detailed dev logs")
 - ID scheme (prefix by section):
     CG = Governance              CA = Core Assumptions      CC = Core Principles
     CW = The Basic Workflow      CD = Data & Compatibility  CP = PHP-Specific principles
@@ -85,6 +85,18 @@ Principles below and are the lens for "is this change healthy?".
   replay them as fixtures in `*_test.php`.
 - **CA13 -- Focused planning first:** invest in a good plan up front; define very focused
   tasks carrying only the context they need, and reuse known patterns aggressively.
+- **CA15 -- User-friendly errors, detailed dev logs:** users are not developers. Any
+  error or warning shown in the UI MUST use plain, actionable language (use a Hint,
+  toast, or info panel if the platform provides one) — no status codes, no stack traces,
+  no internal identifiers. In exchange, every error MUST be logged in full technical
+  detail: `console.error` with the raw response body (first 500 chars), HTTP status,
+  and URL on the frontend; `log_error`/`log_warn` on the backend. Optionally, critical
+  frontend errors MAY be forwarded to a backend logging endpoint so they are visible in
+  `infopedia.log`. The rule: **one message for the user, one for the developer — never
+  conflate them.**
+  *Rationale: leaking "Unexpected token < in JSON at position 0" to a user is useless
+  and erodes trust; hiding it from a developer makes bugs invisible.*
+
 - **CA14 -- Raw-first, replayable ingestion:** persist incoming input **verbatim and
   immediately** (append-only, e.g. `data/<tid>.log`) **before** any parsing/formatting,
   so a failed or buggy process can be re-run after a fix/reset and reprocess the original
@@ -246,4 +258,4 @@ Concrete commands and tools that support The Basic Workflow on Windows/XAMPP.
   comment, so reviewers can verify the type/scope and rationale (especially for breaking
   changes). / wait for edits to be accepted before committing.
 
-**Version**: 1.6.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-14
+**Version**: 1.7.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-18
