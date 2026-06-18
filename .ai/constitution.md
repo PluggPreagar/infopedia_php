@@ -1,6 +1,6 @@
 <!--
 SYNC IMPACT REPORT
-- Version: 1.6.0 -> 1.7.0  (added CA15 "user-friendly errors, detailed dev logs")
+- Version: 1.7.0 -> 1.8.0  (split CA15 into CA15/CA16/CA17: user-friendly errors, dev logs, user-eased issue reporting)
 - ID scheme (prefix by section):
     CG = Governance              CA = Core Assumptions      CC = Core Principles
     CW = The Basic Workflow      CD = Data & Compatibility  CP = PHP-Specific principles
@@ -85,17 +85,36 @@ Principles below and are the lens for "is this change healthy?".
   replay them as fixtures in `*_test.php`.
 - **CA13 -- Focused planning first:** invest in a good plan up front; define very focused
   tasks carrying only the context they need, and reuse known patterns aggressively.
-- **CA15 -- User-friendly errors, detailed dev logs:** users are not developers. Any
-  error or warning shown in the UI MUST use plain, actionable language (use a Hint,
-  toast, or info panel if the platform provides one) — no status codes, no stack traces,
-  no internal identifiers. In exchange, every error MUST be logged in full technical
-  detail: `console.error` with the raw response body (first 500 chars), HTTP status,
-  and URL on the frontend; `log_error`/`log_warn` on the backend. Optionally, critical
-  frontend errors MAY be forwarded to a backend logging endpoint so they are visible in
-  `infopedia.log`. The rule: **one message for the user, one for the developer — never
-  conflate them.**
-  *Rationale: leaking "Unexpected token < in JSON at position 0" to a user is useless
-  and erodes trust; hiding it from a developer makes bugs invisible.*
+- **CA15 -- User-friendly errors:** users are not developers. Any error or warning
+  surfaced in the UI MUST use plain, actionable language — a Hint, toast, or info panel
+  where the platform provides one. No status codes, no stack traces, no internal
+  identifiers, no raw exception messages. The message tells the user what happened and,
+  where possible, what to do next ("Bitte Seite neu laden.", "Bitte erneut versuchen.").
+  *Rationale: leaking "Unexpected token < in JSON at position 0" is useless to a user
+  and erodes trust.*
+
+- **CA16 -- Developer-detailed error logs:** every error that is softened for the user
+  (CA15) MUST be logged in full technical detail on the developer side. Frontend:
+  `console.error("[app] label:", err)` with the raw response body (first 500 chars),
+  HTTP status, and request URL. Backend: `log_error`/`log_warn` to `infopedia.log`.
+  Optionally, critical frontend errors MAY be POSTed to a backend logging endpoint so
+  they appear in `infopedia.log`. The rule: **one message for the user, one for the
+  developer — never conflate them.**
+  *Rationale: hiding technical detail from developers makes bugs invisible; logging it
+  everywhere it can be suppressed costs nothing.*
+
+- **CA17 -- User-eased issue reporting:** whenever an error is shown (CA15), the UI
+  MUST offer a one-tap path to create an issue report. The report is pre-filled
+  automatically with: (1) a short **action trail** — the last 5–10 user actions
+  (navigation, votes, entries added, searches); (2) **current state snapshot** — topic
+  path, tenant, active filters, visible card count; (3) **error details** — the
+  technical log entry from CA16 (sanitised of credentials); (4) **timestamp** and app
+  version; (5) a free-text field for the user's own description. The user MUST be able
+  to review, edit, and remove any field before submitting. Submission targets are
+  configurable (GitHub issue, mailto, copy-to-clipboard). No details are sent without
+  explicit user confirmation.
+  *Rationale: users can reproduce bugs developers can't see; structured context in a
+  one-tap flow captures it before the user closes the tab.*
 
 - **CA14 -- Raw-first, replayable ingestion:** persist incoming input **verbatim and
   immediately** (append-only, e.g. `data/<tid>.log`) **before** any parsing/formatting,
@@ -258,4 +277,4 @@ Concrete commands and tools that support The Basic Workflow on Windows/XAMPP.
   comment, so reviewers can verify the type/scope and rationale (especially for breaking
   changes). / wait for edits to be accepted before committing.
 
-**Version**: 1.7.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-18
+**Version**: 1.8.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-18
