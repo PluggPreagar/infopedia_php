@@ -81,7 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 6. Write entry to local CSV. Auto-create with header if needed.
     if (!file_exists($source_file) && ($tenant_id === '' || ($config['tenantAutoCreationEnabled'] ?? false))) {
-        @file_put_contents($source_file, "Timestamp,entry\n");
+        if (file_put_contents($source_file, "Timestamp,entry\n") === false) {
+            log_error('entries POST failed to create ' . $source_file);
+            respond_error('WRITE_ERROR', 'Could not save entry.', 500);
+        }
     }
     if (!file_exists($source_file)) {
         log_warn('unknown tenant, skipping write: ' . $source_file);
@@ -94,7 +97,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $csv_entry = $entry;
     }
-    @file_put_contents($source_file, $timestamp . ',' . $csv_entry . "\n", FILE_APPEND);
+    if (file_put_contents($source_file, $timestamp . ',' . $csv_entry . "\n", FILE_APPEND) === false) {
+        log_error('entries POST failed to append to ' . $source_file);
+        respond_error('WRITE_ERROR', 'Could not save entry.', 500);
+    }
     log_info('entry saved: ' . $source_file);
 
     // 7. Signal that the cache is outdated.

@@ -502,8 +502,10 @@ async function sendVote(topic, nodeId, delta) {
         entry: `${key} | votes:${sid}:${delta} | ${entry.message}`
     });
     try {
-        await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        const res = await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (!res.ok) console.error("[app2] sendVote non-ok:", res.status, res.url);
     } catch (err) {
+        console.error("[app2] sendVote:", err);
         showToast("Bewertung konnte nicht gespeichert werden.", "error");
     }
     runtimeCheck("sendVote-end");
@@ -672,6 +674,7 @@ async function signEntry(topic, nodeId) {
             updateView();
         }
     } catch (err) {
+        console.error("[app2] signEntry:", err);
         showToast("Bestätigung konnte nicht gespeichert werden.", "error");
     }
     runtimeCheck("signEntry-end");
