@@ -783,6 +783,24 @@ document.getElementById("bs-type-chips").addEventListener("click", e => {
     document.querySelectorAll(".bs-type-chip").forEach(c => c.classList.toggle("active", c === chip));
 });
 
+// ── Search ────────────────────────────────────────────────────────────────────
+document.getElementById("nav-search-icon").addEventListener("click", () => {
+    const bar = document.getElementById("nav-search-bar");
+    bar.classList.toggle("open");
+    if (bar.classList.contains("open")) document.getElementById("search-input").focus();
+    else { document.getElementById("search-input").value = ""; updateView(); }
+});
+
+document.getElementById("search-input").addEventListener("input", () => updateView());
+
+document.getElementById("nav-search-bar").addEventListener("click", e => {
+    const chip = e.target.closest(".scope-chip");
+    if (!chip) return;
+    searchScope = chip.dataset.scope;
+    document.querySelectorAll(".scope-chip").forEach(c => c.classList.toggle("active", c === chip));
+    updateView();
+});
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 (function init() {
     const params = new URLSearchParams(window.location.search);
