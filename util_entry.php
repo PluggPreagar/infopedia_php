@@ -323,10 +323,10 @@ function aggregateVotes(string $csv, string $session_id): string {
 
             // Build vote columns.
             $vote_cols = '';
-            if ($g['own'] > 0) {
+            if ($g['own'] !== 0) {
                 $vote_cols .= ' | votes:' . $session_id . ':' . $g['own'];
             }
-            if ($g['others'] > 0) {
+            if ($g['others'] !== 0) {
                 $vote_cols .= ' | votes:others:' . $g['others'];
             }
             // Emit aggregated signer count as a regular attr so csv_to_json picks it up.
