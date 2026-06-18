@@ -41,7 +41,7 @@ serve:
     @echo "  Stat+excl: {{base}}/statistic.php?exclude_e2e=1"
     @echo "  Stat+err:  {{base}}/statistic.php?errors_only=1"
     @echo ""
-    {{php}} -S localhost:{{port}} -t .
+    {{php}} -S localhost:{{port}} -t . router.php
 
 # ── Inspect (requires running server) ────────────────────────────────────────
 
