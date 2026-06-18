@@ -244,6 +244,10 @@
     <label>Tenant ID
       <input id="settings-tenant" type="text" placeholder="demo">
     </label>
+    <label style="display:block;margin-top:0.75rem;font-size:0.85rem">GitHub Issues URL <span style="color:#999">(optional)</span></label>
+    <input id="settings-github-url" type="url" placeholder="https://github.com/user/repo/issues/new" style="width:100%;box-sizing:border-box;margin-top:0.25rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px">
+    <label style="display:block;margin-top:0.5rem;font-size:0.85rem">Feedback E-Mail <span style="color:#999">(optional)</span></label>
+    <input id="settings-issue-mail" type="email" placeholder="bugs@example.com" style="width:100%;box-sizing:border-box;margin-top:0.25rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px">
     <div style="display:flex;gap:0.5rem">
       <button class="settings-btn primary" id="settings-apply">Übernehmen</button>
       <button class="settings-btn secondary" id="settings-close">Schließen</button>
@@ -361,6 +365,39 @@ document.getElementById("issue-overlay").addEventListener("click", e => {
     if (e.target === document.getElementById("issue-overlay")) closeIssueReport();
 });
 
+// ── Issue report submission (CA17) ────────────────────────────────────────────
+function buildFullReport() {
+    const userMsg = document.getElementById("issue-user-msg").value.trim();
+    const details = document.getElementById("issue-details").value;
+    return (userMsg ? "Nutzerbeschreibung:\n" + userMsg + "\n\n" : "") + details;
+}
+
+function submitReportClipboard() {
+    navigator.clipboard.writeText(buildFullReport())
+        .then(() => { showToast("Bericht kopiert!", "success", 2000); closeIssueReport(); })
+        .catch(() => showToast("Kopieren fehlgeschlagen.", "error"));
+}
+
+function submitReportMail() {
+    const s = loadSettings();
+    if (!s.issueMailto) return;
+    const subject = encodeURIComponent("Fehlerbericht fayf.info " + APP_VERSION);
+    const body    = encodeURIComponent(buildFullReport());
+    window.open("mailto:" + s.issueMailto + "?subject=" + subject + "&body=" + body);
+    closeIssueReport();
+}
+
+function submitReportGithub() {
+    const s = loadSettings();
+    if (!s.issueGithubUrl) return;
+    window.open(s.issueGithubUrl + "?body=" + encodeURIComponent(buildFullReport()), "_blank");
+    closeIssueReport();
+}
+
+document.getElementById("issue-copy").addEventListener("click", submitReportClipboard);
+document.getElementById("issue-mail").addEventListener("click", submitReportMail);
+document.getElementById("issue-github").addEventListener("click", submitReportGithub);
+
 // ── Debug ─────────────────────────────────────────────────────────────────────
 function runtimeCheck(msg = "") {
     // hook point — intentionally empty; call sites kept for future instrumentation
@@ -404,15 +441,24 @@ function formatTimestamp(ts) {
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
-function showToast(message, type = "info", duration = 3000) {
+function showToast(message, type = "info", duration = 3000, errorCtx = null) {
     const container = document.getElementById("toast-container");
     const el = document.createElement("div");
-    el.textContent = message;
     el.style.cssText = `
         background:${type === "success" ? "#4CAF50" : type === "error" ? "#f44336" : "#333"};
         color:#fff;padding:0.75rem 1rem;margin-bottom:0.4rem;border-radius:6px;
-        box-shadow:0 2px 6px rgba(0,0,0,0.25);font-size:0.9rem;
+        box-shadow:0 2px 6px rgba(0,0,0,0.25);font-size:0.9rem;display:flex;align-items:center;
     `;
+    const span = document.createElement("span");
+    span.textContent = message;
+    el.appendChild(span);
+    if (type === "error" && errorCtx) {
+        const btn = document.createElement("button");
+        btn.textContent = "Melden";
+        btn.className = "toast-report-btn";
+        btn.onclick = (e) => { e.stopPropagation(); openIssueReport(errorCtx); };
+        el.appendChild(btn);
+    }
     container.appendChild(el);
     setTimeout(() => el.remove(), duration);
 }
@@ -629,7 +675,7 @@ async function sendVote(topic, nodeId, delta) {
         if (!res.ok) console.error("[app2] sendVote non-ok:", res.status, res.url);
     } catch (err) {
         console.error("[app2] sendVote:", err);
-        showToast("Bewertung konnte nicht gespeichert werden.", "error");
+        showToast("Bewertung konnte nicht gespeichert werden.", "error", 3000, { label: "sendVote", err });
     }
     runtimeCheck("sendVote-end");
 }
@@ -801,7 +847,7 @@ async function signEntry(topic, nodeId) {
         }
     } catch (err) {
         console.error("[app2] signEntry:", err);
-        showToast("Bestätigung konnte nicht gespeichert werden.", "error");
+        showToast("Bestätigung konnte nicht gespeichert werden.", "error", 3000, { label: "signEntry", err });
     }
     runtimeCheck("signEntry-end");
 }
@@ -890,7 +936,7 @@ async function loadInitialData() {
         showToast("Daten geladen.", "success", 1500);
     } catch (err) {
         console.error("[app2] loadInitialData:", err);
-        showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000);
+        showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000, { label: "loadInitialData", err });
     }
     runtimeCheck("loadInitialData-end");
 }
@@ -963,11 +1009,11 @@ async function submitEntry() {
             showToast("Eintrag hinzugefügt!", "success");
             closeBottomSheet();
         } else {
-            showToast("Eintrag konnte nicht gespeichert werden.", "error");
+            showToast("Eintrag konnte nicht gespeichert werden.", "error", 3000, { label: "submitEntry", status: res.status, url: res.url });
         }
     } catch (err) {
         console.error("[app2] submitEntry:", err);
-        showToast("Verbindung unterbrochen. Bitte erneut versuchen.", "error");
+        showToast("Verbindung unterbrochen. Bitte erneut versuchen.", "error", 3000, { label: "submitEntry", err });
     }
 }
 
@@ -1012,7 +1058,10 @@ document.getElementById("nav-search-bar").addEventListener("click", e => {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function openSettings() {
-    document.getElementById("settings-tenant").value = tenantId;
+    const s = loadSettings();
+    document.getElementById("settings-tenant").value     = tenantId;
+    document.getElementById("settings-github-url").value = s.issueGithubUrl || "";
+    document.getElementById("settings-issue-mail").value = s.issueMailto    || "";
     document.getElementById("settings-overlay").classList.add("open");
 }
 function closeSettings() {
@@ -1033,6 +1082,9 @@ function applySettings() {
         url.searchParams.set("tid", tenantId);
         history.pushState({}, "", url);
     }
+    const githubUrl = document.getElementById("settings-github-url").value.trim();
+    const issueMail = document.getElementById("settings-issue-mail").value.trim();
+    saveSettings({ issueGithubUrl: githubUrl, issueMailto: issueMail });
     closeSettings();
 }
 
