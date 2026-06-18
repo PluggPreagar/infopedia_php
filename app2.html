@@ -228,6 +228,24 @@
 <div id="toast-container"></div>
 
 <script>
+// ── Node.js test shim (no-op in browser) ─────────────────────────────────────
+var _isBrowser = typeof document !== "undefined";
+if (!_isBrowser) {
+    var _el = function(tag) {
+        return { tagName: tag, className: "", dataset: {}, innerHTML: "", style: {}, value: "", addEventListener: function() {} };
+    };
+    var document = {
+        getElementById: function() { return _el("div"); },
+        createElement: _el,
+    };
+    var window = { location: { href: "http://localhost/", search: "" } };
+    var history = { pushState: function() {} };
+    var localStorage = { getItem: function() { return null; }, setItem: function() {} };
+    var URLSearchParams = function(s) { this.get = function() { return null; }; };
+    var URL = function(href) { this.href = href; this.searchParams = { set: function() {}, get: function() { return null; } }; };
+    var IntersectionObserver = function(cb) { this.observe = function() {}; this.disconnect = function() {}; };
+}
+
 // ── State ────────────────────────────────────────────────────────────────────
 let tenantId = "";
 let sid = "www";
@@ -407,6 +425,203 @@ function loadSettings() {
 function saveSettings(patch) {
     const s = loadSettings();
     localStorage.setItem("fayf_settings", JSON.stringify({ ...s, ...patch }));
+}
+
+// ── Type system ───────────────────────────────────────────────────────────────
+const TYPE_DEFS = {
+    "!-": { label: "Fake",       cssClass: "fake",       color: "#f44336" },
+    "!":  { label: "Fakt",       cssClass: "fakt",       color: "#4CAF50" },
+    "??": { label: "Gegenfrage", cssClass: "gegenfrage", color: "#2196F3" },
+    "?":  { label: "Unklar",     cssClass: "unklar",     color: "#FF9800" },
+    ".":  { label: "Meinung",    cssClass: "meinung",    color: "#888"    },
+    "@":  { label: "Quelle",     cssClass: "meinung",    color: "#888"    },
+    ">":  { label: "Thema",      cssClass: "fakt",       color: "#4CAF50" },
+};
+const TYPE_DEF_DEFAULT = { label: "Eintrag", cssClass: "meinung", color: "#888" };
+
+function getTypeDef(message) {
+    const suffix = getTypeFromMessage(message);
+    const base = TYPE_DEFS[suffix] || TYPE_DEF_DEFAULT;
+    return { ...base, suffix };
+}
+
+function getSignedCount(topic, nodeId) {
+    const key = fullKey(topic, nodeId);
+    return (votesData[key] && votesData[key].signed) || 0;
+}
+
+function buildCard(entry) {
+    const { topic, nodeId, message, votes, timestamp } = entry;
+    const suffix = getTypeFromMessage(message);
+    let typeDef = TYPE_DEFS[suffix] || TYPE_DEF_DEFAULT;
+    const signed = getSignedCount(topic, nodeId);
+    const verified = signed >= 2 && (suffix === "!" || suffix === "!-");
+    if (verified) {
+        typeDef = suffix === "!"
+            ? { label: "Bewiesen ✓", cssClass: "bewiesen", color: "#2e7d32" }
+            : { label: "Widerlegung ✓", cssClass: "widerlegung", color: "#b71c1c" };
+    }
+
+    const cleanMsg = message.replace(/[.!?@>\-]+$/, "").trim() || message;
+    const voteCount = votes || 0;
+    const scoreClass = voteCount > 0 ? "pos" : voteCount < 0 ? "neg" : "zero";
+    const scoreStr = voteCount > 0 ? "+" + voteCount : String(voteCount);
+    const key = fullKey(topic, nodeId);
+    const hasDrillIn = suffix === ">" || (data[key] && Object.keys(data[key]).length > 0);
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.topic = topic;
+    card.dataset.nodeId = nodeId;
+    card.dataset.fullKey = key;
+    card.innerHTML = `
+        <div class="card-header">
+            <span class="type-badge ${typeDef.cssClass}">${typeDef.label}</span>
+            <span class="card-text">${cleanMsg}</span>
+            ${hasDrillIn ? '<i class="fas fa-chevron-right drill-arrow"></i>' : ""}
+        </div>
+        <div class="card-footer">
+            <button class="vote-btn upvote-btn" data-key="${key}">▲</button>
+            <span class="vote-score ${scoreClass}">${scoreStr}</span>
+            <button class="vote-btn downvote-btn" data-key="${key}">▼</button>
+            <span class="sign-count ${signed >= 2 ? "verified" : ""}">${signed > 0 ? "✓ " + signed : ""}</span>
+            <button class="sign-btn" data-key="${key}">Bestätigen</button>
+            <span class="ts-label">${formatTimestamp(timestamp)}</span>
+        </div>
+    `;
+    return card;
+}
+
+// ── Render cards with IntersectionObserver batching ───────────────────────────
+function addSwipeHandlersToAllCards() {}
+
+function renderCards(entries) {
+    runtimeCheck("renderCards");
+    const list = document.getElementById("card-list");
+    list.innerHTML = "";
+    if (!entries || entries.length === 0) {
+        list.innerHTML = `<p style="color:#999;text-align:center;padding:2rem">Keine Einträge. Füge den ersten hinzu!</p>`;
+        return;
+    }
+    const BATCH = 80;
+    let rendered = 0;
+    let observer;
+
+    function renderBatch() {
+        const sentinel = document.getElementById("card-sentinel");
+        if (sentinel) sentinel.remove();
+        const end = Math.min(rendered + BATCH, entries.length);
+        for (let i = rendered; i < end; i++) {
+            list.appendChild(buildCard(entries[i]));
+        }
+        rendered = end;
+        if (rendered < entries.length) {
+            const s = document.createElement("div");
+            s.id = "card-sentinel";
+            s.style.height = "1px";
+            list.appendChild(s);
+            observer.observe(s);
+        }
+        addSwipeHandlersToAllCards();
+    }
+
+    observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) { observer.disconnect(); renderBatch(); }
+    }, { rootMargin: "200px" });
+
+    renderBatch();
+    runtimeCheck("renderCards-end");
+}
+
+// ── Filtering ─────────────────────────────────────────────────────────────────
+function getFilteredEntries() {
+    runtimeCheck("getFilteredEntries");
+    const searchInput = _isBrowser ? document.getElementById("search-input") : null;
+    const searchVal = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const result = [];
+    Object.entries(data).forEach(([topic, nodes]) => {
+        // scope filter
+        if (searchScope === "here" && topic !== selectedTopic) return;
+        if (searchScope === "below" && !topic.startsWith(selectedTopic === "/" ? "" : selectedTopic)) return;
+        // for non-search: only show direct children of selectedTopic
+        if (!searchVal && topic !== selectedTopic) return;
+
+        Object.values(nodes).forEach(entry => {
+            const suffix = getTypeFromMessage(entry.message);
+            if (!activeTypes.has(suffix) && suffix !== ">") return;
+            if (searchVal && !entry.message.toLowerCase().includes(searchVal)) return;
+            result.push(entry);
+        });
+    });
+    result.sort((a, b) => (b.votes || 0) - (a.votes || 0) || a.message.localeCompare(b.message));
+    runtimeCheck("getFilteredEntries-end");
+    return result;
+}
+
+function updateView() {
+    runtimeCheck("updateView");
+    // update nav back link
+    const navBack = document.getElementById("nav-back");
+    if (selectedTopic === "/") {
+        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> fayf.info`;
+        navBack.href = "infopage.html";
+    } else {
+        const parts = selectedTopic.split("/").filter(Boolean);
+        const parentTopic = parts.length > 1 ? "/" + parts.slice(0, -1).join("/") : "/";
+        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> ${topicMap[parentTopic] || "zurück"}`;
+        navBack.href = "#";
+        navBack.onclick = e => { e.preventDefault(); navigateTo(parentTopic); };
+    }
+    renderCards(getFilteredEntries());
+    runtimeCheck("updateView-end");
+}
+
+function navigateTo(topic) {
+    runtimeCheck("navigateTo");
+    selectedTopic = topic;
+    const url = new URL(window.location.href);
+    url.searchParams.set("topic", topic);
+    history.pushState({}, "", url);
+    updateView();
+    runtimeCheck("navigateTo-end");
+}
+
+// ── Event wiring ──────────────────────────────────────────────────────────────
+if (_isBrowser) {
+    document.getElementById("chip-bar").addEventListener("click", e => {
+        const chip = e.target.closest(".type-chip");
+        if (!chip) return;
+        const type = chip.dataset.type;
+        if (activeTypes.has(type)) { activeTypes.delete(type); chip.classList.remove("active"); }
+        else { activeTypes.add(type); chip.classList.add("active"); }
+        updateView();
+    });
+
+    document.getElementById("card-list").addEventListener("click", e => {
+        const card = e.target.closest(".card");
+        if (!card) return;
+        // don't drill if vote/sign button clicked
+        if (e.target.closest(".vote-btn") || e.target.closest(".sign-btn")) return;
+        const key = card.dataset.fullKey;
+        navigateTo(key);
+    });
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+if (_isBrowser) {
+    (function init() {
+        const params = new URLSearchParams(window.location.search);
+        tenantId = params.get("tid") || params.get("tenantId") || "";
+        if (!tenantId) {
+            const s = loadSettings();
+            tenantId = s.tenantId || "";
+        }
+        sid = loadSettings().sid || "www";
+        const topicParam = params.get("topic");
+        if (topicParam) selectedTopic = topicParam;
+        document.getElementById("settings-tenant").value = tenantId;
+        updateView();
+    })();
 }
 </script>
 </body>
