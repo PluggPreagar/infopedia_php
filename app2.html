@@ -732,6 +732,57 @@ document.addEventListener("visibilitychange", () => {
     else if (tenantId) startLongPoll();
 });
 
+// ── Add entry ─────────────────────────────────────────────────────────────────
+let bsSelectedType = ".";
+
+function openBottomSheet() {
+    if (selectedTopic === "/") { showToast("Wähle zuerst ein Thema.", "info"); return; }
+    document.getElementById("bottom-sheet-overlay").classList.add("open");
+    document.getElementById("bs-textarea").value = "";
+    document.getElementById("bs-textarea").focus();
+}
+function closeBottomSheet() {
+    document.getElementById("bottom-sheet-overlay").classList.remove("open");
+}
+
+async function submitEntry() {
+    const text = document.getElementById("bs-textarea").value.trim();
+    if (text.length < 3) { showToast("Zu kurz (mind. 3 Zeichen).", "error"); return; }
+    const message = matchType(text, bsSelectedType);
+    const nodeId = generateNodeId();
+    const body = new URLSearchParams({ sid, tid: tenantId, entry: `${selectedTopic} | ${nodeId} | ${message}` });
+    try {
+        const res = await fetch("entry/add?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (res.ok) {
+            const json = await res.json();
+            addEntry(selectedTopic, nodeId, message, 0, json.timestamp || "");
+            updateView();
+            showToast("Eintrag hinzugefügt!", "success");
+            closeBottomSheet();
+        } else {
+            showToast("Fehler " + res.status, "error");
+        }
+    } catch (err) {
+        showToast("Netzwerkfehler", "error");
+    }
+}
+
+// wire FAB and sheet buttons
+document.getElementById("fab").addEventListener("click", openBottomSheet);
+document.getElementById("bs-cancel").addEventListener("click", closeBottomSheet);
+document.getElementById("bs-submit").addEventListener("click", submitEntry);
+document.getElementById("bottom-sheet-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("bottom-sheet-overlay")) closeBottomSheet();
+});
+
+// type chips in sheet
+document.getElementById("bs-type-chips").addEventListener("click", e => {
+    const chip = e.target.closest(".bs-type-chip");
+    if (!chip) return;
+    bsSelectedType = chip.dataset.type;
+    document.querySelectorAll(".bs-type-chip").forEach(c => c.classList.toggle("active", c === chip));
+});
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 (function init() {
     const params = new URLSearchParams(window.location.search);
