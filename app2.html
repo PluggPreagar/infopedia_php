@@ -167,6 +167,33 @@
       nav { padding: 0.4rem 0.6rem; }
       #card-list { padding: 0.5rem; }
     }
+
+    /* ── Issue report overlay (CA17) ───────────────────── */
+    #issue-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 450;
+      align-items: center; justify-content: center;
+    }
+    #issue-overlay.open { display: flex; }
+    #issue-panel {
+      background: #fff; border-radius: 8px; padding: 1.5rem;
+      width: min(540px, 95vw); display: flex; flex-direction: column; gap: 0.75rem;
+      max-height: 90vh; overflow-y: auto;
+    }
+    #issue-panel h3 { font-size: 1.05rem; margin: 0; }
+    #issue-panel textarea { resize: vertical; }
+    .toast-report-btn {
+      display: inline-block;
+      margin-left: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 3px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    .toast-report-btn:hover { background: rgba(255,255,255,0.35); }
   </style>
 </head>
 <body>
@@ -224,6 +251,22 @@
   </div>
 </div>
 
+<div id="issue-overlay" class="overlay">
+  <div id="issue-panel">
+    <h3>Problem melden</h3>
+    <p style="margin:0;font-size:0.85rem;color:#666">Was ist passiert? (optional)</p>
+    <textarea id="issue-user-msg" rows="3" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:0.9rem" placeholder="Beschreibe kurz, was du gemacht hast..."></textarea>
+    <p style="margin:0;font-size:0.85rem;color:#666">Technische Details (automatisch — bitte prüfen und ggf. anpassen):</p>
+    <textarea id="issue-details" rows="10" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:0.78rem"></textarea>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button id="issue-copy">📋 Kopieren</button>
+      <button id="issue-mail">✉️ E-Mail</button>
+      <button id="issue-github">🐛 GitHub</button>
+      <button id="issue-close" style="margin-left:auto">Schließen</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 
 <script>
@@ -268,6 +311,55 @@ function sanitiseForReport(text) {
     if (tenantId) s = s.split(tenantId).join("[tid]");
     return s;
 }
+
+// ── Issue report builder (CA17) ────────────────────────────────────────────────
+function buildReportText(errorCtx) {
+    const lines = [];
+    lines.push("=== Fehlerbericht ===");
+    lines.push("Zeit:    " + new Date().toISOString());
+    lines.push("Version: " + APP_VERSION);
+    lines.push("");
+    lines.push("--- Letzte Aktionen ---");
+    if (actionTrail.length === 0) {
+        lines.push("(keine)");
+    } else {
+        actionTrail.slice().reverse().forEach(a => {
+            lines.push(a.ts.slice(11, 19) + "  " + a.action + (a.detail ? ": " + a.detail : ""));
+        });
+    }
+    lines.push("");
+    lines.push("--- Zustand ---");
+    lines.push(buildStateSnapshot());
+    if (errorCtx) {
+        lines.push("");
+        lines.push("--- Fehlerdetails ---");
+        lines.push(sanitiseForReport(
+            (errorCtx.label  ? "Fehler: "  + errorCtx.label + "\n" : "") +
+            (errorCtx.status ? "Status: "  + errorCtx.status + "\n" : "") +
+            (errorCtx.url    ? "URL:    "  + errorCtx.url + "\n" : "") +
+            (errorCtx.err    ? "Detail: "  + String(errorCtx.err) : "")
+        ));
+    }
+    return lines.join("\n");
+}
+
+function openIssueReport(errorCtx) {
+    document.getElementById("issue-details").value = buildReportText(errorCtx);
+    document.getElementById("issue-user-msg").value = "";
+    const s = loadSettings();
+    document.getElementById("issue-mail").style.display   = s.issueMailto    ? "" : "none";
+    document.getElementById("issue-github").style.display = s.issueGithubUrl ? "" : "none";
+    document.getElementById("issue-overlay").classList.add("open");
+}
+
+function closeIssueReport() {
+    document.getElementById("issue-overlay").classList.remove("open");
+}
+
+document.getElementById("issue-close").addEventListener("click", closeIssueReport);
+document.getElementById("issue-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("issue-overlay")) closeIssueReport();
+});
 
 // ── Debug ─────────────────────────────────────────────────────────────────────
 function runtimeCheck(msg = "") {
