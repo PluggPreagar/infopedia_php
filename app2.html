@@ -238,6 +238,37 @@ let latestTimestamp = null;
 let searchScope = "below";   // "here" | "below" | "global"
 let activeTypes = new Set([".", "!", "!-", "?", "??"]); // visible types
 
+// ── Version ────────────────────────────────────────────────────────────────────
+const APP_VERSION = "0.1.0";
+
+// ── Action trail (CA17) ────────────────────────────────────────────────────────
+const ACTION_TRAIL_MAX = 10;
+let actionTrail = [];
+
+function pushAction(action, detail) {
+    actionTrail.push({ ts: new Date().toISOString(), action, detail: detail || "" });
+    if (actionTrail.length > ACTION_TRAIL_MAX) actionTrail.shift();
+}
+
+function buildStateSnapshot() {
+    const searchVal = document.getElementById("search-input").value.trim();
+    const cards = document.querySelectorAll("#card-list .card").length;
+    return [
+        "Thema:  " + selectedTopic,
+        "Tenant: [hidden]",
+        "Filter: " + (activeTypes.size ? [...activeTypes].join(", ") : "alle"),
+        "Suche:  " + (searchVal ? '"' + searchVal + '" (' + searchScope + ')' : "keine"),
+        "Karten: " + cards,
+    ].join("\n");
+}
+
+function sanitiseForReport(text) {
+    let s = String(text);
+    if (sid)      s = s.split(sid).join("[sid]");
+    if (tenantId) s = s.split(tenantId).join("[tid]");
+    return s;
+}
+
 // ── Debug ─────────────────────────────────────────────────────────────────────
 function runtimeCheck(msg = "") {
     // hook point — intentionally empty; call sites kept for future instrumentation
@@ -513,6 +544,7 @@ async function sendVote(topic, nodeId, delta) {
 
 function handleVote(key, delta) {
     const [topic, nodeId] = splitKey(key);
+    pushAction("vote", key + " " + (delta > 0 ? "+" : "") + delta);
     addVoteByGui(topic, nodeId, delta);
     sendVote(topic, nodeId, delta);
     // update score in existing card without full re-render
@@ -647,6 +679,7 @@ function updateView() {
 
 function navigateTo(topic) {
     runtimeCheck("navigateTo");
+    pushAction("navigate", topic);
     selectedTopic = topic;
     const url = new URL(window.location.href);
     url.searchParams.set("topic", topic);
@@ -668,6 +701,7 @@ async function signEntry(topic, nodeId) {
     try {
         const res = await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
         if (res.ok) {
+            pushAction("sign", key);
             if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
             votesData[key].signed = (votesData[key].signed || 0) + 1;
             showToast("Bestätigt!", "success", 1500);
@@ -687,6 +721,7 @@ document.getElementById("chip-bar").addEventListener("click", e => {
     const type = chip.dataset.type;
     if (activeTypes.has(type)) { activeTypes.delete(type); chip.classList.remove("active"); }
     else { activeTypes.add(type); chip.classList.add("active"); }
+    pushAction("filterType", [...activeTypes].join(","));
     updateView();
 });
 
@@ -830,6 +865,7 @@ async function submitEntry() {
         const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
         if (res.ok) {
             const json = await res.json();
+            pushAction("addEntry", selectedTopic + "/" + nodeId);
             addEntry(selectedTopic, nodeId, message, 0, json.timestamp || "");
             updateView();
             showToast("Eintrag hinzugefügt!", "success");
@@ -867,12 +903,17 @@ document.getElementById("nav-search-icon").addEventListener("click", () => {
     else { document.getElementById("search-input").value = ""; updateView(); }
 });
 
-document.getElementById("search-input").addEventListener("input", () => updateView());
+document.getElementById("search-input").addEventListener("input", () => {
+    const val = document.getElementById("search-input").value.trim();
+    if (val) pushAction("search", '"' + val + '"');
+    updateView();
+});
 
 document.getElementById("nav-search-bar").addEventListener("click", e => {
     const chip = e.target.closest(".scope-chip");
     if (!chip) return;
     searchScope = chip.dataset.scope;
+    pushAction("searchScope", searchScope);
     document.querySelectorAll(".scope-chip").forEach(c => c.classList.toggle("active", c === chip));
     updateView();
 });
@@ -888,6 +929,7 @@ function closeSettings() {
 function applySettings() {
     const newTenant = document.getElementById("settings-tenant").value.trim().replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 30);
     if (newTenant && newTenant !== tenantId) {
+        pushAction("changeTenant", "[tid]");
         tenantId = newTenant;
         saveSettings({ tenantId });
         stopLongPoll();
