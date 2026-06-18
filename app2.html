@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>fayf — Fact Farming</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    /* ── Reset + base ───────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: Arial, sans-serif; color: #333; background: #f5f5f5; }
+    body { display: flex; flex-direction: column; }
+    a { text-decoration: none; color: inherit; }
+
+    /* ── Nav ────────────────────────────────────────── */
+    nav {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: #333; color: #fff;
+      padding: 0.5rem 1rem; position: sticky; top: 0; z-index: 100;
+    }
+    nav a { color: #fff; }
+    #nav-back { margin-right: auto; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw; }
+    #nav-search-icon { cursor: pointer; padding: 0.3rem; }
+    #nav-search-bar { display: none; flex: 1; }
+    #nav-search-bar.open { display: flex; align-items: center; gap: 0.4rem; }
+    #search-input { flex: 1; padding: 0.3rem 0.6rem; border-radius: 4px; border: none; font-size: 0.9rem; }
+    .scope-chip {
+      padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; cursor: pointer;
+      background: #555; color: #fff; border: none;
+    }
+    .scope-chip.active { background: #4CAF50; }
+    #nav-settings-icon { cursor: pointer; padding: 0.3rem; }
+
+    /* ── Chip filter bar ────────────────────────────── */
+    #chip-bar {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+      padding: 0.5rem 1rem; background: #fff;
+      border-bottom: 1px solid #e0e0e0; position: sticky; top: 3rem; z-index: 90;
+    }
+    .type-chip {
+      padding: 0.25rem 0.75rem; border-radius: 14px; font-size: 0.8rem;
+      border: 2px solid transparent; cursor: pointer; background: #eee; color: #555;
+    }
+    .type-chip.active { color: #fff; border-color: transparent; }
+    .type-chip[data-type="."].active   { background: #888; }
+    .type-chip[data-type="!"].active   { background: #4CAF50; }
+    .type-chip[data-type="!-"].active  { background: #f44336; }
+    .type-chip[data-type="?"].active   { background: #FF9800; }
+    .type-chip[data-type="??"].active  { background: #2196F3; }
+
+    /* ── Card list ──────────────────────────────────── */
+    #card-list { flex: 1; padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; max-width: 800px; width: 100%; margin: 0 auto; }
+
+    /* ── Card ───────────────────────────────────────── */
+    .card {
+      background: #fff; border-radius: 8px;
+      border: 1px solid #e0e0e0; padding: 0.75rem 1rem;
+      cursor: pointer; transition: box-shadow 0.15s;
+    }
+    .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .type-badge {
+      padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.72rem;
+      font-weight: bold; color: #fff; white-space: nowrap; flex-shrink: 0;
+    }
+    .type-badge.meinung   { background: #888; }
+    .type-badge.fakt      { background: #4CAF50; }
+    .type-badge.bewiesen  { background: #2e7d32; }
+    .type-badge.fake      { background: #f44336; }
+    .type-badge.widerlegung { background: #b71c1c; }
+    .type-badge.unklar    { background: #FF9800; }
+    .type-badge.gegenfrage { background: #2196F3; }
+    .card-text { font-size: 0.95rem; line-height: 1.4; flex: 1; }
+    .card-footer { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; }
+    .vote-score { font-weight: bold; font-size: 0.9rem; min-width: 2rem; text-align: center; }
+    .vote-score.pos { color: #4CAF50; }
+    .vote-score.neg { color: #f44336; }
+    .vote-score.zero { color: #aaa; }
+    .vote-btn {
+      background: none; border: 1px solid #ccc; border-radius: 4px;
+      padding: 0.15rem 0.5rem; cursor: pointer; font-size: 0.8rem; color: #666;
+    }
+    .vote-btn:hover { border-color: #4CAF50; color: #4CAF50; }
+    .sign-count { font-size: 0.8rem; color: #888; margin-left: auto; }
+    .sign-count.verified { color: #2e7d32; font-weight: bold; }
+    .sign-btn {
+      background: none; border: 1px solid #ccc; border-radius: 4px;
+      padding: 0.15rem 0.5rem; cursor: pointer; font-size: 0.75rem; color: #666;
+    }
+    .sign-btn:hover { border-color: #2e7d32; color: #2e7d32; }
+    .drill-arrow { color: #ccc; font-size: 0.8rem; margin-left: 0.25rem; }
+    .ts-label { font-size: 0.75rem; color: #bbb; }
+
+    /* ── FAB ────────────────────────────────────────── */
+    #fab {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 200;
+      width: 3.2rem; height: 3.2rem; border-radius: 50%;
+      background: #4CAF50; color: #fff; border: none;
+      font-size: 1.5rem; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #fab:hover { background: #45a049; }
+
+    /* ── Bottom sheet (add entry) ───────────────────── */
+    #bottom-sheet-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 300;
+    }
+    #bottom-sheet-overlay.open { display: flex; align-items: flex-end; }
+    #bottom-sheet {
+      background: #fff; width: 100%; border-radius: 12px 12px 0 0;
+      padding: 1.25rem 1rem 2rem; display: flex; flex-direction: column; gap: 0.75rem;
+    }
+    #bottom-sheet h3 { font-size: 1rem; color: #333; }
+    #bs-type-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .bs-type-chip {
+      padding: 0.3rem 0.8rem; border-radius: 14px; font-size: 0.82rem;
+      border: 2px solid #ccc; cursor: pointer; background: #fff; color: #555;
+    }
+    .bs-type-chip.active { color: #fff; border-color: transparent; }
+    .bs-type-chip[data-type="."].active  { background: #888; }
+    .bs-type-chip[data-type="!"].active  { background: #4CAF50; }
+    .bs-type-chip[data-type="!-"].active { background: #f44336; }
+    .bs-type-chip[data-type="?"].active  { background: #FF9800; }
+    .bs-type-chip[data-type="??"].active { background: #2196F3; }
+    #bs-textarea {
+      width: 100%; min-height: 5rem; padding: 0.6rem;
+      border: 1px solid #ccc; border-radius: 6px; font-size: 1rem;
+      resize: vertical; font-family: inherit;
+    }
+    #bs-submit {
+      padding: 0.7rem; background: #4CAF50; color: #fff;
+      border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+    }
+    #bs-submit:hover { background: #45a049; }
+    #bs-cancel {
+      padding: 0.5rem; background: none; border: none;
+      color: #888; font-size: 0.9rem; cursor: pointer; text-align: center;
+    }
+
+    /* ── Toast ──────────────────────────────────────── */
+    #toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 500; }
+
+    /* ── Settings overlay (reuse from app.html pattern) */
+    #settings-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 400;
+      align-items: center; justify-content: center;
+    }
+    #settings-overlay.open { display: flex; }
+    #settings-panel {
+      background: #fff; border-radius: 8px; padding: 1.5rem;
+      width: min(400px, 90vw); display: flex; flex-direction: column; gap: 1rem;
+    }
+    #settings-panel h2 { font-size: 1.1rem; }
+    #settings-tenant { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 4px; }
+    .settings-btn {
+      padding: 0.5rem 1rem; border-radius: 4px; border: none; cursor: pointer; font-size: 0.9rem;
+    }
+    .settings-btn.primary { background: #4CAF50; color: #fff; }
+    .settings-btn.secondary { background: #eee; color: #333; }
+
+    /* ── Swipe feedback ─────────────────────────────── */
+    .card.swiping-right { border-left: 4px solid #4CAF50; }
+    .card.swiping-left  { border-left: 4px solid #f44336; }
+
+    /* ── Responsive ─────────────────────────────────── */
+    @media (max-width: 600px) {
+      nav { padding: 0.4rem 0.6rem; }
+      #card-list { padding: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a id="nav-back" href="infopage.html"><i class="fas fa-arrow-left"></i> fayf.info</a>
+  <div id="nav-search-bar">
+    <input id="search-input" type="text" placeholder="Suchen…">
+    <button class="scope-chip active" data-scope="below">Below</button>
+    <button class="scope-chip" data-scope="here">Here</button>
+    <button class="scope-chip" data-scope="global">Global</button>
+  </div>
+  <i class="fas fa-search" id="nav-search-icon"></i>
+  <i class="fas fa-cog" id="nav-settings-icon"></i>
+</nav>
+
+<div id="chip-bar">
+  <button class="type-chip active" data-type=".">Meinung</button>
+  <button class="type-chip active" data-type="!">Fakt</button>
+  <button class="type-chip active" data-type="!-">Fake</button>
+  <button class="type-chip active" data-type="?">Unklar</button>
+  <button class="type-chip active" data-type="??">Frage</button>
+</div>
+
+<div id="card-list"></div>
+
+<button id="fab"><i class="fas fa-plus"></i></button>
+
+<div id="bottom-sheet-overlay">
+  <div id="bottom-sheet">
+    <h3>Neuer Eintrag</h3>
+    <div id="bs-type-chips">
+      <button class="bs-type-chip active" data-type=".">Meinung</button>
+      <button class="bs-type-chip" data-type="!">Fakt</button>
+      <button class="bs-type-chip" data-type="!-">Fake</button>
+      <button class="bs-type-chip" data-type="?">Unklar</button>
+      <button class="bs-type-chip" data-type="??">Gegenfrage</button>
+    </div>
+    <textarea id="bs-textarea" placeholder="Dein Beitrag…"></textarea>
+    <button id="bs-submit">Hinzufügen</button>
+    <button id="bs-cancel">Abbrechen</button>
+  </div>
+</div>
+
+<div id="settings-overlay">
+  <div id="settings-panel">
+    <h2>Einstellungen</h2>
+    <label>Tenant ID
+      <input id="settings-tenant" type="text" placeholder="demo">
+    </label>
+    <div style="display:flex;gap:0.5rem">
+      <button class="settings-btn primary" id="settings-apply">Übernehmen</button>
+      <button class="settings-btn secondary" id="settings-close">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let tenantId = "";
+let sid = "www";
+let data = {};          // { "/topic": { "nodeId": { topic, nodeId, message, votes, timestamp } } }
+let votesData = {};     // { "/topic/nodeId": { votes: N, signed: N } }
+let topicMap = {};      // { "/topic": "DisplayName" }
+let selectedTopic = "/";
+let latestTimestamp = null;
+let searchScope = "below";   // "here" | "below" | "global"
+let activeTypes = new Set([".", "!", "!-", "?", "??"]); // visible types
+
+// ── Debug ─────────────────────────────────────────────────────────────────────
+function runtimeCheck(msg = "") {
+    // hook point — intentionally empty; call sites kept for future instrumentation
+}
+
+// ── Key helpers ───────────────────────────────────────────────────────────────
+function fullKey(topic, nodeId) {
+    return topic + ("/" === topic ? "" : "/") + nodeId;
+}
+function splitKey(key) {
+    const lastSlash = key.lastIndexOf("/");
+    if (lastSlash <= 0) return ["/", key.replace(/^\//, "")];
+    return [key.substring(0, lastSlash), key.substring(lastSlash + 1)];
+}
+
+// ── Entry helpers ─────────────────────────────────────────────────────────────
+function generateNodeId() {
+    return Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
+}
+function getTypeFromMessage(message) {
+    for (const t of [">", "!-", "??", "!", "?", ".", "@", "--"]) {
+        if (message && message.endsWith(t)) return t;
+    }
+    return "";
+}
+function matchType(message, type) {
+    const current = getTypeFromMessage(message);
+    if (current === type) return message;
+    if (!current) return message + type;
+    if (type === "--") return message + type;
+    return message.slice(0, -current.length).trim() + type;
+}
+function formatTimestamp(ts) {
+    if (!ts) return "";
+    const d = new Date(ts.replace(" ", "T"));
+    if (isNaN(d)) return ts;
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString("de-DE", { day: "numeric", month: "short" });
+    return d.getFullYear().toString();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(message, type = "info", duration = 3000) {
+    const container = document.getElementById("toast-container");
+    const el = document.createElement("div");
+    el.textContent = message;
+    el.style.cssText = `
+        background:${type === "success" ? "#4CAF50" : type === "error" ? "#f44336" : "#333"};
+        color:#fff;padding:0.75rem 1rem;margin-bottom:0.4rem;border-radius:6px;
+        box-shadow:0 2px 6px rgba(0,0,0,0.25);font-size:0.9rem;
+    `;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), duration);
+}
+
+// ── Data write ────────────────────────────────────────────────────────────────
+function addEntryWoCheck(topic, nodeId, message, votes, timestamp) {
+    runtimeCheck("addEntryWoCheck");
+    if (!topic || topic === "") topic = "/";
+    if (!data[topic]) data[topic] = {};
+    if (message && message.endsWith("--")) {
+        delete data[topic][nodeId];
+    } else {
+        data[topic][nodeId] = { topic, nodeId, timestamp: timestamp || "", message, votes: votes || 0 };
+    }
+    runtimeCheck("addEntryWoCheck-end");
+}
+function addEntry(topic, nodeId, message, votes, timestamp) {
+    runtimeCheck("addEntry");
+    addEntryWoCheck(topic, nodeId, message, votes, timestamp);
+    checkData(topic, nodeId, message);
+    runtimeCheck("addEntry-end");
+}
+function addVoteByGui(topic, nodeId, deltaVotes) {
+    runtimeCheck("addVoteByGui");
+    if (data[topic] && data[topic][nodeId]) {
+        data[topic][nodeId].votes = (data[topic][nodeId].votes || 0) + deltaVotes;
+    }
+    const key = fullKey(topic, nodeId);
+    if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+    votesData[key].votes = (votesData[key].votes || 0) + deltaVotes;
+    runtimeCheck("addVoteByGui-end");
+}
+function setVoteByOthers(topic, nodeId, votes) {
+    runtimeCheck("setVoteByOthers");
+    const key = fullKey(topic, nodeId);
+    if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+    votesData[key].votes = votes;
+    if (data[topic] && data[topic][nodeId]) data[topic][nodeId].votes = votes;
+    runtimeCheck("setVoteByOthers-end");
+}
+
+// ── checkData: ensure topic map consistency ───────────────────────────────────
+function checkData(topic, nodeId, message) {
+    runtimeCheck("checkData");
+    // ensure parent topics exist
+    if (topic && topic !== "/") {
+        const parts = topic.split("/").filter(Boolean);
+        let path = "";
+        for (const part of parts) {
+            const parentPath = path || "/";
+            if (!data[parentPath]) data[parentPath] = {};
+            path += "/" + part;
+            const found = Object.values(data[parentPath] || {}).some(e => fullKey(e.topic, e.nodeId) === path || e.message.replace(/[.!?@>-]+$/, "") === part);
+            if (!found) {
+                // create stub topic entry
+                const stubId = part;
+                data[parentPath][stubId] = { topic: parentPath, nodeId: stubId, message: part + ">", votes: 0, timestamp: "" };
+            }
+        }
+    }
+    runtimeCheck("checkData-end");
+}
+
+// ── Topic map ─────────────────────────────────────────────────────────────────
+function initializeTopicMap() {
+    runtimeCheck("initializeTopicMap");
+    topicMap = {};
+    Object.entries(data).forEach(([topic, nodes]) => {
+        Object.values(nodes).forEach(entry => {
+            if (entry.message && entry.message.endsWith(">")) {
+                const childTopic = fullKey(entry.topic, entry.nodeId);
+                topicMap[childTopic] = entry.message.replace(/>$/, "").trim();
+            }
+        });
+    });
+    runtimeCheck("initializeTopicMap-end");
+}
+
+// ── Merge loaded data ─────────────────────────────────────────────────────────
+function addData(dataLoaded) {
+    runtimeCheck("addData");
+    if (!dataLoaded || Object.keys(dataLoaded).length === 0) return;
+    Object.entries(dataLoaded).forEach(([topic, nodes]) => {
+        Object.entries(nodes).forEach(([nodeId, entry]) => {
+            addEntryWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
+            if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
+                if (!latestTimestamp || entry.timestamp > latestTimestamp) latestTimestamp = entry.timestamp;
+            }
+        });
+    });
+    checkData();
+    initializeTopicMap();
+    runtimeCheck("addData-end");
+}
+function addVotesData(dataLoaded) {
+    runtimeCheck("addVotesData");
+    if (!dataLoaded) return;
+    Object.entries(dataLoaded).forEach(([key, entry]) => {
+        const v = parseInt(entry.votes || 0, 10);
+        const s = parseInt(entry.signed || 0, 10);
+        if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+        votesData[key].votes = v;
+        votesData[key].signed = s;
+        const [topic, nodeId] = splitKey(key);
+        if (data[topic] && data[topic][nodeId]) data[topic][nodeId].votes = v;
+    });
+    runtimeCheck("addVotesData-end");
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function loadSettings() {
+    try { return JSON.parse(localStorage.getItem("fayf_settings") || "{}"); } catch { return {}; }
+}
+function saveSettings(patch) {
+    const s = loadSettings();
+    localStorage.setItem("fayf_settings", JSON.stringify({ ...s, ...patch }));
+}
+
+// ── Type system ───────────────────────────────────────────────────────────────
+const TYPE_DEFS = {
+    "!-": { label: "Fake",       cssClass: "fake",       color: "#f44336" },
+    "!":  { label: "Fakt",       cssClass: "fakt",       color: "#4CAF50" },
+    "??": { label: "Gegenfrage", cssClass: "gegenfrage", color: "#2196F3" },
+    "?":  { label: "Unklar",     cssClass: "unklar",     color: "#FF9800" },
+    ".":  { label: "Meinung",    cssClass: "meinung",    color: "#888"    },
+    "@":  { label: "Quelle",     cssClass: "meinung",    color: "#888"    },
+    ">":  { label: "Thema",      cssClass: "fakt",       color: "#4CAF50" },
+};
+const TYPE_DEF_DEFAULT = { label: "Eintrag", cssClass: "meinung", color: "#888" };
+
+function getTypeDef(message) {
+    const suffix = getTypeFromMessage(message);
+    const base = TYPE_DEFS[suffix] || TYPE_DEF_DEFAULT;
+    return { ...base, suffix };
+}
+
+function getSignedCount(topic, nodeId) {
+    const key = fullKey(topic, nodeId);
+    return (votesData[key] && votesData[key].signed) || 0;
+}
+
+function buildCard(entry) {
+    const { topic, nodeId, message, votes, timestamp } = entry;
+    const suffix = getTypeFromMessage(message);
+    let typeDef = TYPE_DEFS[suffix] || TYPE_DEF_DEFAULT;
+    const signed = getSignedCount(topic, nodeId);
+    const verified = signed >= 2 && (suffix === "!" || suffix === "!-");
+    if (verified) {
+        typeDef = suffix === "!"
+            ? { label: "Bewiesen ✓", cssClass: "bewiesen", color: "#2e7d32" }
+            : { label: "Widerlegung ✓", cssClass: "widerlegung", color: "#b71c1c" };
+    }
+
+    const cleanMsg = message.replace(/[.!?@>\-]+$/, "").trim() || message;
+    const voteCount = votes || 0;
+    const scoreClass = voteCount > 0 ? "pos" : voteCount < 0 ? "neg" : "zero";
+    const scoreStr = voteCount > 0 ? "+" + voteCount : String(voteCount);
+    const key = fullKey(topic, nodeId);
+    const hasDrillIn = suffix === ">" || (data[key] && Object.keys(data[key]).length > 0);
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.topic = topic;
+    card.dataset.nodeId = nodeId;
+    card.dataset.fullKey = key;
+    card.innerHTML = `
+        <div class="card-header">
+            <span class="type-badge ${typeDef.cssClass}">${typeDef.label}</span>
+            <span class="card-text">${cleanMsg}</span>
+            ${hasDrillIn ? '<i class="fas fa-chevron-right drill-arrow"></i>' : ""}
+        </div>
+        <div class="card-footer">
+            <button class="vote-btn upvote-btn" data-key="${key}">▲</button>
+            <span class="vote-score ${scoreClass}">${scoreStr}</span>
+            <button class="vote-btn downvote-btn" data-key="${key}">▼</button>
+            <span class="sign-count ${signed >= 2 ? "verified" : ""}">${signed > 0 ? "✓ " + signed : ""}</span>
+            <button class="sign-btn" data-key="${key}">Bestätigen</button>
+            <span class="ts-label">${formatTimestamp(timestamp)}</span>
+        </div>
+    `;
+    return card;
+}
+
+// ── Voting ────────────────────────────────────────────────────────────────────
+async function sendVote(topic, nodeId, delta) {
+    runtimeCheck("sendVote");
+    if (!tenantId) return;
+    const key = fullKey(topic, nodeId);
+    const entry = data[topic] && data[topic][nodeId];
+    if (!entry) return;
+    const body = new URLSearchParams({
+        sid, tid: tenantId,
+        entry: `${key} | ${nodeId} | ${entry.message} | votes:${sid}:${delta}`
+    });
+    try {
+        await fetch("vote/add?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+    } catch (err) {
+        showToast("Vote fehlgeschlagen", "error");
+    }
+    runtimeCheck("sendVote-end");
+}
+
+function handleVote(key, delta) {
+    const [topic, nodeId] = splitKey(key);
+    addVoteByGui(topic, nodeId, delta);
+    sendVote(topic, nodeId, delta);
+    // update score in existing card without full re-render
+    const card = document.querySelector(`.card[data-full-key="${key}"]`);
+    if (card) {
+        const votes = (data[topic] && data[topic][nodeId] && data[topic][nodeId].votes) || 0;
+        const score = card.querySelector(".vote-score");
+        score.textContent = votes > 0 ? "+" + votes : String(votes);
+        score.className = "vote-score " + (votes > 0 ? "pos" : votes < 0 ? "neg" : "zero");
+    }
+}
+
+// ── Swipe voting ──────────────────────────────────────────────────────────────
+const _debounceMap = {};
+function debounceKey(key, ms) {
+    const now = Date.now();
+    if (_debounceMap[key] && now - _debounceMap[key] < ms) return false;
+    _debounceMap[key] = now;
+    return true;
+}
+
+function addSwipeHandlerToCard(card) {
+    if (card.__swipeBound) return;
+    card.__swipeBound = true;
+    let startX = 0, startY = 0, startTime = 0;
+
+    card.addEventListener("touchstart", e => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        startTime = Date.now();
+    }, { passive: true });
+
+    card.addEventListener("touchend", e => {
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        const dt = Date.now() - startTime;
+        if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) / 1.5 || dt > 700) return;
+        const key = card.dataset.fullKey;
+        if (!key || !debounceKey("swipe_" + key, 1000)) return;
+        const delta = dx > 0 ? 1 : -1;
+        card.classList.add(delta > 0 ? "swiping-right" : "swiping-left");
+        setTimeout(() => card.classList.remove("swiping-right", "swiping-left"), 400);
+        handleVote(key, delta);
+    }, { passive: true });
+}
+
+// ── Render cards with IntersectionObserver batching ───────────────────────────
+function addSwipeHandlersToAllCards() {
+    document.querySelectorAll(".card").forEach(addSwipeHandlerToCard);
+}
+
+function renderCards(entries) {
+    runtimeCheck("renderCards");
+    const list = document.getElementById("card-list");
+    list.innerHTML = "";
+    if (!entries || entries.length === 0) {
+        list.innerHTML = `<p style="color:#999;text-align:center;padding:2rem">Keine Einträge. Füge den ersten hinzu!</p>`;
+        return;
+    }
+    const BATCH = 80;
+    let rendered = 0;
+    let observer;
+
+    function renderBatch() {
+        const sentinel = document.getElementById("card-sentinel");
+        if (sentinel) sentinel.remove();
+        const end = Math.min(rendered + BATCH, entries.length);
+        for (let i = rendered; i < end; i++) {
+            list.appendChild(buildCard(entries[i]));
+        }
+        rendered = end;
+        if (rendered < entries.length) {
+            const s = document.createElement("div");
+            s.id = "card-sentinel";
+            s.style.height = "1px";
+            list.appendChild(s);
+            observer.observe(s);
+        }
+        addSwipeHandlersToAllCards();
+    }
+
+    observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) { observer.disconnect(); renderBatch(); }
+    }, { rootMargin: "200px" });
+
+    renderBatch();
+    runtimeCheck("renderCards-end");
+}
+
+// ── Filtering ─────────────────────────────────────────────────────────────────
+function getFilteredEntries() {
+    runtimeCheck("getFilteredEntries");
+    const searchInput = document.getElementById("search-input");
+    const searchVal = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const result = [];
+    Object.entries(data).forEach(([topic, nodes]) => {
+        // scope filter
+        if (searchScope === "here" && topic !== selectedTopic) return;
+        if (searchScope === "below" && !topic.startsWith(selectedTopic === "/" ? "" : selectedTopic)) return;
+        // for non-search: only show direct children of selectedTopic (skip for global scope)
+        if (!searchVal && searchScope !== "global" && topic !== selectedTopic) return;
+
+        Object.values(nodes).forEach(entry => {
+            const suffix = getTypeFromMessage(entry.message);
+            if (!activeTypes.has(suffix) && suffix !== ">") return;
+            if (searchVal && !entry.message.toLowerCase().includes(searchVal)) return;
+            result.push(entry);
+        });
+    });
+    result.sort((a, b) => (b.votes || 0) - (a.votes || 0) || a.message.localeCompare(b.message));
+    runtimeCheck("getFilteredEntries-end");
+    return result;
+}
+
+function updateView() {
+    runtimeCheck("updateView");
+    // update nav back link
+    const navBack = document.getElementById("nav-back");
+    if (selectedTopic === "/") {
+        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> fayf.info`;
+        navBack.href = "infopage.html";
+    } else {
+        const parts = selectedTopic.split("/").filter(Boolean);
+        const parentTopic = parts.length > 1 ? "/" + parts.slice(0, -1).join("/") : "/";
+        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> ${topicMap[parentTopic] || "zurück"}`;
+        navBack.href = "#";
+        navBack.onclick = e => { e.preventDefault(); navigateTo(parentTopic); };
+    }
+    renderCards(getFilteredEntries());
+    runtimeCheck("updateView-end");
+}
+
+function navigateTo(topic) {
+    runtimeCheck("navigateTo");
+    selectedTopic = topic;
+    const url = new URL(window.location.href);
+    url.searchParams.set("topic", topic);
+    history.pushState({}, "", url);
+    updateView();
+    runtimeCheck("navigateTo-end");
+}
+
+// ── Signing ───────────────────────────────────────────────────────────────────
+async function signEntry(topic, nodeId) {
+    runtimeCheck("signEntry");
+    if (!tenantId) return;
+    const key = fullKey(topic, nodeId);
+    const entry = data[topic] && data[topic][nodeId];
+    if (!entry) return;
+    const body = new URLSearchParams({
+        sid, tid: tenantId,
+        entry: `${key} | ${nodeId} | ${entry.message} | signed:${sid}:1`
+    });
+    try {
+        const res = await fetch("vote/add?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (res.ok) {
+            if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+            votesData[key].signed = (votesData[key].signed || 0) + 1;
+            showToast("Bestätigt!", "success", 1500);
+            updateView();
+        }
+    } catch (err) {
+        showToast("Fehler beim Bestätigen", "error");
+    }
+    runtimeCheck("signEntry-end");
+}
+
+// ── Event wiring ──────────────────────────────────────────────────────────────
+document.getElementById("chip-bar").addEventListener("click", e => {
+    const chip = e.target.closest(".type-chip");
+    if (!chip) return;
+    const type = chip.dataset.type;
+    if (activeTypes.has(type)) { activeTypes.delete(type); chip.classList.remove("active"); }
+    else { activeTypes.add(type); chip.classList.add("active"); }
+    updateView();
+});
+
+document.getElementById("card-list").addEventListener("click", e => {
+    const card = e.target.closest(".card");
+    if (!card) return;
+    // don't drill if vote/sign button clicked
+    if (e.target.closest(".vote-btn") || e.target.closest(".sign-btn")) return;
+    const key = card.dataset.fullKey;
+    navigateTo(key);
+});
+
+// vote button delegation
+document.getElementById("card-list").addEventListener("click", e => {
+    const upBtn = e.target.closest(".upvote-btn");
+    const dnBtn = e.target.closest(".downvote-btn");
+    if (upBtn) { e.stopPropagation(); handleVote(upBtn.dataset.key, 1); }
+    if (dnBtn) { e.stopPropagation(); handleVote(dnBtn.dataset.key, -1); }
+});
+
+// sign button delegation
+document.getElementById("card-list").addEventListener("click", e => {
+    const btn = e.target.closest(".sign-btn");
+    if (!btn) return;
+    e.stopPropagation();
+    const [topic, nodeId] = splitKey(btn.dataset.key);
+    signEntry(topic, nodeId);
+});
+
+// ── Data loading ──────────────────────────────────────────────────────────────
+let pollActive = false;
+let pollController = null;
+
+function buildEntriesUrl(extra = {}) {
+    const p = new URLSearchParams({ sid, tid: tenantId, topicId: "/", format: "json.0.3", ...extra });
+    return "entry/get?" + p.toString();
+}
+function buildVotesUrl(extra = {}) {
+    const p = new URLSearchParams({ sid, tid: tenantId, topicId: "/", format: "json.0.3", ...extra });
+    return "vote/get?" + p.toString();
+}
+
+async function loadInitialData() {
+    if (!tenantId) { showToast("Kein Tenant gesetzt — öffne Einstellungen.", "error"); return; }
+    runtimeCheck("loadInitialData");
+    try {
+        const [eRes, vRes] = await Promise.all([
+            fetch(buildEntriesUrl()),
+            fetch(buildVotesUrl()),
+        ]);
+        if (eRes.ok) addData(await eRes.json());
+        if (vRes.ok) addVotesData(await vRes.json());
+        updateView();
+        showToast("Daten geladen.", "success", 1500);
+    } catch (err) {
+        showToast("Ladefehler: " + err.message, "error");
+    }
+    runtimeCheck("loadInitialData-end");
+}
+
+async function startLongPoll() {
+    pollActive = true;
+    async function poll() {
+        if (!pollActive || document.hidden) {
+            setTimeout(poll, 2000);
+            return;
+        }
+        runtimeCheck("poll");
+        try {
+            pollController = new AbortController();
+            const res = await fetch(buildEntriesUrl(latestTimestamp ? { since: latestTimestamp } : {}), { signal: pollController.signal });
+            if (res.status === 200) {
+                addData(await res.json());
+                updateView();
+            }
+            // 204 = nothing new → backend already held 50 s, re-poll immediately
+        } catch (err) {
+            if (err.name !== "AbortError") {
+                await new Promise(r => setTimeout(r, 5000)); // retry after 5 s on network error
+            }
+        }
+        poll();
+    }
+    poll();
+}
+
+function stopLongPoll() {
+    pollActive = false;
+    if (pollController) { pollController.abort(); pollController = null; }
+}
+
+// Pause poll when tab hidden
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopLongPoll();
+    else if (tenantId) startLongPoll();
+});
+
+// ── Add entry ─────────────────────────────────────────────────────────────────
+let bsSelectedType = ".";
+
+function openBottomSheet() {
+    if (selectedTopic === "/") { showToast("Wähle zuerst ein Thema.", "info"); return; }
+    document.getElementById("bottom-sheet-overlay").classList.add("open");
+    document.getElementById("bs-textarea").value = "";
+    document.getElementById("bs-textarea").focus();
+}
+function closeBottomSheet() {
+    document.getElementById("bottom-sheet-overlay").classList.remove("open");
+}
+
+async function submitEntry() {
+    const text = document.getElementById("bs-textarea").value.trim();
+    if (text.length < 3) { showToast("Zu kurz (mind. 3 Zeichen).", "error"); return; }
+    const message = matchType(text, bsSelectedType);
+    const nodeId = generateNodeId();
+    const body = new URLSearchParams({ sid, tid: tenantId, entry: `${selectedTopic} | ${nodeId} | ${message}` });
+    try {
+        const res = await fetch("entry/add?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (res.ok) {
+            const json = await res.json();
+            addEntry(selectedTopic, nodeId, message, 0, json.timestamp || "");
+            updateView();
+            showToast("Eintrag hinzugefügt!", "success");
+            closeBottomSheet();
+        } else {
+            showToast("Fehler " + res.status, "error");
+        }
+    } catch (err) {
+        showToast("Netzwerkfehler", "error");
+    }
+}
+
+// wire FAB and sheet buttons
+document.getElementById("fab").addEventListener("click", openBottomSheet);
+document.getElementById("bs-cancel").addEventListener("click", closeBottomSheet);
+document.getElementById("bs-submit").addEventListener("click", submitEntry);
+document.getElementById("bottom-sheet-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("bottom-sheet-overlay")) closeBottomSheet();
+});
+
+// type chips in sheet
+document.getElementById("bs-type-chips").addEventListener("click", e => {
+    const chip = e.target.closest(".bs-type-chip");
+    if (!chip) return;
+    bsSelectedType = chip.dataset.type;
+    document.querySelectorAll(".bs-type-chip").forEach(c => c.classList.toggle("active", c === chip));
+});
+
+// ── Search ────────────────────────────────────────────────────────────────────
+document.getElementById("nav-search-icon").addEventListener("click", () => {
+    const bar = document.getElementById("nav-search-bar");
+    bar.classList.toggle("open");
+    if (bar.classList.contains("open")) document.getElementById("search-input").focus();
+    else { document.getElementById("search-input").value = ""; updateView(); }
+});
+
+document.getElementById("search-input").addEventListener("input", () => updateView());
+
+document.getElementById("nav-search-bar").addEventListener("click", e => {
+    const chip = e.target.closest(".scope-chip");
+    if (!chip) return;
+    searchScope = chip.dataset.scope;
+    document.querySelectorAll(".scope-chip").forEach(c => c.classList.toggle("active", c === chip));
+    updateView();
+});
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function openSettings() {
+    document.getElementById("settings-tenant").value = tenantId;
+    document.getElementById("settings-overlay").classList.add("open");
+}
+function closeSettings() {
+    document.getElementById("settings-overlay").classList.remove("open");
+}
+function applySettings() {
+    const newTenant = document.getElementById("settings-tenant").value.trim().replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 30);
+    if (newTenant && newTenant !== tenantId) {
+        tenantId = newTenant;
+        saveSettings({ tenantId });
+        stopLongPoll();
+        data = {}; votesData = {}; topicMap = {}; latestTimestamp = null; selectedTopic = "/";
+        updateView();
+        loadInitialData().then(() => startLongPoll());
+        // update URL
+        const url = new URL(window.location.href);
+        url.searchParams.set("tid", tenantId);
+        history.pushState({}, "", url);
+    }
+    closeSettings();
+}
+
+document.getElementById("nav-settings-icon").addEventListener("click", openSettings);
+document.getElementById("settings-close").addEventListener("click", closeSettings);
+document.getElementById("settings-apply").addEventListener("click", applySettings);
+document.getElementById("settings-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("settings-overlay")) closeSettings();
+});
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+(function init() {
+    const params = new URLSearchParams(window.location.search);
+    tenantId = params.get("tid") || params.get("tenantId") || "";
+    if (!tenantId) {
+        const s = loadSettings();
+        tenantId = s.tenantId || "";
+    }
+    sid = loadSettings().sid || "www";
+    const topicParam = params.get("topic");
+    if (topicParam) selectedTopic = topicParam;
+    document.getElementById("settings-tenant").value = tenantId;
+    updateView();
+    if (tenantId) {
+        loadInitialData().then(() => startLongPoll());
+    }
+})();
+</script>
+</body>
+</html>
