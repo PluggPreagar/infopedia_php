@@ -228,7 +228,186 @@
 <div id="toast-container"></div>
 
 <script>
-// ── All JS goes here (Tasks 2-10) ──
+// ── State ────────────────────────────────────────────────────────────────────
+let tenantId = "";
+let sid = "www";
+let data = {};          // { "/topic": { "nodeId": { topic, nodeId, message, votes, timestamp } } }
+let votesData = {};     // { "/topic/nodeId": { votes: N, signed: N } }
+let topicMap = {};      // { "/topic": "DisplayName" }
+let selectedTopic = "/";
+let latestTimestamp = null;
+let searchScope = "below";   // "here" | "below" | "global"
+let activeTypes = new Set([".", "!", "!-", "?", "??"]); // visible types
+
+// ── Debug ─────────────────────────────────────────────────────────────────────
+function runtimeCheck(msg = "") {
+    // hook point — intentionally empty; call sites kept for future instrumentation
+}
+
+// ── Key helpers ───────────────────────────────────────────────────────────────
+function fullKey(topic, nodeId) {
+    return topic + ("/" === topic ? "" : "/") + nodeId;
+}
+function splitKey(key) {
+    const lastSlash = key.lastIndexOf("/");
+    if (lastSlash <= 0) return ["/", key.replace(/^\//, "")];
+    return [key.substring(0, lastSlash), key.substring(lastSlash + 1)];
+}
+
+// ── Entry helpers ─────────────────────────────────────────────────────────────
+function generateNodeId() {
+    return Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
+}
+function getTypeFromMessage(message) {
+    for (const t of [">", "!-", "??", "!", "?", ".", "@", "--"]) {
+        if (message && message.endsWith(t)) return t;
+    }
+    return "";
+}
+function matchType(message, type) {
+    const current = getTypeFromMessage(message);
+    if (current === type) return message;
+    if (!current) return message + type;
+    if (type === "--") return message + type;
+    return message.slice(0, -current.length).trim() + type;
+}
+function formatTimestamp(ts) {
+    if (!ts) return "";
+    const d = new Date(ts.replace(" ", "T"));
+    if (isNaN(d)) return ts;
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString("de-DE", { day: "numeric", month: "short" });
+    return d.getFullYear().toString();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(message, type = "info", duration = 3000) {
+    const container = document.getElementById("toast-container");
+    const el = document.createElement("div");
+    el.textContent = message;
+    el.style.cssText = `
+        background:${type === "success" ? "#4CAF50" : type === "error" ? "#f44336" : "#333"};
+        color:#fff;padding:0.75rem 1rem;margin-bottom:0.4rem;border-radius:6px;
+        box-shadow:0 2px 6px rgba(0,0,0,0.25);font-size:0.9rem;
+    `;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), duration);
+}
+
+// ── Data write ────────────────────────────────────────────────────────────────
+function addEntryWoCheck(topic, nodeId, message, votes, timestamp) {
+    runtimeCheck("addEntryWoCheck");
+    if (!topic || topic === "") topic = "/";
+    if (!data[topic]) data[topic] = {};
+    if (message && message.endsWith("--")) {
+        delete data[topic][nodeId];
+    } else {
+        data[topic][nodeId] = { topic, nodeId, timestamp: timestamp || "", message, votes: votes || 0 };
+    }
+    runtimeCheck("addEntryWoCheck-end");
+}
+function addEntry(topic, nodeId, message, votes, timestamp) {
+    runtimeCheck("addEntry");
+    addEntryWoCheck(topic, nodeId, message, votes, timestamp);
+    checkData(topic, nodeId, message);
+    runtimeCheck("addEntry-end");
+}
+function addVoteByGui(topic, nodeId, deltaVotes) {
+    runtimeCheck("addVoteByGui");
+    if (data[topic] && data[topic][nodeId]) {
+        data[topic][nodeId].votes = (data[topic][nodeId].votes || 0) + deltaVotes;
+    }
+    const key = fullKey(topic, nodeId);
+    if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+    votesData[key].votes = (votesData[key].votes || 0) + deltaVotes;
+    runtimeCheck("addVoteByGui-end");
+}
+function setVoteByOthers(topic, nodeId, votes) {
+    runtimeCheck("setVoteByOthers");
+    const key = fullKey(topic, nodeId);
+    if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+    votesData[key].votes = votes;
+    if (data[topic] && data[topic][nodeId]) data[topic][nodeId].votes = votes;
+    runtimeCheck("setVoteByOthers-end");
+}
+
+// ── checkData: ensure topic map consistency ───────────────────────────────────
+function checkData(topic, nodeId, message) {
+    runtimeCheck("checkData");
+    // ensure parent topics exist
+    if (topic && topic !== "/") {
+        const parts = topic.split("/").filter(Boolean);
+        let path = "";
+        for (const part of parts) {
+            const parentPath = path || "/";
+            if (!data[parentPath]) data[parentPath] = {};
+            path += "/" + part;
+            const found = Object.values(data[parentPath] || {}).some(e => fullKey(e.topic, e.nodeId) === path || e.message.replace(/[.!?@>-]+$/, "") === part);
+            if (!found) {
+                // create stub topic entry
+                const stubId = part;
+                data[parentPath][stubId] = { topic: parentPath, nodeId: stubId, message: part + ">", votes: 0, timestamp: "" };
+            }
+        }
+    }
+    runtimeCheck("checkData-end");
+}
+
+// ── Topic map ─────────────────────────────────────────────────────────────────
+function initializeTopicMap() {
+    runtimeCheck("initializeTopicMap");
+    topicMap = {};
+    Object.entries(data).forEach(([topic, nodes]) => {
+        Object.values(nodes).forEach(entry => {
+            if (entry.message && entry.message.endsWith(">")) {
+                const childTopic = fullKey(entry.topic, entry.nodeId);
+                topicMap[childTopic] = entry.message.replace(/>$/, "").trim();
+            }
+        });
+    });
+    runtimeCheck("initializeTopicMap-end");
+}
+
+// ── Merge loaded data ─────────────────────────────────────────────────────────
+function addData(dataLoaded) {
+    runtimeCheck("addData");
+    if (!dataLoaded || Object.keys(dataLoaded).length === 0) return;
+    Object.entries(dataLoaded).forEach(([topic, nodes]) => {
+        Object.entries(nodes).forEach(([nodeId, entry]) => {
+            addEntryWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
+            if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
+                if (!latestTimestamp || entry.timestamp > latestTimestamp) latestTimestamp = entry.timestamp;
+            }
+        });
+    });
+    checkData();
+    initializeTopicMap();
+    runtimeCheck("addData-end");
+}
+function addVotesData(dataLoaded) {
+    runtimeCheck("addVotesData");
+    if (!dataLoaded) return;
+    Object.entries(dataLoaded).forEach(([key, entry]) => {
+        const v = parseInt(entry.votes || 0, 10);
+        const s = parseInt(entry.signed || 0, 10);
+        if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+        votesData[key].votes = v;
+        votesData[key].signed = s;
+        const [topic, nodeId] = splitKey(key);
+        if (data[topic] && data[topic][nodeId]) data[topic][nodeId].votes = v;
+    });
+    runtimeCheck("addVotesData-end");
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function loadSettings() {
+    try { return JSON.parse(localStorage.getItem("fayf_settings") || "{}"); } catch { return {}; }
+}
+function saveSettings(patch) {
+    const s = loadSettings();
+    localStorage.setItem("fayf_settings", JSON.stringify({ ...s, ...patch }));
+}
 </script>
 </body>
 </html>
