@@ -744,7 +744,7 @@ a:hover, .topic-link:hover, .parent-topic-link:hover { /* Slightly darker shade 
 
 
 
-
+<script src="test/js_runner.js"></script>
 <script>
     let tenantId = "";
     // /!\ use current topic and type from filters
@@ -2354,318 +2354,14 @@ if (overlayContent) {
 
     */
 
-    class TestRunner {
-        constructor( stopOnError = false ) {
-            this.stopOnError = stopOnError;
-            this.chain = Promise.resolve();
-            this.blocks = {}; // Store test blocks
-            this.errors = []; // Store errors
-            this.timeout = null; // time to wait to meet condition
-            this.checkCount = 0;
-        }
-
-        check(condition, msgOk, msgFail = null, msg = null) {
-            if (this.stopOnError && this.errors.length > 0) {
-                return false; // Skip further checks if stopping on error - silently
-            }
-            this.checkCount += 1;
-            if (condition) {
-                if (msgOk) { // allow internal checks without messages (msgOK===null) otherwise set msgOk=""
-                    console.log(`OK : ${msgOk}` + (msg && msgOk ? ` - ` : "") + (msg|| '') );
-                }
-            } else if (this.timeout !== null) {
-                console.warn( `WAIT: Condition not met` + (msg ? ` - ${msg}` : ""));
-            } else {
-                const errorMsg = "FAIL: " + (msgFail || `CHECK FAILED (${msgOk})`) + (msg ? ` - ${msg}` : "");
-                console.error(errorMsg);
-                this.errors.push(errorMsg);
-                if (this.stopOnError) { // allow to check error manually
-                    console.log("Stopping test execution due to error. !!!!!! ");
-                    throw new Error(errorMsg);
-                }
-            }
-            return condition;
-        }
-
-        assertEq(expected, actual, msg = null) {
-            this.chain = this.chain.then(() => {
-                let actualValue = typeof actual === "function" ? actual() : actual;
-                this.check( expected === actualValue
-                    , `Assert: expected '${expected}' and got '${actualValue}'`
-                    , `Assert FAILED: expected '${expected}' but got '${actualValue}'`
-                            +  (typeof actual === "function" ? ` (${actual})` : "")
-                    , msg);
-            });
-            return this;
-        }
-
-        assertTrue(actual, msg = null) {
-            return assertEq(true, actual, msg);
-        }
-
-        assertFalse(actual, msg = null) {
-            return assertEq(false, actual, msg);
-        }
-
-        set(selector, value, msg = null) {
-            this.chain = this.chain.then(() => {
-                const element = document.querySelector(selector);
-                if (this.check(element, `Set value of ${selector} to ${value}`, `Element not found: ${selector}`, msg)) {
-                    element.value = value;
-                    if (element.value !== value) { // If value doesn't match, try matching by text
-                        const option = Array.from(element.options).find(opt => opt.text === value);
-                        if (this.check(option, `Found option with text '${value}' in ${selector}`
-                                , `Option with text '${value}' not found in ${selector}`, msg)) {
-                            element.value = option.value;
-                        }
-                    }
-                    if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
-                        console.log(`Triggering 'input' event for ${selector}`);
-                        element.dispatchEvent(new Event("input")); // Trigger input event
-                    } else {
-                        console.log(`Triggering 'change' event for ${selector}`);
-                        element.dispatchEvent(new Event("change")); // Trigger change event
-                    }
-                }
-            });
-            return this;
-        }
-
-        wait(ms, msg = null) {
-            this.chain = this.chain.then(() => {
-                console.log(`     Waiting for ${ms}ms${msg ? ` - ${msg}` : ""}`);
-                return new Promise(resolve => setTimeout(resolve, ms));
-            });
-            return this;
-        }
-
-        waitFor(conditionFn, timeoutMs = 1000, intervalMs = 100, msg = null) {
-            // runner.waitFor( () => document.querySelector("#status").textContent === "Ready"
-            //                          , 5000, 200, "Waiting for status to be Ready" )
-            // runner.waitFor( () => runner.isVisible("#myElement") )
-            // runner.isVisibleOrWaitFor("#myElement", null, "Waiting for myElement to be visible", 5000, 200)
-            //
-            this.chain = this.chain.then(() => {
-                console.log(`Waiting for condition for up to ${timeoutMs}ms${msg ? ` - ${msg}` : ""}`);
-                console.log("Initial condition check at", Date.now(), conditionFn);
-                this.timeout = Date.now() + timeoutMs;
-                return new Promise((resolve, reject) => {
-                    console.log("waitFor (" + timeoutMs + "ms)");
-                    const checkCondition = () => {
-                        console.log("checking condition at", Date.now(), conditionFn);
-                        if (Date.now() >= this.timeout){
-                            this.timeout = null; // reset - timeout reached, final check
-                        }
-                        if (conditionFn() || this.timeout === null) {
-                            clearInterval(intervalId);
-                            resolve(true);
-                        }
-                    };
-                    const intervalId = setInterval(checkCondition, intervalMs);
-                    checkCondition();
-                });
-            });
-            return this;
-        }
-
-        isElementVisible(element) {
-            while (element) { // Traverse up the DOM tree
-                const style = window.getComputedStyle(element);
-                if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
-                    return false; // Element or one of its parents is hidden
-                }
-                element = element.parentElement; // Move to the parent element
-            }
-            return true; // No parent has display: none
-        }
-
-        getElementWText(selector, text = null) {
-            const elements = document.querySelectorAll(selector);
-            for (const element of elements) {
-                if (text === null || element.textContent.includes(text)) {
-                    return element;
-                }
-            }
-            return null;
-        }
-
-        isVisible(selector, expectedText = null, msg = null, allowOption = false) {
-            this.chain = this.chain.then(() => {
-                const element = this.getElementWText(selector, expectedText) || this.getElementWText(selector);
-                if (this.check( element && this.isElementVisible(element)
-                        , `Element ${selector} is visible`
-                        , `Element ${selector} is not visible`
-                        , msg )) {
-                    let text = "" + element.textContent;
-                    if (element.tagName === "SELECT") {
-                        text = element.options[element.selectedIndex] ? element.options[element.selectedIndex].text : "";
-                        if (allowOption && expectedText) { // aggregate options to 1 joined text
-                            // gather valid values for debug
-                            text = "<" + Array.from(element.options).map(opt => opt.text).join(">, <") + ">";
-                            for(let i=0; i<element.options.length; i++) {
-                                if (element.options[i].text === expectedText) {
-                                    text = element.options[i].text;
-                                    break;
-                                } else if (element.options[i].text == expectedText.replace(/ /g, " ")) {
-                                    console.warn("Matching option with non-breaking space");
-                                    text = element.options[i].text.replace(/ /g, " ");
-                                    break; // non-breaking space
-                                }
-                            }
-                        }
-                        this.check (!expectedText || text == expectedText
-                            , `Element ${selector} is visible${expectedText ? ` and text: '${expectedText}'` : ""}`
-                            , `Element ${selector} is visible but has not expected text: '${expectedText}'`
-                                    + ` (actual text: '${text}')`
-                            , msg);
-                    } else {
-                        this.check (!expectedText || text.includes(expectedText) // includes for partial match
-                            , `Element ${selector} is visible${expectedText ? ` and contains text: '${expectedText}'` : ""}`
-                            , `Element ${selector} is visible but does not contain expected text: '${expectedText}'`
-                                    + ` (actual text: '${text}')`
-                            , msg);
-                    }
-                }
-            });
-            return this;
-        }
-
-        isVisibleOrWaitFor(selector, expectedText = null, msg = null, timeoutMs = 1000, intervalMs = 100) {
-            this.chain = this.chain.then(() => {
-                return this.waitFor( () => this.isVisible(selector, expectedText, msg), timeoutMs, intervalMs, msg );
-            });
-            return this;
-        }
-
-        isAvailable(selector, expectedText, msg = null) { // for options only
-            return this.isVisible(selector, expectedText, msg, true);
-        }
-
-        isNotVisible(selector, expectedText = null, msg = null) {
-            this.chain = this.chain.then(() => {
-                const element = this.getElementWText(selector, expectedText);
-                this.check( !element || this.isElementVisible(element) === false
-                    , `Element ${selector} is not visible`
-                    , `Element ${selector} is visible`
-                    , msg);
-            });
-            return this;
-        }
-
-        isNotVisibleOrWaitFor(selector, expectedText = null, msg = null, timeoutMs = 1000, intervalMs = 100) {
-            this.chain = this.chain.then(() => {
-                return this.waitFor( () => this.isNotVisible(selector, expectedText, msg), timeoutMs, intervalMs, msg );
-            });
-            return this;
-        }
-
-        isNotAvailable(selector, expectedText, msg = null) { // for options only
-            return this.isNotVisible(selector, expectedText, msg);
-        }
-
-
-        click(selector, expectedText = null, msg = null) {
-            this.chain = this.chain.then(() => {
-                const element = this.getElementWText(selector, expectedText);
-                if (this.check( element, `Click on ${selector}`, `Element not found: ${selector}`, msg)) {
-                    element.click();
-                }
-            });
-            return this;
-        }
-
-        execute(fn, msg = null) {
-            if (this.check( typeof fn === "function", `add exec step`, `Provided argument is not a function`, msg)) {
-                this.chain = this.chain.then(() => {
-                        console.log("Executing function...");
-                        fn();
-                });
-            }
-            return this;
-        }
-
-        blockSetupChecks(name) {
-            return this
-                .assertEq( "/", topicFilter.value, "topic filter is reset to / before block '" + name + "'" )
-                .isNotVisible("#topicFilter", "alle Basis-Themen", "topic filter is visible before block '" + name + "'" )
-                .isNotVisible("#typeFilter", null, "type filter is hidden before block '" + name + "'" )
-                .isNotVisible("#add-edit-section", null, "add/edit section is hidden before block '" + name + "'" );
-        }
-
-        start(name) {
-            this.chain = this.chain.then(() => {
-                if (name === "showStart") {
-                    console.log("---------------------------------------------- ");
-                    console.log("Starting test sequence...              ------- ");
-                } else if (name !== "showSummary") {
-                    console.log("| ");
-                    console.log(`|-- Starting test block: ${name}  --- `);
-                    console.log("| ");
-                } else {
-                    console.log("--------------------------------------------- ");
-                    this.showSummary();
-                    console.log("|  Test sequence completed.                     ");
-                    console.log("--------------------------------------------- ");
-                }
-            });
-            return this;
-        }
-
-        showSummary() {
-            console.log("|  Test Summary:  " + this.checkCount + " checks performed.");
-            if (this.errors.length === 0) {
-                console.log("|  All " + this.checkCount + " tests passed successfully!");
-            } else {
-                console.error(`|  Total Errors: ${this.errors.length}`);
-                this.errors.forEach((error, index) => {
-                    console.error(`|  ${index + 1}. ${error}`);
-                });
-            }
-        }
-
-
-        addBlock(name, block) {
-            if (typeof block === "function") {
-                console.log(`Adding test block: ${name}`);
-                this.blocks[name] = block;
-            } else {
-                const error = `Block must be a function for block: ${name}`;
-                console.error(error);
-                this.errors.push(error);
-            }
-        }
-
-        runBlocks( stopOnError = null ) {
-            this.stopOnError = stopOnError !== null ? stopOnError : this.stopOnError;
-            this.blocks = { "showStart": (runner) => {}, ...this.blocks, "showSummary": (runner) => {} };
-
-            Object.entries(this.blocks).forEach(([name, block]) => {
-                this.chain = this.chain.then(() => {
-                    return this.blockSetupChecks(name); // Ensure setup checks are done before each block
-                });
-                this.chain = this.chain.then(() => {
-                    return block(this.start(name)); // Ensure the block returns a Promise
-                });
-            });
-
-            // Chain the summary to ensure it runs last
-            this.chain = this.chain
-                .catch((error) => {
-                    console.error("Error during test execution:", error);
-                });
-
-            return this.chain;
-        }
-
-
-        clearBlocks() {
-            this.blocks = {};
-            console.log("All test blocks cleared");
-        }
-    }
 
     // Example usage:
-    const tr = new TestRunner();
+    const tr = new TestRunner({ stopOnError: true });
+    tr.beforeBlock = (runner) => runner
+        .assertEq('/', topicFilter.value, 'topic filter reset to /')
+        .assertHidden('#topicFilter', 'alle Basis-Themen', 'topic filter hidden')
+        .assertHidden('#typeFilter', null, 'type filter hidden')
+        .assertHidden('#add-edit-section', null, 'add/edit section hidden');
 
     // Define test blocks
     tr.addBlock("Block 0 init", (runner) => {
@@ -2677,48 +2373,48 @@ if (overlayContent) {
             .assertEq( "", textFilter.value, "initial text filter should be empty" )
             .assertEq( 0, () => Object.keys(data).length , "data should be loaded" )
             // check filter options
-            .isNotVisible("#topicFilter", "alle Basis-Themen", "topic filter has all topics")
+            .assertHidden("#topicFilter", "alle Basis-Themen", "topic filter has all topics")
             .assertEq( 1, topicFilter.options.length , "only 'all topics' option initially" )
-            .isNotVisible("#typeFilter", null, "type filter is hidden initially")
-            .isNotVisible("#textFilter", null, "text filter is hidden initially")
+            .assertHidden("#typeFilter", null, "type filter is hidden initially")
+            .assertHidden("#textFilter", null, "text filter is hidden initially")
             // no entries yet
-            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!")
+            .assertVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!")
             // add 1st (non-)topic without messages
-            .execute( () => {
+            .run( () => {
                 addEntry("/", "bahn", "Bahn-TST", 5, "2023-10-01 12:00:00") }
             )
-            .isNotAvailable("#topicFilter", "Bahn-TST", "w/o children - it is no topic")
-            .isNotAvailable("#topicFilter", "Bahn-TST >", "w/o children - it is no topic")
+            .assertNoOption("#topicFilter", "Bahn-TST", "w/o children - it is no topic")
+            .assertNoOption("#topicFilter", "Bahn-TST >", "w/o children - it is no topic")
             .assertEq( 1, () => topicFilter.options.length , "still only 'all topics' option")
-            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet")
+            .assertVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet")
             // add 2nd topic with messages
-            .execute( () => {
+            .run( () => {
                 addEntry("/", "corona", "CoronaTST >", 5, "2023-10-01 12:00:00");
             })
-            .isNotAvailable("#topicFilter", "CoronaTST >", "w/o child - it is no topic")
-            .execute( () => {
+            .assertNoOption("#topicFilter", "CoronaTST >", "w/o child - it is no topic")
+            .run( () => {
                 addEntry("/corona", "msg1", "Fakten zur Pandemie.", 3, "2023-10-01 12:05:00");
             })
-            //.isAvailable("#topicFilter", "alle Basis-Themen", "topic filter has all topics2")  // hide now
+            //.assertOption("#topicFilter", "alle Basis-Themen", "topic filter has all topics2")  // hide now
             .assertEq( "alle Basis-Themen" , () => topicFilter.options[0].text , "first topic is /")
-            // .isAvailable("#topicFilter", "CoronaTST >", "topic filter has Corona topic now - first child") // hide now
+            // .assertOption("#topicFilter", "CoronaTST >", "topic filter has Corona topic now - first child") // hide now
             .assertEq( "CoronaTST >", () => topicFilter.options[1].text.replace(/ /g, " ") , "second topic is CoronaTST >") // non-breaking space
             .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
-            .execute( () => {
+            .run( () => {
                 addEntry("/corona", "msg2", "Maßnahmen sind übertrieben.?", 1, "2023-10-01 12:10:00");
             })
             .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
-            .isVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet-2")
-            .execute( () =>
+            .assertVisible("td", "Keine Daten - hilf uns Sie zu ergänzen!", "no entries with facts yet-2")
+            .run( () =>
                 addEntry("/corona", "msg3", "Impfungen helfen!", 4, "2023-10-01 12:15:00")
             )
             .assertEq( 2, () => topicFilter.options.length , "2 topics in filter now")
-            .isVisible("td", "CoronaTST >", "has facts now")
+            .assertVisible("td", "CoronaTST >", "has facts now")
             // make first non-topic a topic by adding child
-            .execute( () => {
+            .run( () => {
                 addEntry("/bahn", "msg1", "Züge sind pünktlich.", 2, "2023-10-01 12:20:00");
             })
-            //.isAvailable("#topicFilter", "Bahn-TST >", "Bahn topic now available after adding child, added suffix") // hide now
+            //.assertOption("#topicFilter", "Bahn-TST >", "Bahn topic now available after adding child, added suffix") // hide now
             .assertEq( "Bahn-TST >", () => topicFilter.options[1].text.replace(/ /g, " ") , "second topic is Bahn-TST >") // non-breaking space
             .assertEq( 3, () => topicFilter.options.length , "3 topics in filter now")
     });
@@ -2728,8 +2424,8 @@ if (overlayContent) {
         runner
             .assertEq( "/", () => topicFilter.value , "topic filter is set to /" )
             .click("tbody tr td a", "CoronaTST >", "click on message row to enter topic")
-            .isVisible("td", "zurück", "in topic CoronaTST >")
-            .isVisible("td", "Impfungen helfen!", "show content from CoronaTST >")
+            .assertVisible("td", "zurück", "in topic CoronaTST >")
+            .assertVisible("td", "Impfungen helfen!", "show content from CoronaTST >")
             .assertEq( "/corona", () => topicFilter.value , "topic filter is set to /corona" )
             .click("tbody tr td a", "zurück", "click on zurück to go back")
             .assertEq( "/", () => topicFilter.value , "topic filter is set to / again" )
@@ -2739,10 +2435,10 @@ if (overlayContent) {
     tr.addBlock("Block 2 settings", (runner) => {
         runner
             .wait(500)
-            .isNotVisible("#topicFilter", "alle Basis-Themen")
-            .isNotVisible("#typeFilter", "Fakt")
-            .isVisible("td", "CoronaTST >", "has facts, should be visible")
-            .isNotVisible("td", "Bahn-TST", "Bahn has no facts, should be hidden") // !! just partial match
+            .assertHidden("#topicFilter", "alle Basis-Themen")
+            .assertHidden("#typeFilter", "Fakt")
+            .assertVisible("td", "CoronaTST >", "has facts, should be visible")
+            .assertHidden("td", "Bahn-TST", "Bahn has no facts, should be hidden") // !! just partial match
             ;
     });
 
@@ -2751,14 +2447,14 @@ if (overlayContent) {
             .set("#topicFilter", "/")
             .click("#toggleTypeFilter")
             .wait(500)
-            .isVisible("#topicFilter", "alle Basis-Themen", "all topics visible")
-            .isVisible("#typeFilter", "Fakt")
+            .assertVisible("#topicFilter", "alle Basis-Themen", "all topics visible")
+            .assertVisible("#typeFilter", "Fakt")
             .set("#typeFilter", "all")
-            .isVisible("#typeFilter", "All Types")
-            .isVisible("td", "Bahn-TST", "show all - even non-facts")
+            .assertVisible("#typeFilter", "All Types")
+            .assertVisible("td", "Bahn-TST", "show all - even non-facts")
             // re-check 1
             .click("tbody tr td a", "CoronaTST >", "click on message row to enter topic")
-            .isVisible("td", "Impfungen helfen!", "show content from CoronaTST >")
+            .assertVisible("td", "Impfungen helfen!", "show content from CoronaTST >")
             .assertEq( "/corona", () => topicFilter.value , "topic filter is set to /corona" )
             .click("tbody tr td a", "zurück", "click on zurück to go back")
             .assertEq( "/", () => topicFilter.value , "topic filter is set to / again" )
@@ -2773,17 +2469,17 @@ if (overlayContent) {
             .click("#toggleTypeFilter")
             .set("#typeFilter", "all")
             .set("#textFilter", "pandemie")
-            .isVisible("td", "Fakten zur Pandemie.", "should show facts about Pandemie")
-            .isNotVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
+            .assertVisible("td", "Fakten zur Pandemie.", "should show facts about Pandemie")
+            .assertHidden("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
             .set("#textFilter", "")
-            .isVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
+            .assertVisible("td", "Maßnahmen sind übertrieben.?", "should hide other messages")
             .set("#textFilter", "pandemie")
             .set("#topicFilter", "/corona")
-            .isVisible("td", "Fakten zur Pandemie.", "should - reverse filter set order")
-            .isNotVisible("td", "Maßnahmen sind übertrieben.?", "hide - reverse filter set order")
+            .assertVisible("td", "Fakten zur Pandemie.", "should - reverse filter set order")
+            .assertHidden("td", "Maßnahmen sind übertrieben.?", "hide - reverse filter set order")
             .set("#textFilter", "")
             .set("#topicFilter", "/")
-            .isVisible("td", "Bahn-TST", "should show Bahn again")
+            .assertVisible("td", "Bahn-TST", "should show Bahn again")
             .click("#toggleTypeFilter")
             .set("#topicFilter", "/")
             ;
@@ -2791,7 +2487,7 @@ if (overlayContent) {
 
     tr.addBlock("Block 5 unit tests for filtering logic", (runner) => {
         runner
-            .execute( () => {
+            .run( () => {
                 // todo integrate with testRunner
                 unitTestPassed = [];
                 unitTestFailed = [];
@@ -2817,24 +2513,24 @@ if (overlayContent) {
             // sunny case - matching type filter
             .set("#entryMessage", "neuer Fakt")
             .click(".send-button[data-type='!']", null, "try - click send button for Fakt")
-            .isVisibleOrWaitFor("td", "neuer Fakt!", "new fact is accepted")
+            .waitForVisible("td", "neuer Fakt!", "new fact is accepted")
             .assertEq( 1, () => mockIO.length , "1 mock data entry after adding new fact" )
             .assertEq( 0, () => mockToasts.length , "no toast messages yet" )
             // rainy case - non-matching type filter
             .set("#entryMessage", "Neu eingetragene Nachricht.")
             .click(".send-button[data-type='.']", null, "try - click send button for Meinung")
             .wait(100)
-            .isNotVisible("td", "Neu eingetragene Nachricht.!", "new entry is not accepted (not matching type filter)")
+            .assertHidden("td", "Neu eingetragene Nachricht.!", "new entry is not accepted (not matching type filter)")
             .assertEq( 1, () => mockIO.length , "still only 1 mock data entry after trying to add non-matching type" )
             .assertEq( 1, () => mockToasts.length , "1 toast message after trying to add non-matching type" )
             .assertEq( "Selected type does not match filter type. Please adjust the type filter or select a different type."
                         , () => mockToasts[mockToasts.length -1 ].message
                         , "toast message content after trying to add non-matching type" )
-            .execute( () => {
+            .run( () => {
                 mockIO = []; // reset mock data
                 document.getElementById("add-edit-section").style.display = "none"; // hide add/edit section
             })
-            .isVisible("td", "neuer Fakt!", "new fact is still visible after hiding add/edit section")
+            .assertVisible("td", "neuer Fakt!", "new fact is still visible after hiding add/edit section")
             .set("#topicFilter", "/")
             ;
     });
@@ -2842,9 +2538,9 @@ if (overlayContent) {
     tr.addBlock("Block 7 verify added entry persists", (runner) => {
         runner
             .set("#topicFilter", "/corona")
-            .isVisible("td", "neuer Fakt!", "new fact is still visible in /corona topic")
+            .assertVisible("td", "neuer Fakt!", "new fact is still visible in /corona topic")
             // KLUDGE -- remove added entry for next tests
-            .execute( () => Object.keys(data["/corona"]).forEach( (key) => {
+            .run( () => Object.keys(data["/corona"]).forEach( (key) => {
                     if (data["/corona"][key].message === "neuer Fakt!") {
                         delete data["/corona"][key];
                     }
@@ -2860,62 +2556,62 @@ if (overlayContent) {
             .set("#topicFilter", "/corona")
                 .assertEq( 0, () => mockIO.length , "no mock data entries yet" )
                 .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "1+1 entries in /corona topic" )
-            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            .run( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
             //
             // clean edit and undo
             //
-                .isVisible("#edit-message", "", "edit overlay is open")
+                .assertVisible("#edit-message", "", "edit overlay is open")
                 .assertEq( "Impfungen helfen", () => document.getElementById("edit-message").value
                     , "edit message has correct initial content -  wo type suffix" )
             .set("#edit-message", "Impfungen helfen wirklich!", "update edit message content")
             .click(".send-button[data-type='!']", null, "click send button for Fakt")
-                .isNotVisible("#edit-message", "", "edit overlay is closed after sending")
+                .assertHidden("#edit-message", "", "edit overlay is closed after sending")
                 // check data
                 .assertEq( 1, () => mockIO.length , "1 mock data entry after edit" )
-                .isNotVisible("tbody tr td", "Impfungen helfen!", "old message not visible anymore")
-                .isVisible("tbody tr td", "Impfungen helfen wirklich!", "updated message is visible now")
+                .assertHidden("tbody tr td", "Impfungen helfen!", "old message not visible anymore")
+                .assertVisible("tbody tr td", "Impfungen helfen wirklich!", "updated message is visible now")
             // undo
-            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen wirklich!") ) )
+            .run( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen wirklich!") ) )
             .set("#edit-message", "Impfungen helfen", "restore original message content - wo type suffix in msg")
             .click(".send-button[data-type='!']", null, "click send button for Fakt to restore")
-                .isVisible("tbody tr td", "Impfungen helfen!", "old message restored and visible again")
+                .assertVisible("tbody tr td", "Impfungen helfen!", "old message restored and visible again")
                 // check no duplication
-                .isNotVisible("tbody tr td", "Impfungen helfen!!", "old message not changed - suffix not duplicated")
+                .assertHidden("tbody tr td", "Impfungen helfen!!", "old message not changed - suffix not duplicated")
                 .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic" )
             //
             // dirty - type-suffix in message
             //
-            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            .run( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
             .set("#edit-message", "Impfungen helfen!", "restore w suffix in msg")
             .click(".send-button[data-type='!']", null, "click send button - w suffix in msg")
-                .isVisible("tbody tr td", "Impfungen helfen!", "old message restored - w suffix in msg")
-                .isNotVisible("tbody tr td", "Impfungen helfen!!", "old message not changed - w suffix in msg")
+                .assertVisible("tbody tr td", "Impfungen helfen!", "old message restored - w suffix in msg")
+                .assertHidden("tbody tr td", "Impfungen helfen!!", "old message not changed - w suffix in msg")
                 .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - w suffix in msg" )
             // dirty - disabled buttons
-            .execute( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
-                .isVisible("#edit-message", "", "edit overlay is open")
+            .run( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+                .assertVisible("#edit-message", "", "edit overlay is open")
             .click(".send-button[data-type='?']", null, "try - click send button for Question - currently disabled")
-                .isVisible("#edit-message", "", "edit overlay is still open - send question is disabled")
+                .assertVisible("#edit-message", "", "edit overlay is still open - send question is disabled")
             //
             // dirty - try set duplicate message (direct)
             //
-            .execute( () => openEditOverlay( null ) )
+            .run( () => openEditOverlay( null ) )
             .set("#edit-message", "Impfungen helfen!", "set duplicate message directly")
             .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message")
                 .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - duplicate message not added" )
             // dirty - try set duplicate message (via edit, add dummy first) + delete dummy
-            .execute( () => openEditOverlay( ) )
+            .run( () => openEditOverlay( ) )
             .set("#edit-message", "Impfungen helfen ~ish!", "prepare duplicate message via edit")
             .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message via edit")
-            .execute( () => openEditOverlay ( runner.getElementWText("tbody tr td", "Impfungen helfen ~ish!") ) )
+            .run( () => openEditOverlay ( runner.getElementWText("tbody tr td", "Impfungen helfen ~ish!") ) )
             .set("#edit-message", "Impfungen helfen!", "set duplicate message via edit")
             .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message via edit") // cant close due to DUPL
-                .isVisible("#edit-message", "", "edit overlay is still open - send duplicate message via edit is not allowed")
+                .assertVisible("#edit-message", "", "edit overlay is still open - send duplicate message via edit is not allowed")
                 .assertEq( 3, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - duplicate message via edit prehibit" )
             .click(".send-button[data-type='--']", null, "click send button for DELETE to remove temp dirty entry")
-                .isNotVisible("#edit-message", "", "edit overlay is closed after delete temp dirty entry")
+                .assertHidden("#edit-message", "", "edit overlay is closed after delete temp dirty entry")
                 .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "back to 1+1 entries in /corona topic after delete temp dirty entry" )
-            .isNotVisible("#edit-message", "", "edit overlay is closed after forced close")
+            .assertHidden("#edit-message", "", "edit overlay is closed after forced close")
     });
 
 
@@ -2926,7 +2622,7 @@ if (overlayContent) {
     tr.addBlock("Block 'cleanup' ", (runner) => {
         runner
             .wait(500)
-            .execute( () => { // if all tests passed, reload data
+            .run( () => { // if all tests passed, reload data
                 if (runner.errors.length === 0) {
                     console.log("All tests passed - reloading data for tenant: " + tenantIdOld);
                     resetData(tenantIdOld, "cleanup test");
