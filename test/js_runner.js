@@ -71,8 +71,8 @@ class TestRunner {
                     resolve(true);
                 } else if (Date.now() >= deadline) {
                     clearInterval(id);
-                    this.check(false, null, `waitFor timed out after ${timeoutMs}ms`, label);
-                    resolve(false);
+                    try { this.check(false, null, `waitFor timed out after ${timeoutMs}ms`, label); }
+                    finally { resolve(false); }
                 }
             }, intervalMs);
         });
@@ -132,7 +132,7 @@ class TestRunner {
         this.chain = this.chain.then(() => {
             const el = document.querySelector(selector);
             const opts = el ? Array.from(el.options) : [];
-            const found = opts.find(o => o.text === text || o.text.replace(/ /g, ' ') === text);
+            const found = opts.find(o => o.text === text || o.text.replace(/ /g, ' ') === text);
             this.check(!!found,
                 `option "${text}" in ${selector}`,
                 `option "${text}" not found in ${selector}`, label);
@@ -144,7 +144,7 @@ class TestRunner {
         this.chain = this.chain.then(() => {
             const el = document.querySelector(selector);
             const opts = el ? Array.from(el.options) : [];
-            const found = opts.find(o => o.text === text || o.text.replace(/ /g, ' ') === text);
+            const found = opts.find(o => o.text === text || o.text.replace(/ /g, ' ') === text);
             this.check(!found,
                 `no option "${text}" in ${selector}`,
                 `option "${text}" unexpectedly present in ${selector}`, label);
@@ -256,7 +256,10 @@ class TestRunner {
         Object.entries(all).forEach(([name, block]) => {
             this._logBlock(name);
             if (name !== '_start' && name !== '_end' && this.beforeBlock) {
-                this.chain = this.chain.then(() => this.beforeBlock(this));
+                this.chain = this.chain.then(() => {
+                    this.beforeBlock(this);  // appends steps to this.chain
+                    return this.chain;       // await those steps before the block runs
+                });
             }
             this.chain = this.chain.then(() => block(this));
         });

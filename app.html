@@ -2556,7 +2556,7 @@ if (overlayContent) {
             .set("#topicFilter", "/corona")
                 .assertEq( 0, () => mockIO.length , "no mock data entries yet" )
                 .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "1+1 entries in /corona topic" )
-            .run( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            .run( () => openEditOverlay( runner._find("tbody tr td", "Impfungen helfen!") ) )
             //
             // clean edit and undo
             //
@@ -2571,7 +2571,7 @@ if (overlayContent) {
                 .assertHidden("tbody tr td", "Impfungen helfen!", "old message not visible anymore")
                 .assertVisible("tbody tr td", "Impfungen helfen wirklich!", "updated message is visible now")
             // undo
-            .run( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen wirklich!") ) )
+            .run( () => openEditOverlay( runner._find("tbody tr td", "Impfungen helfen wirklich!") ) )
             .set("#edit-message", "Impfungen helfen", "restore original message content - wo type suffix in msg")
             .click(".send-button[data-type='!']", null, "click send button for Fakt to restore")
                 .assertVisible("tbody tr td", "Impfungen helfen!", "old message restored and visible again")
@@ -2581,14 +2581,14 @@ if (overlayContent) {
             //
             // dirty - type-suffix in message
             //
-            .run( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            .run( () => openEditOverlay( runner._find("tbody tr td", "Impfungen helfen!") ) )
             .set("#edit-message", "Impfungen helfen!", "restore w suffix in msg")
             .click(".send-button[data-type='!']", null, "click send button - w suffix in msg")
                 .assertVisible("tbody tr td", "Impfungen helfen!", "old message restored - w suffix in msg")
                 .assertHidden("tbody tr td", "Impfungen helfen!!", "old message not changed - w suffix in msg")
                 .assertEq( 2, () => document.querySelectorAll("tbody tr").length , "still 1+1 entries in /corona topic - w suffix in msg" )
             // dirty - disabled buttons
-            .run( () => openEditOverlay( runner.getElementWText("tbody tr td", "Impfungen helfen!") ) )
+            .run( () => openEditOverlay( runner._find("tbody tr td", "Impfungen helfen!") ) )
                 .assertVisible("#edit-message", "", "edit overlay is open")
             .click(".send-button[data-type='?']", null, "try - click send button for Question - currently disabled")
                 .assertVisible("#edit-message", "", "edit overlay is still open - send question is disabled")
@@ -2603,7 +2603,7 @@ if (overlayContent) {
             .run( () => openEditOverlay( ) )
             .set("#edit-message", "Impfungen helfen ~ish!", "prepare duplicate message via edit")
             .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message via edit")
-            .run( () => openEditOverlay ( runner.getElementWText("tbody tr td", "Impfungen helfen ~ish!") ) )
+            .run( () => openEditOverlay ( runner._find("tbody tr td", "Impfungen helfen ~ish!") ) )
             .set("#edit-message", "Impfungen helfen!", "set duplicate message via edit")
             .click(".send-button[data-type='!']", null, "click send button for Fakt - duplicate message via edit") // cant close due to DUPL
                 .assertVisible("#edit-message", "", "edit overlay is still open - send duplicate message via edit is not allowed")
