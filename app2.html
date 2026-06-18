@@ -504,7 +504,7 @@ async function sendVote(topic, nodeId, delta) {
     try {
         await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
     } catch (err) {
-        showToast("Vote fehlgeschlagen", "error");
+        showToast("Bewertung konnte nicht gespeichert werden.", "error");
     }
     runtimeCheck("sendVote-end");
 }
@@ -672,7 +672,7 @@ async function signEntry(topic, nodeId) {
             updateView();
         }
     } catch (err) {
-        showToast("Fehler beim Bestätigen", "error");
+        showToast("Bestätigung konnte nicht gespeichert werden.", "error");
     }
     runtimeCheck("signEntry-end");
 }
@@ -732,6 +732,18 @@ function buildVotesUrl(extra = {}) {
     return "votes?" + p.toString();
 }
 
+async function safeJson(res, label) {
+    const text = await res.text();
+    try {
+        return JSON.parse(text);
+    } catch (err) {
+        console.error("[app2] " + label + " JSON parse error:", err.message,
+            "\n  status:", res.status, res.url,
+            "\n  body:", text.slice(0, 500));
+        throw new Error(label + ": ungültiges JSON (Status " + res.status + ") — Details in der Konsole");
+    }
+}
+
 async function loadInitialData() {
     if (!tenantId) { showToast("Kein Tenant gesetzt — öffne Einstellungen.", "error"); return; }
     runtimeCheck("loadInitialData");
@@ -740,12 +752,15 @@ async function loadInitialData() {
             fetch(buildEntriesUrl()),
             fetch(buildVotesUrl()),
         ]);
-        if (eRes.ok) addData(await eRes.json());
-        if (vRes.ok) addVotesData(await vRes.json());
+        if (eRes.ok) addData(await safeJson(eRes, "entries"));
+        else console.warn("[app2] entries fetch", eRes.status, eRes.url);
+        if (vRes.ok) addVotesData(await safeJson(vRes, "votes"));
+        else console.warn("[app2] votes fetch", vRes.status, vRes.url);
         updateView();
         showToast("Daten geladen.", "success", 1500);
     } catch (err) {
-        showToast("Ladefehler: " + err.message, "error");
+        console.error("[app2] loadInitialData:", err);
+        showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000);
     }
     runtimeCheck("loadInitialData-end");
 }
@@ -762,13 +777,14 @@ async function startLongPoll() {
             pollController = new AbortController();
             const res = await fetch(buildEntriesUrl(latestTimestamp ? { since: latestTimestamp } : {}), { signal: pollController.signal });
             if (res.status === 200) {
-                addData(await res.json());
+                addData(await safeJson(res, "poll"));
                 updateView();
             }
             // 204 = nothing new → backend already held 50 s, re-poll immediately
         } catch (err) {
             if (err.name !== "AbortError") {
-                await new Promise(r => setTimeout(r, 5000)); // retry after 5 s on network error
+                console.error("[app2] poll error:", err);
+                await new Promise(r => setTimeout(r, 5000));
             }
         }
         poll();
@@ -816,10 +832,11 @@ async function submitEntry() {
             showToast("Eintrag hinzugefügt!", "success");
             closeBottomSheet();
         } else {
-            showToast("Fehler " + res.status, "error");
+            showToast("Eintrag konnte nicht gespeichert werden.", "error");
         }
     } catch (err) {
-        showToast("Netzwerkfehler", "error");
+        console.error("[app2] submitEntry:", err);
+        showToast("Verbindung unterbrochen. Bitte erneut versuchen.", "error");
     }
 }
 
