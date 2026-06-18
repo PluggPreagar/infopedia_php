@@ -635,7 +635,7 @@ function updateView() {
     } else {
         const parts = selectedTopic.split("/").filter(Boolean);
         const parentTopic = parts.length > 1 ? "/" + parts.slice(0, -1).join("/") : "/";
-        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> ${topicMap[parentTopic] || "zurück"}`;
+        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> ${escapeHtml(topicMap[parentTopic] || "zurück")}`;
         navBack.href = "#";
         navBack.onclick = e => { e.preventDefault(); navigateTo(parentTopic); };
     }
