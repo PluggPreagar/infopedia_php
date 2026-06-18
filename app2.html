@@ -290,6 +290,9 @@ let activeTypes = new Set([".", "!", "!-", "?", "??"]); // visible types
 // ── Version ────────────────────────────────────────────────────────────────────
 const APP_VERSION = "0.1.0";
 
+// set true to block entry creation when no topic is selected (root "/")
+const REQUIRE_TOPIC_FOR_ENTRY = false;
+
 // ── Action trail (CA17) ────────────────────────────────────────────────────────
 const ACTION_TRAIL_MAX = 10;
 let actionTrail = [];
@@ -995,7 +998,7 @@ function updateBsColor(type) {
 }
 
 function openBottomSheet() {
-    if (selectedTopic === "/") { showToast("Wähle zuerst ein Thema.", "info"); return; }
+    if (REQUIRE_TOPIC_FOR_ENTRY && selectedTopic === "/") { showToast("Wähle zuerst ein Thema.", "info"); return; }
     updateBsColor(bsSelectedType);
     document.getElementById("bottom-sheet-overlay").classList.add("open");
     document.getElementById("bs-textarea").value = "";
