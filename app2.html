@@ -835,6 +835,38 @@ document.getElementById("nav-search-bar").addEventListener("click", e => {
     updateView();
 });
 
+// ── Settings ──────────────────────────────────────────────────────────────────
+function openSettings() {
+    document.getElementById("settings-tenant").value = tenantId;
+    document.getElementById("settings-overlay").classList.add("open");
+}
+function closeSettings() {
+    document.getElementById("settings-overlay").classList.remove("open");
+}
+function applySettings() {
+    const newTenant = document.getElementById("settings-tenant").value.trim().replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 30);
+    if (newTenant && newTenant !== tenantId) {
+        tenantId = newTenant;
+        saveSettings({ tenantId });
+        stopLongPoll();
+        data = {}; votesData = {}; topicMap = {}; latestTimestamp = null; selectedTopic = "/";
+        updateView();
+        loadInitialData().then(() => startLongPoll());
+        // update URL
+        const url = new URL(window.location.href);
+        url.searchParams.set("tid", tenantId);
+        history.pushState({}, "", url);
+    }
+    closeSettings();
+}
+
+document.getElementById("nav-settings-icon").addEventListener("click", openSettings);
+document.getElementById("settings-close").addEventListener("click", closeSettings);
+document.getElementById("settings-apply").addEventListener("click", applySettings);
+document.getElementById("settings-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("settings-overlay")) closeSettings();
+});
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 (function init() {
     const params = new URLSearchParams(window.location.search);
