@@ -255,7 +255,7 @@
   </div>
 </div>
 
-<div id="issue-overlay" class="overlay">
+<div id="issue-overlay">
   <div id="issue-panel">
     <h3>Problem melden</h3>
     <p style="margin:0;font-size:0.85rem;color:#666">Was ist passiert? (optional)</p>
@@ -302,7 +302,7 @@ function buildStateSnapshot() {
     const cards = document.querySelectorAll("#card-list .card").length;
     return [
         "Thema:  " + selectedTopic,
-        "Tenant: [hidden]",
+        "Tenant: [verborgen]",
         "Filter: " + (activeTypes.size ? [...activeTypes].join(", ") : "alle"),
         "Suche:  " + (searchVal ? '"' + searchVal + '" (' + searchScope + ')' : "keine"),
         "Karten: " + cards,
@@ -337,17 +337,18 @@ function buildReportText(errorCtx) {
     if (errorCtx) {
         lines.push("");
         lines.push("--- Fehlerdetails ---");
-        lines.push(sanitiseForReport(
+        lines.push(
             (errorCtx.label  ? "Fehler: "  + errorCtx.label + "\n" : "") +
             (errorCtx.status ? "Status: "  + errorCtx.status + "\n" : "") +
             (errorCtx.url    ? "URL:    "  + errorCtx.url + "\n" : "") +
             (errorCtx.err    ? "Detail: "  + String(errorCtx.err) : "")
-        ));
+        );
     }
-    return lines.join("\n");
+    return sanitiseForReport(lines.join("\n"));
 }
 
 function openIssueReport(errorCtx) {
+    if (document.getElementById("issue-overlay").classList.contains("open")) return;
     document.getElementById("issue-details").value = buildReportText(errorCtx);
     document.getElementById("issue-user-msg").value = "";
     const s = loadSettings();
@@ -390,7 +391,10 @@ function submitReportMail() {
 function submitReportGithub() {
     const s = loadSettings();
     if (!s.issueGithubUrl) return;
-    window.open(s.issueGithubUrl + "?body=" + encodeURIComponent(buildFullReport()), "_blank");
+    const title = encodeURIComponent("Fehlerbericht fayf.info " + APP_VERSION);
+    const body  = encodeURIComponent(buildFullReport());
+    const sep = s.issueGithubUrl.includes("?") ? "&" : "?";
+    window.open(s.issueGithubUrl + sep + "title=" + title + "&body=" + body, "_blank");
     closeIssueReport();
 }
 
@@ -928,12 +932,13 @@ async function loadInitialData() {
             fetch(buildEntriesUrl()),
             fetch(buildVotesUrl()),
         ]);
+        let loadError = false;
         if (eRes.ok) addData(await safeJson(eRes, "entries"));
-        else console.warn("[app2] entries fetch", eRes.status, eRes.url);
+        else { console.warn("[app2] entries fetch", eRes.status, eRes.url); loadError = true; }
         if (vRes.ok) addVotesData(await safeJson(vRes, "votes"));
-        else console.warn("[app2] votes fetch", vRes.status, vRes.url);
+        else { console.warn("[app2] votes fetch", vRes.status, vRes.url); loadError = true; }
         updateView();
-        showToast("Daten geladen.", "success", 1500);
+        if (!loadError) showToast("Daten geladen.", "success", 1500);
     } catch (err) {
         console.error("[app2] loadInitialData:", err);
         showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000, { label: "loadInitialData", err });
@@ -1083,8 +1088,8 @@ function applySettings() {
         history.pushState({}, "", url);
     }
     const githubUrl = document.getElementById("settings-github-url").value.trim();
-    const issueMail = document.getElementById("settings-issue-mail").value.trim();
-    saveSettings({ issueGithubUrl: githubUrl, issueMailto: issueMail });
+    const issueMailto = document.getElementById("settings-issue-mail").value.trim().replace(/[?&\s]/g, "");
+    saveSettings({ issueGithubUrl: githubUrl, issueMailto });
     closeSettings();
 }
 
