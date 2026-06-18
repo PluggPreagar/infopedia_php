@@ -173,9 +173,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $line = $timestamp . ',' . $entry_csv . "\n";
 
     if (!file_exists($localCsv)) {
-        file_put_contents($localCsv, "Timestamp,entry\n");
+        if (file_put_contents($localCsv, "Timestamp,entry\n") === false) {
+            log_error('votes POST failed to create ' . $localCsv);
+            respond_error('WRITE_ERROR', 'Could not save vote.', 500);
+        }
     }
-    file_put_contents($localCsv, $line, FILE_APPEND);
+    if (file_put_contents($localCsv, $line, FILE_APPEND) === false) {
+        log_error('votes POST failed to append to ' . $localCsv);
+        respond_error('WRITE_ERROR', 'Could not save vote.', 500);
+    }
 
     if ($cacheOutdatedFile !== null) {
         touchOutdated($cacheOutdatedFile);
