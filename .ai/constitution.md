@@ -1,11 +1,11 @@
 <!--
 SYNC IMPACT REPORT
-- Version: 1.7.0 -> 1.8.0  (split CA15 into CA15/CA16/CA17: user-friendly errors, dev logs, user-eased issue reporting)
+- Version: 1.8.0 -> 1.9.0  (add CA18: minimal consistent vocabulary for UI behavior/wording/icons/colors/formats)
 - ID scheme (prefix by section):
     CG = Governance              CA = Core Assumptions      CC = Core Principles
     CW = The Basic Workflow      CD = Data & Compatibility  CP = PHP-Specific principles
     CT = Tooling & Commands      CV = Versioning & Commits
-- Numbering: CA1-CA14, CC1-CC5 (sub-steps CC1.1-CC1.6), CW1-CW9, CP1-CP3, others per section
+- Numbering: CA1-CA18 (CA15-CA17 added 1.8.0; CA18 added 1.9.0), CC1-CC5 (sub-steps CC1.1-CC1.6), CW1-CW9, CP1-CP3, others per section
 - Companion file: .specify/memory/requirements.md (+ requirements/S1...S6) maps IDs to steps
 - Added sections: none (CA14 added to Core Assumptions)
 - Removed sections: none
@@ -115,6 +115,19 @@ Principles below and are the lens for "is this change healthy?".
   explicit user confirmation.
   *Rationale: users can reproduce bugs developers can't see; structured context in a
   one-tap flow captures it before the user closes the tab.*
+
+- **CA18 -- Minimal consistent vocabulary:** UI behavior, wording, icons, colors, and
+  formats form a small, closed set. Each element maps to exactly one meaning *(unique)*,
+  and each meaning is always rendered the same way, everywhere *(consistent)*. Before
+  introducing a new color, icon, label, or interaction pattern, exhaust the existing set.
+  A new element that duplicates an existing meaning is a defect; the same concept rendered
+  differently in two places is also a defect.
+  *Concretely:* the five entry types (`. ! ? !- ??`) own five colors and five labels —
+  those same values MUST be used on cards, filter chips, input chips, swipe feedback, and
+  any future surface. No sixth color for a sixth context. If the set must grow, define the
+  new element in one place and update all surfaces together.
+  *Rationale: a sparse, coherent vocabulary lets users build a mental model once. Every
+  exception costs a re-learn and erodes trust in the UI.*
 
 - **CA14 -- Raw-first, replayable ingestion:** persist incoming input **verbatim and
   immediately** (append-only, e.g. `data/<tid>.log`) **before** any parsing/formatting,
@@ -277,4 +290,4 @@ Concrete commands and tools that support The Basic Workflow on Windows/XAMPP.
   comment, so reviewers can verify the type/scope and rationale (especially for breaking
   changes). / wait for edits to be accepted before committing.
 
-**Version**: 1.8.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-18
+**Version**: 1.9.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-18
