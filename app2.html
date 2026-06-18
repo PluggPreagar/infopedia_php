@@ -109,6 +109,7 @@
     #bottom-sheet {
       background: #fff; width: 100%; border-radius: 12px 12px 0 0;
       padding: 1.25rem 1rem 2rem; display: flex; flex-direction: column; gap: 0.75rem;
+      --bs-color: #888;
     }
     #bottom-sheet h3 { font-size: 1rem; color: #333; }
     #bs-type-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
@@ -124,14 +125,15 @@
     .bs-type-chip[data-type="??"].active { background: #2196F3; }
     #bs-textarea {
       width: 100%; min-height: 5rem; padding: 0.6rem;
-      border: 1px solid #ccc; border-radius: 6px; font-size: 1rem;
-      resize: vertical; font-family: inherit;
+      border: 2px solid var(--bs-color); border-radius: 6px; font-size: 1rem;
+      resize: vertical; font-family: inherit; transition: border-color 0.15s;
     }
     #bs-submit {
-      padding: 0.7rem; background: #4CAF50; color: #fff;
+      padding: 0.7rem; background: var(--bs-color); color: #fff;
       border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+      transition: filter 0.15s;
     }
-    #bs-submit:hover { background: #45a049; }
+    #bs-submit:hover { filter: brightness(0.88); }
     #bs-cancel {
       padding: 0.5rem; background: none; border: none;
       color: #888; font-size: 0.9rem; cursor: pointer; text-align: center;
@@ -987,8 +989,14 @@ document.addEventListener("visibilitychange", () => {
 // ── Add entry ─────────────────────────────────────────────────────────────────
 let bsSelectedType = ".";
 
+const BS_TYPE_COLORS = { ".": "#888", "!": "#4CAF50", "!-": "#f44336", "?": "#FF9800", "??": "#2196F3" };
+function updateBsColor(type) {
+    document.getElementById("bottom-sheet").style.setProperty("--bs-color", BS_TYPE_COLORS[type] || "#888");
+}
+
 function openBottomSheet() {
     if (selectedTopic === "/") { showToast("Wähle zuerst ein Thema.", "info"); return; }
+    updateBsColor(bsSelectedType);
     document.getElementById("bottom-sheet-overlay").classList.add("open");
     document.getElementById("bs-textarea").value = "";
     document.getElementById("bs-textarea").focus();
@@ -1036,6 +1044,7 @@ document.getElementById("bs-type-chips").addEventListener("click", e => {
     if (!chip) return;
     bsSelectedType = chip.dataset.type;
     document.querySelectorAll(".bs-type-chip").forEach(c => c.classList.toggle("active", c === chip));
+    updateBsColor(bsSelectedType);
 });
 
 // ── Search ────────────────────────────────────────────────────────────────────
