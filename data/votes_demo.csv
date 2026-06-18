@@ -1,0 +1,5 @@
+Timestamp,entry
+2026-06-18 09:01:00,/klima/co2_anstieg | votes:alice:1 | votes:bob:1 | votes:carol:1 | signed:alice:1 | signed:bob:1 | Der CO2-Gehalt in der Atmosphäre steigt seit 1850 kontinuierlich an!
+2026-06-18 09:01:01,/klima/ursache | votes:alice:1 | votes:bob:1 | Menschliche Emissionen sind die Hauptursache des aktuellen CO2-Anstiegs!
+2026-06-18 09:01:02,/klima/modelle_falsch | votes:alice:-1 | votes:bob:-1 | Die Klimamodelle übertreiben den Temperaturanstieg massiv!-
+2026-06-18 09:01:03,/klima/meinung | votes:carol:1 | Wir sollten jetzt handeln, auch wenn die Kosten kurzfristig hoch sind.
