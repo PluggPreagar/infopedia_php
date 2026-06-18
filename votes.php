@@ -137,16 +137,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         respond_error('INVALID_ENTRY', 'entry must contain path and content separated by " | "', 400);
     }
 
-    // Validate: must contain at least one votes: attribute.
+    // Validate: must contain at least one votes: or signed: attribute.
     $hasVote = false;
     foreach ($columns as $col) {
-        if (preg_match('/^votes:[^:]+:\d+$/', $col)) {
+        if (preg_match('/^votes:[^:]+:-?\d+$/', $col) || preg_match('/^signed:[^:]+:\d+$/', $col)) {
             $hasVote = true;
             break;
         }
     }
     if (!$hasVote) {
-        respond_error('INVALID_ENTRY', 'vote entry must contain a votes:<sid>:<n> attribute', 400);
+        respond_error('INVALID_ENTRY', 'vote entry must contain a votes:<sid>:<n> or signed:<sid>:<n> attribute', 400);
     }
 
     // Append type suffix if missing.

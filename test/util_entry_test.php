@@ -12,86 +12,86 @@ function pe(string $input, array $expect, string $msg): void {
 
 // minimal
 pe('/climate/solutions | Solar panels.',
-    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>[],'votes'=>[]],
+    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>[],'votes'=>[],'signed'=>[]],
     'minimal entry');
 
 // entry types
 pe('/a/b | Important!',
-    ['path'=>'/a/b','content'=>'Important!','type'=>'!','display_ts'=>null,'attrs'=>[],'votes'=>[]],
+    ['path'=>'/a/b','content'=>'Important!','type'=>'!','display_ts'=>null,'attrs'=>[],'votes'=>[],'signed'=>[]],
     'type !');
 pe('/a/b | A question?',
-    ['path'=>'/a/b','content'=>'A question?','type'=>'?','display_ts'=>null,'attrs'=>[],'votes'=>[]],
+    ['path'=>'/a/b','content'=>'A question?','type'=>'?','display_ts'=>null,'attrs'=>[],'votes'=>[],'signed'=>[]],
     'type ?');
 pe('/a/b | A reference>',
-    ['path'=>'/a/b','content'=>'A reference>','type'=>'>','display_ts'=>null,'attrs'=>[],'votes'=>[]],
+    ['path'=>'/a/b','content'=>'A reference>','type'=>'>','display_ts'=>null,'attrs'=>[],'votes'=>[],'signed'=>[]],
     'type >');
 pe('/a/b | A note-',
-    ['path'=>'/a/b','content'=>'A note-','type'=>'-','display_ts'=>null,'attrs'=>[],'votes'=>[]],
+    ['path'=>'/a/b','content'=>'A note-','type'=>'-','display_ts'=>null,'attrs'=>[],'votes'=>[],'signed'=>[]],
     'type -');
 
 // no type suffix → server appends '.'
 pe('/climate/solutions | Solar panels',
-    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>[],'votes'=>[]],
+    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>[],'votes'=>[],'signed'=>[]],
     'missing type suffix gets dot appended');
 
 // delete marker
 pe('/climate/solutions | --',
-    ['path'=>'/climate/solutions','content'=>'--','type'=>'--','display_ts'=>null,'attrs'=>[],'votes'=>[]],
+    ['path'=>'/climate/solutions','content'=>'--','type'=>'--','display_ts'=>null,'attrs'=>[],'votes'=>[],'signed'=>[]],
     'delete marker');
 
 // single attribute
 pe('/climate/solutions | author:martin | Solar panels.',
-    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>['author'=>'martin'],'votes'=>[]],
+    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>['author'=>'martin'],'votes'=>[],'signed'=>[]],
     'single attr');
 
 // multiple attributes
 pe('/climate/solutions | author:martin | priority:high | Solar panels.',
-    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>['author'=>'martin','priority'=>'high'],'votes'=>[]],
+    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>['author'=>'martin','priority'=>'high'],'votes'=>[],'signed'=>[]],
     'multiple attrs');
 
 // display timestamp
 pe('/climate/solutions | 2025-09-07 20:44:54 | Solar panels.',
-    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>'2025-09-07 20:44:54','attrs'=>[],'votes'=>[]],
+    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>'2025-09-07 20:44:54','attrs'=>[],'votes'=>[],'signed'=>[]],
     'display timestamp');
 
 // attr + display timestamp
 pe('/climate/solutions | author:martin | 2025-09-07 20:44:54 | Solar panels.',
-    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>'2025-09-07 20:44:54','attrs'=>['author'=>'martin'],'votes'=>[]],
+    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>'2025-09-07 20:44:54','attrs'=>['author'=>'martin'],'votes'=>[],'signed'=>[]],
     'attr + display timestamp');
 
 // display timestamp + attr (any order)
 pe('/climate/solutions | 2025-09-07 20:44:54 | author:martin | Solar panels.',
-    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>'2025-09-07 20:44:54','attrs'=>['author'=>'martin'],'votes'=>[]],
+    ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>'2025-09-07 20:44:54','attrs'=>['author'=>'martin'],'votes'=>[],'signed'=>[]],
     'display timestamp before attr');
 
 // single vote
 pe('/poll/q1 | votes:sid_abc:1 | Fair question?',
-    ['path'=>'/poll/q1','content'=>'Fair question?','type'=>'?','display_ts'=>null,'attrs'=>[],'votes'=>['sid_abc'=>1]],
+    ['path'=>'/poll/q1','content'=>'Fair question?','type'=>'?','display_ts'=>null,'attrs'=>[],'votes'=>['sid_abc'=>1],'signed'=>[]],
     'single vote');
 
 // multiple votes
 pe('/poll/q1 | votes:sid_abc:1 | votes:sid_def:2 | Fair question?',
-    ['path'=>'/poll/q1','content'=>'Fair question?','type'=>'?','display_ts'=>null,'attrs'=>[],'votes'=>['sid_abc'=>1,'sid_def'=>2]],
+    ['path'=>'/poll/q1','content'=>'Fair question?','type'=>'?','display_ts'=>null,'attrs'=>[],'votes'=>['sid_abc'=>1,'sid_def'=>2],'signed'=>[]],
     'multiple votes');
 
 // votes + attr
 pe('/poll/q1 | votes:sid_abc:1 | author:martin | Fair question?',
-    ['path'=>'/poll/q1','content'=>'Fair question?','type'=>'?','display_ts'=>null,'attrs'=>['author'=>'martin'],'votes'=>['sid_abc'=>1]],
+    ['path'=>'/poll/q1','content'=>'Fair question?','type'=>'?','display_ts'=>null,'attrs'=>['author'=>'martin'],'votes'=>['sid_abc'=>1],'signed'=>[]],
     'vote + attr');
 
 // votes:others (aggregated key)
 pe('/poll/q1 | votes:sid_own:1 | votes:others:5 | Fair question?',
-    ['path'=>'/poll/q1','content'=>'Fair question?','type'=>'?','display_ts'=>null,'attrs'=>[],'votes'=>['sid_own'=>1,'others'=>5]],
+    ['path'=>'/poll/q1','content'=>'Fair question?','type'=>'?','display_ts'=>null,'attrs'=>[],'votes'=>['sid_own'=>1,'others'=>5],'signed'=>[]],
     'aggregated votes:others key');
 
 // colon in content is fine — content is always last, never parsed for attrs
 pe('/a/b | See https://example.com for details.',
-    ['path'=>'/a/b','content'=>'See https://example.com for details.','type'=>'.','display_ts'=>null,'attrs'=>[],'votes'=>[]],
+    ['path'=>'/a/b','content'=>'See https://example.com for details.','type'=>'.','display_ts'=>null,'attrs'=>[],'votes'=>[],'signed'=>[]],
     'colon in content is safe because content is always last');
 
 // attr value may contain colons — key is only the part before the first colon
 pe('/a/b | url:https://example.com | Content.',
-    ['path'=>'/a/b','content'=>'Content.','type'=>'.','display_ts'=>null,'attrs'=>['url'=>'https://example.com'],'votes'=>[]],
+    ['path'=>'/a/b','content'=>'Content.','type'=>'.','display_ts'=>null,'attrs'=>['url'=>'https://example.com'],'votes'=>[],'signed'=>[]],
     'attr value may contain colons');
 
 

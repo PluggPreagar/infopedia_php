@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>fayf — Fact Farming</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     /* ── Reset + base ───────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -373,13 +372,20 @@ function initializeTopicMap() {
 function addData(dataLoaded) {
     runtimeCheck("addData");
     if (!dataLoaded || Object.keys(dataLoaded).length === 0) return;
-    Object.entries(dataLoaded).forEach(([topic, nodes]) => {
-        Object.entries(nodes).forEach(([nodeId, entry]) => {
-            addEntryWoCheck(topic, nodeId, entry.message, entry.votes, entry.timestamp);
-            if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
-                if (!latestTimestamp || entry.timestamp > latestTimestamp) latestTimestamp = entry.timestamp;
-            }
-        });
+    // Backend returns flat { "/path/node": { timestamp, message, attrs, votes } }
+    Object.entries(dataLoaded).forEach(([fullPath, entry]) => {
+        const [topic, nodeId] = splitKey(fullPath);
+        // votes from backend may be an object {sid: n, others: n}; sum to a scalar
+        let voteCount = 0;
+        if (entry.votes && typeof entry.votes === "object") {
+            voteCount = Object.values(entry.votes).reduce((a, b) => a + b, 0);
+        } else if (typeof entry.votes === "number") {
+            voteCount = entry.votes;
+        }
+        addEntryWoCheck(topic, nodeId, entry.message, voteCount, entry.timestamp);
+        if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
+            if (!latestTimestamp || entry.timestamp > latestTimestamp) latestTimestamp = entry.timestamp;
+        }
     });
     checkData();
     initializeTopicMap();
@@ -388,9 +394,16 @@ function addData(dataLoaded) {
 function addVotesData(dataLoaded) {
     runtimeCheck("addVotesData");
     if (!dataLoaded) return;
+    // Backend returns flat { "/path/node": { timestamp, message, attrs, votes } }
+    // votes is an object like { sid: n, others: n }; attrs may contain signed count
     Object.entries(dataLoaded).forEach(([key, entry]) => {
-        const v = parseInt(entry.votes || 0, 10);
-        const s = parseInt(entry.signed || 0, 10);
+        let v = 0;
+        if (entry.votes && typeof entry.votes === "object") {
+            v = Object.values(entry.votes).reduce((a, b) => a + b, 0);
+        } else if (typeof entry.votes === "number") {
+            v = entry.votes;
+        }
+        const s = parseInt((entry.attrs && entry.attrs.signed_count) || 0, 10);
         if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
         votesData[key].votes = v;
         votesData[key].signed = s;
@@ -427,6 +440,10 @@ function getTypeDef(message) {
     return { ...base, suffix };
 }
 
+function escapeHtml(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function getSignedCount(topic, nodeId) {
     const key = fullKey(topic, nodeId);
     return (votesData[key] && votesData[key].signed) || 0;
@@ -444,7 +461,7 @@ function buildCard(entry) {
             : { label: "Widerlegung ✓", cssClass: "widerlegung", color: "#b71c1c" };
     }
 
-    const cleanMsg = message.replace(/[.!?@>\-]+$/, "").trim() || message;
+    const cleanMsg = escapeHtml(message.replace(/[.!?@>\-]+$/, "").trim() || message);
     const voteCount = votes || 0;
     const scoreClass = voteCount > 0 ? "pos" : voteCount < 0 ? "neg" : "zero";
     const scoreStr = voteCount > 0 ? "+" + voteCount : String(voteCount);
@@ -482,11 +499,10 @@ async function sendVote(topic, nodeId, delta) {
     const entry = data[topic] && data[topic][nodeId];
     if (!entry) return;
     const body = new URLSearchParams({
-        sid, tid: tenantId,
-        entry: `${key} | ${nodeId} | ${entry.message} | votes:${sid}:${delta}`
+        entry: `${key} | votes:${sid}:${delta} | ${entry.message}`
     });
     try {
-        await fetch("vote/add?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
     } catch (err) {
         showToast("Vote fehlgeschlagen", "error");
     }
@@ -593,7 +609,7 @@ function getFilteredEntries() {
     Object.entries(data).forEach(([topic, nodes]) => {
         // scope filter
         if (searchScope === "here" && topic !== selectedTopic) return;
-        if (searchScope === "below" && !topic.startsWith(selectedTopic === "/" ? "" : selectedTopic)) return;
+        if (searchScope === "below" && topic !== selectedTopic && !topic.startsWith(selectedTopic === "/" ? "/" : selectedTopic + "/")) return;
         // for non-search: only show direct children of selectedTopic (skip for global scope)
         if (!searchVal && searchScope !== "global" && topic !== selectedTopic) return;
 
@@ -645,11 +661,10 @@ async function signEntry(topic, nodeId) {
     const entry = data[topic] && data[topic][nodeId];
     if (!entry) return;
     const body = new URLSearchParams({
-        sid, tid: tenantId,
-        entry: `${key} | ${nodeId} | ${entry.message} | signed:${sid}:1`
+        entry: `${key} | signed:${sid}:1 | ${entry.message}`
     });
     try {
-        const res = await fetch("vote/add?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        const res = await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
         if (res.ok) {
             if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
             votesData[key].signed = (votesData[key].signed || 0) + 1;
@@ -681,12 +696,18 @@ document.getElementById("card-list").addEventListener("click", e => {
     navigateTo(key);
 });
 
-// vote button delegation
+// vote button delegation (1 s debounce per key)
 document.getElementById("card-list").addEventListener("click", e => {
     const upBtn = e.target.closest(".upvote-btn");
     const dnBtn = e.target.closest(".downvote-btn");
-    if (upBtn) { e.stopPropagation(); handleVote(upBtn.dataset.key, 1); }
-    if (dnBtn) { e.stopPropagation(); handleVote(dnBtn.dataset.key, -1); }
+    if (upBtn) {
+        e.stopPropagation();
+        if (debounceKey("vote_" + upBtn.dataset.key, 1000)) handleVote(upBtn.dataset.key, 1);
+    }
+    if (dnBtn) {
+        e.stopPropagation();
+        if (debounceKey("vote_" + dnBtn.dataset.key, 1000)) handleVote(dnBtn.dataset.key, -1);
+    }
 });
 
 // sign button delegation
@@ -703,12 +724,12 @@ let pollActive = false;
 let pollController = null;
 
 function buildEntriesUrl(extra = {}) {
-    const p = new URLSearchParams({ sid, tid: tenantId, topicId: "/", format: "json.0.3", ...extra });
-    return "entry/get?" + p.toString();
+    const p = new URLSearchParams({ sid, tid: tenantId, format: "json", ...extra });
+    return "entries?" + p.toString();
 }
 function buildVotesUrl(extra = {}) {
-    const p = new URLSearchParams({ sid, tid: tenantId, topicId: "/", format: "json.0.3", ...extra });
-    return "vote/get?" + p.toString();
+    const p = new URLSearchParams({ sid, tid: tenantId, format: "json", ...extra });
+    return "votes?" + p.toString();
 }
 
 async function loadInitialData() {
@@ -784,9 +805,10 @@ async function submitEntry() {
     if (text.length < 3) { showToast("Zu kurz (mind. 3 Zeichen).", "error"); return; }
     const message = matchType(text, bsSelectedType);
     const nodeId = generateNodeId();
-    const body = new URLSearchParams({ sid, tid: tenantId, entry: `${selectedTopic} | ${nodeId} | ${message}` });
+    const fullPath = selectedTopic === "/" ? "/" + nodeId : selectedTopic + "/" + nodeId;
+    const body = new URLSearchParams({ entry: `${fullPath} | ${message}` });
     try {
-        const res = await fetch("entry/add?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
         if (res.ok) {
             const json = await res.json();
             addEntry(selectedTopic, nodeId, message, 0, json.timestamp || "");

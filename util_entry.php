@@ -21,6 +21,7 @@ function parseEntry(string $entry): array {
         'display_ts' => null,
         'attrs'      => [],
         'votes'      => [],
+        'signed'     => [],
     ];
 
     $columns = explode(' | ', $entry);
@@ -56,8 +57,10 @@ function parseEntry(string $entry): array {
     foreach ($columns as $col) {
         if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $col)) {
             $result['display_ts'] = $col;
-        } elseif (preg_match('/^votes:([^:]+):(\d+)$/', $col, $m)) {
+        } elseif (preg_match('/^votes:([^:]+):(-?\d+)$/', $col, $m)) {
             $result['votes'][$m[1]] = (int)$m[2];
+        } elseif (preg_match('/^signed:([^:]+):(\d+)$/', $col, $m)) {
+            $result['signed'][$m[1]] = (int)$m[2];
         } elseif (preg_match('/^([a-zA-Z_]+):(.+)$/', $col, $m)) {
             // Key is only the part before the first colon; value is the rest.
             $result['attrs'][$m[1]] = $m[2];
@@ -239,7 +242,7 @@ function aggregateVotes(string $csv, string $session_id): string {
     // Separate vote rows from non-vote rows, preserving order.
     // $ordered_paths tracks insertion order for the output.
     $non_vote_rows  = []; // path => ['ts'=>..., 'entry'=>..., 'raw_line'=>...]
-    $vote_groups    = []; // path => ['ts'=>..., 'content'=>..., 'own'=>n, 'others'=>n]
+    $vote_groups    = []; // path => ['ts'=>..., 'content'=>..., 'own'=>n, 'others'=>n, 'signers'=>[sid=>1,...]]
     $ordered_paths  = []; // list of [type=>'vote'|'non_vote', path=>...]
 
     foreach ($lines as $line) {
@@ -258,14 +261,17 @@ function aggregateVotes(string $csv, string $session_id): string {
         $parsed = parseEntry($entry);
         $path   = $parsed['path'];
 
-        if (!empty($parsed['votes'])) {
-            // Vote row.
+        $is_vote_row = !empty($parsed['votes']) || !empty($parsed['signed']);
+
+        if ($is_vote_row) {
+            // Vote/signed row.
             if (!isset($vote_groups[$path])) {
                 $vote_groups[$path] = [
                     'ts'      => $ts,
                     'content' => $parsed['content'],
                     'own'     => 0,
                     'others'  => 0,
+                    'signers' => [],
                 ];
                 $ordered_paths[] = ['type' => 'vote', 'path' => $path];
             }
@@ -281,6 +287,13 @@ function aggregateVotes(string $csv, string $session_id): string {
                     $vote_groups[$path]['own'] += $count;
                 } else {
                     $vote_groups[$path]['others'] += $count;
+                }
+            }
+
+            // Aggregate signers: track unique sids (latest value wins).
+            foreach ($parsed['signed'] as $sid => $val) {
+                if ($val > 0) {
+                    $vote_groups[$path]['signers'][$sid] = 1;
                 }
             }
         } else {
@@ -315,6 +328,11 @@ function aggregateVotes(string $csv, string $session_id): string {
             }
             if ($g['others'] > 0) {
                 $vote_cols .= ' | votes:others:' . $g['others'];
+            }
+            // Emit aggregated signer count as a regular attr so csv_to_json picks it up.
+            $signed_count = count($g['signers']);
+            if ($signed_count > 0) {
+                $vote_cols .= ' | signed_count:' . $signed_count;
             }
 
             $entry = $path . $vote_cols . ' | ' . $content;
