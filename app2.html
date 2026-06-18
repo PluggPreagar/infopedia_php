@@ -167,6 +167,33 @@
       nav { padding: 0.4rem 0.6rem; }
       #card-list { padding: 0.5rem; }
     }
+
+    /* ── Issue report overlay (CA17) ───────────────────── */
+    #issue-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 450;
+      align-items: center; justify-content: center;
+    }
+    #issue-overlay.open { display: flex; }
+    #issue-panel {
+      background: #fff; border-radius: 8px; padding: 1.5rem;
+      width: min(540px, 95vw); display: flex; flex-direction: column; gap: 0.75rem;
+      max-height: 90vh; overflow-y: auto;
+    }
+    #issue-panel h3 { font-size: 1.05rem; margin: 0; }
+    #issue-panel textarea { resize: vertical; }
+    .toast-report-btn {
+      display: inline-block;
+      margin-left: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 3px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    .toast-report-btn:hover { background: rgba(255,255,255,0.35); }
   </style>
 </head>
 <body>
@@ -217,9 +244,29 @@
     <label>Tenant ID
       <input id="settings-tenant" type="text" placeholder="demo">
     </label>
+    <label style="display:block;margin-top:0.75rem;font-size:0.85rem">GitHub Issues URL <span style="color:#999">(optional)</span></label>
+    <input id="settings-github-url" type="url" placeholder="https://github.com/user/repo/issues/new" style="width:100%;box-sizing:border-box;margin-top:0.25rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px">
+    <label style="display:block;margin-top:0.5rem;font-size:0.85rem">Feedback E-Mail <span style="color:#999">(optional)</span></label>
+    <input id="settings-issue-mail" type="email" placeholder="bugs@example.com" style="width:100%;box-sizing:border-box;margin-top:0.25rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px">
     <div style="display:flex;gap:0.5rem">
       <button class="settings-btn primary" id="settings-apply">Übernehmen</button>
       <button class="settings-btn secondary" id="settings-close">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<div id="issue-overlay">
+  <div id="issue-panel">
+    <h3>Problem melden</h3>
+    <p style="margin:0;font-size:0.85rem;color:#666">Was ist passiert? (optional)</p>
+    <textarea id="issue-user-msg" rows="3" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:0.9rem" placeholder="Beschreibe kurz, was du gemacht hast..."></textarea>
+    <p style="margin:0;font-size:0.85rem;color:#666">Technische Details (automatisch — bitte prüfen und ggf. anpassen):</p>
+    <textarea id="issue-details" rows="10" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:0.78rem"></textarea>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button id="issue-copy">📋 Kopieren</button>
+      <button id="issue-mail">✉️ E-Mail</button>
+      <button id="issue-github">🐛 GitHub</button>
+      <button id="issue-close" style="margin-left:auto">Schließen</button>
     </div>
   </div>
 </div>
@@ -237,6 +284,123 @@ let selectedTopic = "/";
 let latestTimestamp = null;
 let searchScope = "below";   // "here" | "below" | "global"
 let activeTypes = new Set([".", "!", "!-", "?", "??"]); // visible types
+
+// ── Version ────────────────────────────────────────────────────────────────────
+const APP_VERSION = "0.1.0";
+
+// ── Action trail (CA17) ────────────────────────────────────────────────────────
+const ACTION_TRAIL_MAX = 10;
+let actionTrail = [];
+
+function pushAction(action, detail) {
+    actionTrail.push({ ts: new Date().toISOString(), action, detail: detail || "" });
+    if (actionTrail.length > ACTION_TRAIL_MAX) actionTrail.shift();
+}
+
+function buildStateSnapshot() {
+    const searchVal = document.getElementById("search-input").value.trim();
+    const cards = document.querySelectorAll("#card-list .card").length;
+    return [
+        "Thema:  " + selectedTopic,
+        "Tenant: [verborgen]",
+        "Filter: " + (activeTypes.size ? [...activeTypes].join(", ") : "alle"),
+        "Suche:  " + (searchVal ? '"' + searchVal + '" (' + searchScope + ')' : "keine"),
+        "Karten: " + cards,
+    ].join("\n");
+}
+
+function sanitiseForReport(text) {
+    let s = String(text);
+    if (sid)      s = s.split(sid).join("[sid]");
+    if (tenantId) s = s.split(tenantId).join("[tid]");
+    return s;
+}
+
+// ── Issue report builder (CA17) ────────────────────────────────────────────────
+function buildReportText(errorCtx) {
+    const lines = [];
+    lines.push("=== Fehlerbericht ===");
+    lines.push("Zeit:    " + new Date().toISOString());
+    lines.push("Version: " + APP_VERSION);
+    lines.push("");
+    lines.push("--- Letzte Aktionen ---");
+    if (actionTrail.length === 0) {
+        lines.push("(keine)");
+    } else {
+        actionTrail.slice().reverse().forEach(a => {
+            lines.push(a.ts.slice(11, 19) + "  " + a.action + (a.detail ? ": " + a.detail : ""));
+        });
+    }
+    lines.push("");
+    lines.push("--- Zustand ---");
+    lines.push(buildStateSnapshot());
+    if (errorCtx) {
+        lines.push("");
+        lines.push("--- Fehlerdetails ---");
+        lines.push(
+            (errorCtx.label  ? "Fehler: "  + errorCtx.label + "\n" : "") +
+            (errorCtx.status ? "Status: "  + errorCtx.status + "\n" : "") +
+            (errorCtx.url    ? "URL:    "  + errorCtx.url + "\n" : "") +
+            (errorCtx.err    ? "Detail: "  + String(errorCtx.err) : "")
+        );
+    }
+    return sanitiseForReport(lines.join("\n"));
+}
+
+function openIssueReport(errorCtx) {
+    if (document.getElementById("issue-overlay").classList.contains("open")) return;
+    document.getElementById("issue-details").value = buildReportText(errorCtx);
+    document.getElementById("issue-user-msg").value = "";
+    const s = loadSettings();
+    document.getElementById("issue-mail").style.display   = s.issueMailto    ? "" : "none";
+    document.getElementById("issue-github").style.display = s.issueGithubUrl ? "" : "none";
+    document.getElementById("issue-overlay").classList.add("open");
+}
+
+function closeIssueReport() {
+    document.getElementById("issue-overlay").classList.remove("open");
+}
+
+document.getElementById("issue-close").addEventListener("click", closeIssueReport);
+document.getElementById("issue-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("issue-overlay")) closeIssueReport();
+});
+
+// ── Issue report submission (CA17) ────────────────────────────────────────────
+function buildFullReport() {
+    const userMsg = document.getElementById("issue-user-msg").value.trim();
+    const details = document.getElementById("issue-details").value;
+    return (userMsg ? "Nutzerbeschreibung:\n" + userMsg + "\n\n" : "") + details;
+}
+
+function submitReportClipboard() {
+    navigator.clipboard.writeText(buildFullReport())
+        .then(() => { showToast("Bericht kopiert!", "success", 2000); closeIssueReport(); })
+        .catch(() => showToast("Kopieren fehlgeschlagen.", "error"));
+}
+
+function submitReportMail() {
+    const s = loadSettings();
+    if (!s.issueMailto) return;
+    const subject = encodeURIComponent("Fehlerbericht fayf.info " + APP_VERSION);
+    const body    = encodeURIComponent(buildFullReport());
+    window.open("mailto:" + s.issueMailto + "?subject=" + subject + "&body=" + body);
+    closeIssueReport();
+}
+
+function submitReportGithub() {
+    const s = loadSettings();
+    if (!s.issueGithubUrl) return;
+    const title = encodeURIComponent("Fehlerbericht fayf.info " + APP_VERSION);
+    const body  = encodeURIComponent(buildFullReport());
+    const sep = s.issueGithubUrl.includes("?") ? "&" : "?";
+    window.open(s.issueGithubUrl + sep + "title=" + title + "&body=" + body, "_blank");
+    closeIssueReport();
+}
+
+document.getElementById("issue-copy").addEventListener("click", submitReportClipboard);
+document.getElementById("issue-mail").addEventListener("click", submitReportMail);
+document.getElementById("issue-github").addEventListener("click", submitReportGithub);
 
 // ── Debug ─────────────────────────────────────────────────────────────────────
 function runtimeCheck(msg = "") {
@@ -281,15 +445,24 @@ function formatTimestamp(ts) {
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
-function showToast(message, type = "info", duration = 3000) {
+function showToast(message, type = "info", duration = 3000, errorCtx = null) {
     const container = document.getElementById("toast-container");
     const el = document.createElement("div");
-    el.textContent = message;
     el.style.cssText = `
         background:${type === "success" ? "#4CAF50" : type === "error" ? "#f44336" : "#333"};
         color:#fff;padding:0.75rem 1rem;margin-bottom:0.4rem;border-radius:6px;
-        box-shadow:0 2px 6px rgba(0,0,0,0.25);font-size:0.9rem;
+        box-shadow:0 2px 6px rgba(0,0,0,0.25);font-size:0.9rem;display:flex;align-items:center;
     `;
+    const span = document.createElement("span");
+    span.textContent = message;
+    el.appendChild(span);
+    if (type === "error" && errorCtx) {
+        const btn = document.createElement("button");
+        btn.textContent = "Melden";
+        btn.className = "toast-report-btn";
+        btn.onclick = (e) => { e.stopPropagation(); openIssueReport(errorCtx); };
+        el.appendChild(btn);
+    }
     container.appendChild(el);
     setTimeout(() => el.remove(), duration);
 }
@@ -506,13 +679,14 @@ async function sendVote(topic, nodeId, delta) {
         if (!res.ok) console.error("[app2] sendVote non-ok:", res.status, res.url);
     } catch (err) {
         console.error("[app2] sendVote:", err);
-        showToast("Bewertung konnte nicht gespeichert werden.", "error");
+        showToast("Bewertung konnte nicht gespeichert werden.", "error", 3000, { label: "sendVote", err });
     }
     runtimeCheck("sendVote-end");
 }
 
 function handleVote(key, delta) {
     const [topic, nodeId] = splitKey(key);
+    pushAction("vote", key + " " + (delta > 0 ? "+" : "") + delta);
     addVoteByGui(topic, nodeId, delta);
     sendVote(topic, nodeId, delta);
     // update score in existing card without full re-render
@@ -647,6 +821,7 @@ function updateView() {
 
 function navigateTo(topic) {
     runtimeCheck("navigateTo");
+    pushAction("navigate", topic);
     selectedTopic = topic;
     const url = new URL(window.location.href);
     url.searchParams.set("topic", topic);
@@ -668,6 +843,7 @@ async function signEntry(topic, nodeId) {
     try {
         const res = await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
         if (res.ok) {
+            pushAction("sign", key);
             if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
             votesData[key].signed = (votesData[key].signed || 0) + 1;
             showToast("Bestätigt!", "success", 1500);
@@ -675,7 +851,7 @@ async function signEntry(topic, nodeId) {
         }
     } catch (err) {
         console.error("[app2] signEntry:", err);
-        showToast("Bestätigung konnte nicht gespeichert werden.", "error");
+        showToast("Bestätigung konnte nicht gespeichert werden.", "error", 3000, { label: "signEntry", err });
     }
     runtimeCheck("signEntry-end");
 }
@@ -687,6 +863,7 @@ document.getElementById("chip-bar").addEventListener("click", e => {
     const type = chip.dataset.type;
     if (activeTypes.has(type)) { activeTypes.delete(type); chip.classList.remove("active"); }
     else { activeTypes.add(type); chip.classList.add("active"); }
+    pushAction("filterType", [...activeTypes].join(","));
     updateView();
 });
 
@@ -755,15 +932,16 @@ async function loadInitialData() {
             fetch(buildEntriesUrl()),
             fetch(buildVotesUrl()),
         ]);
+        let loadError = false;
         if (eRes.ok) addData(await safeJson(eRes, "entries"));
-        else console.warn("[app2] entries fetch", eRes.status, eRes.url);
+        else { console.warn("[app2] entries fetch", eRes.status, eRes.url); loadError = true; }
         if (vRes.ok) addVotesData(await safeJson(vRes, "votes"));
-        else console.warn("[app2] votes fetch", vRes.status, vRes.url);
+        else { console.warn("[app2] votes fetch", vRes.status, vRes.url); loadError = true; }
         updateView();
-        showToast("Daten geladen.", "success", 1500);
+        if (!loadError) showToast("Daten geladen.", "success", 1500);
     } catch (err) {
         console.error("[app2] loadInitialData:", err);
-        showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000);
+        showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000, { label: "loadInitialData", err });
     }
     runtimeCheck("loadInitialData-end");
 }
@@ -830,16 +1008,17 @@ async function submitEntry() {
         const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
         if (res.ok) {
             const json = await res.json();
+            pushAction("addEntry", selectedTopic + "/" + nodeId);
             addEntry(selectedTopic, nodeId, message, 0, json.timestamp || "");
             updateView();
             showToast("Eintrag hinzugefügt!", "success");
             closeBottomSheet();
         } else {
-            showToast("Eintrag konnte nicht gespeichert werden.", "error");
+            showToast("Eintrag konnte nicht gespeichert werden.", "error", 3000, { label: "submitEntry", status: res.status, url: res.url });
         }
     } catch (err) {
         console.error("[app2] submitEntry:", err);
-        showToast("Verbindung unterbrochen. Bitte erneut versuchen.", "error");
+        showToast("Verbindung unterbrochen. Bitte erneut versuchen.", "error", 3000, { label: "submitEntry", err });
     }
 }
 
@@ -867,19 +1046,27 @@ document.getElementById("nav-search-icon").addEventListener("click", () => {
     else { document.getElementById("search-input").value = ""; updateView(); }
 });
 
-document.getElementById("search-input").addEventListener("input", () => updateView());
+document.getElementById("search-input").addEventListener("input", () => {
+    const val = document.getElementById("search-input").value.trim();
+    if (val) pushAction("search", '"' + val + '"');
+    updateView();
+});
 
 document.getElementById("nav-search-bar").addEventListener("click", e => {
     const chip = e.target.closest(".scope-chip");
     if (!chip) return;
     searchScope = chip.dataset.scope;
+    pushAction("searchScope", searchScope);
     document.querySelectorAll(".scope-chip").forEach(c => c.classList.toggle("active", c === chip));
     updateView();
 });
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function openSettings() {
-    document.getElementById("settings-tenant").value = tenantId;
+    const s = loadSettings();
+    document.getElementById("settings-tenant").value     = tenantId;
+    document.getElementById("settings-github-url").value = s.issueGithubUrl || "";
+    document.getElementById("settings-issue-mail").value = s.issueMailto    || "";
     document.getElementById("settings-overlay").classList.add("open");
 }
 function closeSettings() {
@@ -888,6 +1075,7 @@ function closeSettings() {
 function applySettings() {
     const newTenant = document.getElementById("settings-tenant").value.trim().replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 30);
     if (newTenant && newTenant !== tenantId) {
+        pushAction("changeTenant", "[tid]");
         tenantId = newTenant;
         saveSettings({ tenantId });
         stopLongPoll();
@@ -899,6 +1087,9 @@ function applySettings() {
         url.searchParams.set("tid", tenantId);
         history.pushState({}, "", url);
     }
+    const githubUrl = document.getElementById("settings-github-url").value.trim();
+    const issueMailto = document.getElementById("settings-issue-mail").value.trim().replace(/[?&\s]/g, "");
+    saveSettings({ issueGithubUrl: githubUrl, issueMailto });
     closeSettings();
 }
 
