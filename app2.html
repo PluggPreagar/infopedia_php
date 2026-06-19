@@ -40,6 +40,8 @@
       background: #555; color: #fff; border: none;
     }
     .scope-chip.active { background: #4CAF50; }
+    .scope-chip i { margin-right: 0.2rem; }
+    .scope-chip span { display: inline; }
     #nav-settings-icon { cursor: pointer; padding: 0.3rem; }
 
     /* ── Chip filter bar ────────────────────────────── */
@@ -53,6 +55,8 @@
       border: 2px solid transparent; cursor: pointer; background: #eee; color: #555;
     }
     .type-chip.active { color: #fff; border-color: transparent; }
+    .type-chip i, .bs-type-chip i { margin-right: 0.2rem; }
+    .type-chip span, .bs-type-chip span { display: inline; }
     .type-chip[data-type="."].active   { background: #888; }
     .type-chip[data-type="!"].active   { background: #4CAF50; }
     .type-chip[data-type="!-"].active  { background: #f44336; }
@@ -216,20 +220,20 @@
   <span id="nav-topic"></span>
   <div id="nav-search-bar">
     <input id="search-input" type="text" placeholder="Suchen…">
-    <button class="scope-chip active" data-scope="below">Below</button>
-    <button class="scope-chip" data-scope="here">Here</button>
-    <button class="scope-chip" data-scope="global">Global</button>
+    <button class="scope-chip" data-scope="global"><i class="fas fa-globe"></i><span>Global</span></button>
+    <button class="scope-chip" data-scope="here"><i class="fas fa-crosshairs"></i><span>Hier</span></button>
+    <button class="scope-chip active" data-scope="below"><i class="fas fa-layer-group"></i><span>Darunter</span></button>
   </div>
   <i class="fas fa-search" id="nav-search-icon"></i>
   <i class="fas fa-cog" id="nav-settings-icon"></i>
 </nav>
 
 <div id="chip-bar">
-  <button class="type-chip active" data-type=".">Meinung</button>
-  <button class="type-chip active" data-type="!">Fakt</button>
-  <button class="type-chip active" data-type="!-">Fake</button>
-  <button class="type-chip active" data-type="?">Unklar</button>
-  <button class="type-chip active" data-type="??">Frage</button>
+  <button class="type-chip active" data-type="."><i class="fas fa-comment"></i><span>Meinung</span></button>
+  <button class="type-chip active" data-type="!"><i class="fas fa-circle-check"></i><span>Fakt</span></button>
+  <button class="type-chip active" data-type="!-"><i class="fas fa-circle-xmark"></i><span>Fake</span></button>
+  <button class="type-chip active" data-type="?"><i class="fas fa-circle-question"></i><span>Unklar</span></button>
+  <button class="type-chip active" data-type="??"><i class="fas fa-right-left"></i><span>Frage</span></button>
 </div>
 
 <div id="card-list"></div>
@@ -240,11 +244,11 @@
   <div id="bottom-sheet">
     <h3>Neuer Eintrag</h3>
     <div id="bs-type-chips">
-      <button class="bs-type-chip active" data-type=".">Meinung</button>
-      <button class="bs-type-chip" data-type="!">Fakt</button>
-      <button class="bs-type-chip" data-type="!-">Fake</button>
-      <button class="bs-type-chip" data-type="?">Unklar</button>
-      <button class="bs-type-chip" data-type="??">Gegenfrage</button>
+      <button class="bs-type-chip active" data-type="."><i class="fas fa-comment"></i><span>Meinung</span></button>
+      <button class="bs-type-chip" data-type="!"><i class="fas fa-circle-check"></i><span>Fakt</span></button>
+      <button class="bs-type-chip" data-type="!-"><i class="fas fa-circle-xmark"></i><span>Fake</span></button>
+      <button class="bs-type-chip" data-type="?"><i class="fas fa-circle-question"></i><span>Unklar</span></button>
+      <button class="bs-type-chip" data-type="??"><i class="fas fa-right-left"></i><span>Gegenfrage</span></button>
     </div>
     <textarea id="bs-textarea" placeholder="Dein Beitrag…"></textarea>
     <button id="bs-submit">Hinzufügen</button>
@@ -262,6 +266,14 @@
     <input id="settings-github-url" type="url" placeholder="https://github.com/user/repo/issues/new" style="width:100%;box-sizing:border-box;margin-top:0.25rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px">
     <label style="display:block;margin-top:0.5rem;font-size:0.85rem">Feedback E-Mail <span style="color:#999">(optional)</span></label>
     <input id="settings-issue-mail" type="email" placeholder="bugs@example.com" style="width:100%;box-sizing:border-box;margin-top:0.25rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px">
+    <label style="font-size:0.9rem;display:flex;align-items:center;gap:0.5rem">
+      Typen-Anzeige:
+      <select id="settings-type-display" style="padding:0.3rem;border-radius:4px;border:1px solid #ccc;">
+        <option value="text">Text</option>
+        <option value="icon+text">Icon + Text</option>
+        <option value="icon">Nur Icon</option>
+      </select>
+    </label>
     <div style="display:flex;gap:0.5rem">
       <button class="settings-btn primary" id="settings-apply">Übernehmen</button>
       <button class="settings-btn secondary" id="settings-close">Schließen</button>
@@ -304,6 +316,7 @@ const APP_VERSION = "0.1.0";
 
 // set true to block entry creation when no topic is selected (root "/")
 const REQUIRE_TOPIC_FOR_ENTRY = false;
+let typeDisplayMode = "text"; // "text" | "icon+text" | "icon"
 
 // ── Action trail (CA17) ────────────────────────────────────────────────────────
 const ACTION_TRAIL_MAX = 10;
@@ -614,15 +627,15 @@ function saveSettings(patch) {
 
 // ── Type system ───────────────────────────────────────────────────────────────
 const TYPE_DEFS = {
-    "!-": { label: "Fake",       cssClass: "fake",       color: "#f44336" },
-    "!":  { label: "Fakt",       cssClass: "fakt",       color: "#4CAF50" },
-    "??": { label: "Gegenfrage", cssClass: "gegenfrage", color: "#2196F3" },
-    "?":  { label: "Unklar",     cssClass: "unklar",     color: "#FF9800" },
-    ".":  { label: "Meinung",    cssClass: "meinung",    color: "#888"    },
-    "@":  { label: "Quelle",     cssClass: "meinung",    color: "#888"    },
-    ">":  { label: "Thema",      cssClass: "fakt",       color: "#4CAF50" },
+    "!-": { label: "Fake",       cssClass: "fake",       color: "#f44336", iconClass: "fa-circle-xmark"    },
+    "!":  { label: "Fakt",       cssClass: "fakt",       color: "#4CAF50", iconClass: "fa-circle-check"    },
+    "??": { label: "Gegenfrage", cssClass: "gegenfrage", color: "#2196F3", iconClass: "fa-right-left"      },
+    "?":  { label: "Unklar",     cssClass: "unklar",     color: "#FF9800", iconClass: "fa-circle-question" },
+    ".":  { label: "Meinung",    cssClass: "meinung",    color: "#888",    iconClass: "fa-comment"         },
+    "@":  { label: "Quelle",     cssClass: "meinung",    color: "#888",    iconClass: "fa-link"            },
+    ">":  { label: "Thema",      cssClass: "fakt",       color: "#4CAF50", iconClass: "fa-folder-open"     },
 };
-const TYPE_DEF_DEFAULT = { label: "Eintrag", cssClass: "meinung", color: "#888" };
+const TYPE_DEF_DEFAULT = { label: "Eintrag", cssClass: "meinung", color: "#888", iconClass: "fa-circle-dot" };
 
 function getTypeDef(message) {
     const suffix = getTypeFromMessage(message);
@@ -665,7 +678,12 @@ function buildCard(entry) {
     card.dataset.fullKey = key;
     card.innerHTML = `
         <div class="card-header">
-            <span class="type-badge ${typeDef.cssClass}">${typeDef.label}</span>
+            <span class="type-badge ${typeDef.cssClass}">${(() => {
+                const icon = typeDef.iconClass ? `<i class="fas ${typeDef.iconClass}"></i>` : '';
+                if (typeDisplayMode === 'icon') return icon;
+                if (typeDisplayMode === 'icon+text') return icon + (icon ? ' ' : '') + typeDef.label;
+                return typeDef.label;
+            })()}</span>
             <span class="card-text">${cleanMsg}</span>
             ${hasDrillIn ? '<i class="fas fa-chevron-right drill-arrow"></i>' : ""}
         </div>
@@ -1065,6 +1083,12 @@ function updateBsColor(type) {
     document.getElementById("bottom-sheet").style.setProperty("--bs-color", BS_TYPE_COLORS[type] || "#888");
 }
 
+function updateTypeDisplay() {
+    const spans = document.querySelectorAll(".type-chip span, .bs-type-chip span, .scope-chip span");
+    spans.forEach(s => { s.style.display = typeDisplayMode === "icon" ? "none" : ""; });
+    updateView();
+}
+
 function openBottomSheet(editEntry = null) {
     _bsEditEntry = editEntry;
     if (!editEntry && REQUIRE_TOPIC_FOR_ENTRY && selectedTopic === "/") {
@@ -1166,6 +1190,7 @@ function openSettings() {
     document.getElementById("settings-tenant").value     = tenantId;
     document.getElementById("settings-github-url").value = s.issueGithubUrl || "";
     document.getElementById("settings-issue-mail").value = s.issueMailto    || "";
+    document.getElementById("settings-type-display").value = typeDisplayMode;
     document.getElementById("settings-overlay").classList.add("open");
 }
 function closeSettings() {
@@ -1189,6 +1214,12 @@ function applySettings() {
     const githubUrl = document.getElementById("settings-github-url").value.trim();
     const issueMailto = document.getElementById("settings-issue-mail").value.trim().replace(/[?&\s]/g, "");
     saveSettings({ issueGithubUrl: githubUrl, issueMailto });
+    const newDisplayMode = document.getElementById("settings-type-display").value;
+    if (newDisplayMode !== typeDisplayMode) {
+        typeDisplayMode = newDisplayMode;
+        saveSettings({ typeDisplayMode: newDisplayMode });
+        updateTypeDisplay();
+    }
     closeSettings();
 }
 
@@ -1202,16 +1233,14 @@ document.getElementById("settings-overlay").addEventListener("click", e => {
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 (function init() {
     const params = new URLSearchParams(window.location.search);
-    tenantId = params.get("tid") || params.get("tenantId") || "";
-    if (!tenantId) {
-        const s = loadSettings();
-        tenantId = s.tenantId || "";
-    }
-    sid = loadSettings().sid || "www";
+    const initSettings = loadSettings();
+    tenantId = params.get("tid") || params.get("tenantId") || initSettings.tenantId || "";
+    sid = initSettings.sid || "www";
     const topicParam = params.get("topic");
     if (topicParam) selectedTopic = topicParam;
     document.getElementById("settings-tenant").value = tenantId;
-    updateView();
+    typeDisplayMode = initSettings.typeDisplayMode || "text";
+    updateTypeDisplay();
     if (tenantId) {
         loadInitialData().then(() => startLongPoll());
     }

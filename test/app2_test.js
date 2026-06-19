@@ -88,12 +88,18 @@ testEscapeHtml();
 function testGetTypeDef() {
     suite('getTypeDef');
     const factDef = getTypeDef('Hello!');
-    assert('fakt label',        factDef.label,                 'Fakt');
-    assert('fakt cssClass',     factDef.cssClass,               'fakt');
-    assert('suffix stored',     factDef.suffix,                 '!');
-    assert('fake cssClass',     getTypeDef('Hello!-').cssClass, 'fake');
-    assert('thema label',       getTypeDef('Topic>').label,     'Thema');
-    assert('unknown → default', getTypeDef('no-suffix').label,  'Eintrag');
+    assert('fakt label',        factDef.label,                     'Fakt');
+    assert('fakt cssClass',     factDef.cssClass,                   'fakt');
+    assert('suffix stored',     factDef.suffix,                     '!');
+    assert('fakt iconClass',    factDef.iconClass,                  'fa-circle-check');
+    assert('fake cssClass',     getTypeDef('Hello!-').cssClass,     'fake');
+    assert('fake iconClass',    getTypeDef('Hello!-').iconClass,    'fa-circle-xmark');
+    assert('meinung iconClass', getTypeDef('Hi.').iconClass,        'fa-comment');
+    assert('unklar iconClass',  getTypeDef('Hi?').iconClass,        'fa-circle-question');
+    assert('gegenfrage icon',   getTypeDef('Hi??').iconClass,       'fa-right-left');
+    assert('thema iconClass',   getTypeDef('Topic>').iconClass,     'fa-folder-open');
+    assert('thema label',       getTypeDef('Topic>').label,         'Thema');
+    assert('unknown → default', getTypeDef('no-suffix').label,      'Eintrag');
 }
 testGetTypeDef();
 
@@ -430,6 +436,24 @@ function testNavTopic() {
     assert('empty at root',    navTopic ? navTopic.textContent : 'missing', '');
 }
 testNavTopic();
+
+// ── Scope chips ───────────────────────────────────────────────────────────────
+function testScopeChips() {
+    suite('scope chips — reordered German labels');
+    const chips = Array.from(document.querySelectorAll('.scope-chip'));
+    const scopes = chips.map(c => c.dataset.scope);
+    assert('global is first',    scopes[0], 'global');
+    assert('here is second',     scopes[1], 'here');
+    assert('below is third',     scopes[2], 'below');
+    const labels = chips.map(c => {
+        const span = c.querySelector('span');
+        return span ? span.textContent.trim() : c.textContent.trim();
+    });
+    assert('global label',       labels[0], 'Global');
+    assert('here label is Hier', labels[1], 'Hier');
+    assert('below is Darunter',  labels[2], 'Darunter');
+}
+testScopeChips();
 
 // ── Done ─────────────────────────────────────────────────────────────────────
 harnessFinish();
