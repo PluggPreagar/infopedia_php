@@ -320,5 +320,42 @@ assert('flag off → topic ok',    wouldBlock(false, '/x'), false);
 assert('flag on → root blocked', wouldBlock(true,  '/'),  true);
 assert('flag on → topic ok',     wouldBlock(true,  '/x'), false);
 
+// ── openBottomSheet — edit mode ───────────────────────────────────────────────
+suite('openBottomSheet — edit mode');
+rs();
+addEntryWoCheck('/', 'n1', 'Solar!', 5, '');
+const _editE = data['/']['n1'];
+openBottomSheet(_editE);
+assert('textarea pre-filled',       document.getElementById('bs-textarea').value,           'Solar');
+assert('active chip matches type',  document.querySelector('.bs-type-chip.active').dataset.type, '!');
+assert('heading says Bearbeiten',   document.querySelector('#bottom-sheet h3').textContent,  'Eintrag bearbeiten');
+closeBottomSheet();
+assert('heading reset after close', document.querySelector('#bottom-sheet h3').textContent,  'Neuer Eintrag');
+
+// ── openBottomSheet — new mode ────────────────────────────────────────────────
+suite('openBottomSheet — new mode');
+rs();
+openBottomSheet();
+assert('textarea empty',           document.getElementById('bs-textarea').value,           '');
+assert('heading says Neuer',       document.querySelector('#bottom-sheet h3').textContent,  'Neuer Eintrag');
+assert('default chip is Meinung',  document.querySelector('.bs-type-chip.active').dataset.type, '.');
+closeBottomSheet();
+
+// ── openBottomSheet — edit strips suffix from textarea ────────────────────────
+suite('openBottomSheet — suffix stripping');
+rs();
+addEntryWoCheck('/', 'n2', 'Some opinion.', 0, '');
+openBottomSheet(data['/']['n2']);
+assert('dot suffix stripped',      document.getElementById('bs-textarea').value, 'Some opinion');
+closeBottomSheet();
+
+suite('openBottomSheet — fake entry');
+rs();
+addEntryWoCheck('/', 'n3', 'Wrong claim!-', 0, '');
+openBottomSheet(data['/']['n3']);
+assert('text stripped',            document.getElementById('bs-textarea').value, 'Wrong claim');
+assert('chip is fake',             document.querySelector('.bs-type-chip.active').dataset.type, '!-');
+closeBottomSheet();
+
 // ── Done ─────────────────────────────────────────────────────────────────────
 harnessFinish();
