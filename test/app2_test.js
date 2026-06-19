@@ -16,6 +16,7 @@ function rs() {
     document.getElementById('search-input').value = '';
 }
 
+// utility — path helpers
 function testFullKey() {
     suite('fullKey');
     assert('root + nodeId',  fullKey('/', 'abc'),        '/abc');
@@ -24,6 +25,7 @@ function testFullKey() {
 }
 testFullKey();
 
+// utility — path helpers
 function testSplitKey() {
     suite('splitKey');
     assert('root entry',     splitKey('/abc'),           ['/', 'abc']);
@@ -32,6 +34,7 @@ function testSplitKey() {
 }
 testSplitKey();
 
+// utility — type parsing
 function testGetTypeFromMessage() {
     suite('getTypeFromMessage');
     assert('opinion (.)',      getTypeFromMessage('Hello.'),  '.');
@@ -46,6 +49,7 @@ function testGetTypeFromMessage() {
 }
 testGetTypeFromMessage();
 
+// utility — type mutation; UC4 (add), UC5 (edit)
 function testMatchType() {
     suite('matchType');
     assert('change . to !',    matchType('Hello.', '!'),    'Hello!');
@@ -58,6 +62,7 @@ function testMatchType() {
 }
 testMatchType();
 
+// utility — UC4 (add), UC5 (edit)
 function testGenerateNodeId() {
     suite('generateNodeId');
     const id1 = generateNodeId(), id2 = generateNodeId();
@@ -66,6 +71,7 @@ function testGenerateNodeId() {
 }
 testGenerateNodeId();
 
+// utility — card rendering
 function testFormatTimestamp() {
     suite('formatTimestamp');
     assert('empty → empty',         formatTimestamp(''),                    '');
@@ -74,6 +80,7 @@ function testFormatTimestamp() {
 }
 testFormatTimestamp();
 
+// utility — XSS guard (UC4, UC5, UC9)
 function testEscapeHtml() {
     suite('escapeHtml');
     assert('< escaped',  escapeHtml('<'),           '&lt;');
@@ -85,6 +92,7 @@ function testEscapeHtml() {
 }
 testEscapeHtml();
 
+// UC15 — type display mode (icon classes); UC4, UC5 (chip selection)
 function testGetTypeDef() {
     suite('getTypeDef');
     const factDef = getTypeDef('Hello!');
@@ -103,6 +111,7 @@ function testGetTypeDef() {
 }
 testGetTypeDef();
 
+// UC10 — sign/confirm
 function testGetSignedCount() {
     suite('getSignedCount');
     rs();
@@ -112,6 +121,7 @@ function testGetSignedCount() {
 }
 testGetSignedCount();
 
+// UC13 — bug report
 function testSanitiseForReport() {
     suite('sanitiseForReport');
     const _sid0 = sid, _tid0 = tenantId;
@@ -124,6 +134,7 @@ function testSanitiseForReport() {
 }
 testSanitiseForReport();
 
+// UC13 — bug report
 function testBuildStateSnapshot() {
     suite('buildStateSnapshot');
     rs(); selectedTopic = '/climate'; searchScope = 'here';
@@ -135,6 +146,7 @@ function testBuildStateSnapshot() {
 }
 testBuildStateSnapshot();
 
+// UC13 — bug report
 function testBuildReportText() {
     suite('buildReportText');
     rs();
@@ -149,6 +161,7 @@ function testBuildReportText() {
 }
 testBuildReportText();
 
+// UC13 — bug report
 function testBuildFullReport() {
     suite('buildFullReport');
     document.getElementById('issue-user-msg').value = 'Something went wrong';
@@ -165,6 +178,7 @@ function testBuildFullReport() {
 }
 testBuildFullReport();
 
+// UC12 — change tenant; UC15 — display mode persistence
 function testLoadSaveSettings() {
     suite('loadSettings / saveSettings');
     localStorage.removeItem('fayf_settings');
@@ -178,6 +192,7 @@ function testLoadSaveSettings() {
 }
 testLoadSaveSettings();
 
+// UC1 — initial load; UC14 — long-poll
 function testBuildEntriesVotesUrl() {
     suite('buildEntriesUrl / buildVotesUrl');
     const _sid1 = sid, _tid1 = tenantId;
@@ -196,6 +211,7 @@ function testBuildEntriesVotesUrl() {
 }
 testBuildEntriesVotesUrl();
 
+// utility — UC9 (vote debounce), UC5 (swipe debounce)
 function testDebounceKey() {
     suite('debounceKey');
     Object.keys(_debounceMap).forEach(k => delete _debounceMap[k]);
@@ -207,6 +223,7 @@ function testDebounceKey() {
 }
 testDebounceKey();
 
+// UC13 — action trail for bug reports
 function testPushAction() {
     suite('pushAction');
     actionTrail = [];
@@ -222,6 +239,7 @@ function testPushAction() {
 }
 testPushAction();
 
+// UC2 — navigate into topic; UC3 — navigate back
 function testNavigateTo() {
     suite('navigateTo');
     rs();
@@ -234,6 +252,7 @@ function testNavigateTo() {
 }
 testNavigateTo();
 
+// UC4 — add entry; UC5 — edit/delete
 function testAddEntryWoCheck() {
     suite('addEntryWoCheck');
     rs();
@@ -248,6 +267,7 @@ function testAddEntryWoCheck() {
 }
 testAddEntryWoCheck();
 
+// UC4 — stub topic created when adding nested entry
 function testCheckData() {
     suite('checkData — stub creation');
     rs();
@@ -258,6 +278,7 @@ function testCheckData() {
 }
 testCheckData();
 
+// UC2 — nav-back label lookup
 function testInitializeTopicMap() {
     suite('initializeTopicMap');
     rs();
@@ -270,6 +291,7 @@ function testInitializeTopicMap() {
 }
 testInitializeTopicMap();
 
+// UC1 — initial load; UC14 — real-time merge
 function testAddData() {
     suite('addData — flat format');
     rs();
@@ -301,6 +323,7 @@ function testAddData() {
 }
 testAddData();
 
+// UC9 — vote sync; UC10 — sign count
 function testAddVotesData() {
     suite('addVotesData');
     rs();
@@ -312,6 +335,7 @@ function testAddVotesData() {
 }
 testAddVotesData();
 
+// UC9 — optimistic vote update
 function testAddVoteByGui() {
     suite('addVoteByGui');
     rs();
@@ -324,6 +348,7 @@ function testAddVoteByGui() {
 }
 testAddVoteByGui();
 
+// UC9 — server vote sync
 function testSetVoteByOthers() {
     suite('setVoteByOthers');
     rs();
@@ -334,6 +359,7 @@ function testSetVoteByOthers() {
 }
 testSetVoteByOthers();
 
+// UC11 — search and scope filtering
 function testGetFilteredEntries() {
     suite('getFilteredEntries — scope=below at root');
     rs();
@@ -370,6 +396,7 @@ function testGetFilteredEntries() {
 }
 testGetFilteredEntries();
 
+// UC4 — add entry; root-allowed guard
 function testRequireTopicFlag() {
     suite('REQUIRE_TOPIC_FOR_ENTRY flag');
     function wouldBlock(flag, topic) { return flag && topic === '/'; }
@@ -380,7 +407,8 @@ function testRequireTopicFlag() {
 }
 testRequireTopicFlag();
 
-// ── GUI: bottom sheet edit mode ───────────────────────────────────────────────
+// ── GUI tests ─────────────────────────────────────────────────────────────────
+// UC5 — edit entry (long-press opens pre-filled sheet)
 function testOpenBottomSheetEditMode() {
     suite('openBottomSheet — edit mode');
     rs();
@@ -393,6 +421,7 @@ function testOpenBottomSheetEditMode() {
 }
 testOpenBottomSheetEditMode();
 
+// UC4 — add new entry (FAB opens empty sheet)
 function testOpenBottomSheetNewMode() {
     suite('openBottomSheet — new mode');
     rs();
@@ -404,6 +433,7 @@ function testOpenBottomSheetNewMode() {
 }
 testOpenBottomSheetNewMode();
 
+// UC5 — edit entry; suffix stripped from textarea
 function testBottomSheetSuffixStripping() {
     suite('openBottomSheet — suffix stripping');
     rs();
@@ -422,7 +452,7 @@ function testBottomSheetSuffixStripping() {
 }
 testBottomSheetSuffixStripping();
 
-// ── nav-topic ─────────────────────────────────────────────────────────────────
+// UC3 — nav-topic span shows current path
 function testNavTopic() {
     suite('nav-topic — shows current topic path');
     rs();
@@ -436,7 +466,7 @@ function testNavTopic() {
 }
 testNavTopic();
 
-// ── Scope chips ───────────────────────────────────────────────────────────────
+// UC11 — search scope chips: order and German labels
 function testScopeChips() {
     suite('scope chips — reordered German labels');
     const chips = Array.from(document.querySelectorAll('.scope-chip'));

@@ -18,14 +18,14 @@ and a voting/signing system.
 
 ## Entry Types
 
-| Suffix | Label      | Meaning |
-|--------|------------|---------|
-| `.`    | Meinung    | Subjective opinion |
-| `!`    | Fakt       | Claimed fact |
-| `!-`   | Fake       | Identified misinformation |
-| `?`    | Unklar     | Unclear or needs clarification |
-| `??`   | Gegenfrage | Counter-question |
-| `>`    | Thema      | Sub-topic link (drills into a child topic) |
+| Suffix | Label      | Icon (FA6)          | Meaning |
+|--------|------------|---------------------|---------|
+| `.`    | Meinung    | fa-comment          | Subjective opinion |
+| `!`    | Fakt       | fa-circle-check     | Claimed fact |
+| `!-`   | Fake       | fa-circle-xmark     | Identified misinformation |
+| `?`    | Unklar     | fa-circle-question  | Unclear or needs clarification |
+| `??`   | Gegenfrage | fa-right-left       | Counter-question |
+| `>`    | Thema      | fa-folder-open      | Sub-topic link (drills into a child topic) |
 
 ## Use Cases
 
@@ -42,37 +42,38 @@ and a voting/signing system.
 2. `selectedTopic = "/climate"`
 3. `updateView()` re-renders cards — only entries at `/climate` appear
 4. nav-back updates to show the parent's label ("← fayf.info" at root, otherwise parent name)
-5. URL updates: `?topic=%2Fclimate`
+5. `#nav-topic` span updates to show the current path (`/climate`)
+6. URL updates: `?topic=%2Fclimate`
 
 ### UC3: Navigate back
 **Trigger:** User taps the nav-back arrow, or presses the browser back button
 1. If tapping nav-back: `navigateTo(parentTopic)` is called
-2. If browser back: `popstate` event fires → URL read → `navigateTo` called
-3. View returns to parent topic
+2. If browser back: `popstate` event fires → URL `?topic=` param read → `navigateTo` called
+3. View returns to parent topic; `#nav-topic` span clears at root, updates otherwise
 
 ### UC4: Add a new entry (FAB)
 **Trigger:** User taps the `+` FAB button
-1. Bottom sheet slides up; textarea is empty, type chip "Meinung" active
+1. Bottom sheet slides up; textarea is empty, type chip "Meinung" active, heading "Neuer Eintrag"
 2. User types text and optionally selects a different type chip
 3. User taps "Senden"
 4. `submitEntry()` POSTs to `/entries?sid=…&tid=…` with the full path and message
 5. Entry appears immediately (optimistic UI); `latestTimestamp` updates
 
 ### UC5: Edit an existing entry (long-press)
-**Trigger:** User holds a card ≥ 500 ms (long-press)
+**Trigger:** User holds a card ≥ 500 ms (long-press); detected by `gesture:longpress` event
 1. Bottom sheet opens pre-filled: textarea shows entry text (without suffix), type chip matches entry type
 2. Heading reads "Eintrag bearbeiten"
 3. User edits text and/or changes type
 4. Taps "Senden"
 5. Same nodeId is re-POSTed; server timestamps the update; client updates local state
 
-### UC6: Add sub-entry via double-click / double-tap
-**Trigger:** User double-clicks (≤ 350 ms between clicks) on a card
+### UC6: Add sub-entry via double-tap
+**Trigger:** User double-taps a card (≤ 350 ms between taps); detected by `gesture:doubletap` event
 1. `navigateTo(card.fullKey)` — enters that card's topic context
 2. Bottom sheet opens immediately for adding a sub-entry at the new topic
 
-### UC7: Single-click hint
-**Trigger:** Single click on a card body (not on the drill arrow, vote, or sign buttons)
+### UC7: Single-tap hint
+**Trigger:** Single tap on a card body (not on drill arrow, vote, or sign buttons); detected by `gesture:tap`
 1. Toast shows: "Lange drücken zum Bearbeiten · Doppelklick für Untereinträge"
 2. No navigation; no sheet opens
 
@@ -81,10 +82,10 @@ and a voting/signing system.
 1. `navigateTo(card.fullKey)` — same as UC2
 
 ### UC9: Vote on an entry
-**Trigger:** Tap ▲/▼ buttons, or swipe a card left/right (mobile, ≥ 50 px)
+**Trigger:** Tap ▲/▼ buttons, or swipe a card left/right (≥ 50 px); swipe detected by `gesture:swipe`
 1. Vote is sent to `/votes?sid=…&tid=…`
 2. Score updates immediately (optimistic UI)
-3. Swipe right = +1, swipe left = −1
+3. Swipe right = +1, swipe left = −1; 1 s debounce prevents double-counting
 
 ### UC10: Confirm (sign) an entry
 **Trigger:** User taps "Bestätigen" on a card
@@ -94,7 +95,7 @@ and a voting/signing system.
 
 ### UC11: Search entries
 **Trigger:** User taps the search icon, enters text
-1. Search bar slides open with scope chips: Global / Hier / Darunter
+1. Search bar slides open with scope chips in order: **Global** · **Hier** · **Darunter**
 2. Entries filter in real time by text match
 3. Scope chips control range:
    - **Global**: all topics
@@ -118,6 +119,13 @@ and a voting/signing system.
 2. New data arrives → `addData()` merges entries → `updateView()` re-renders
 3. If nothing new after 50 s: server sends 204 → client immediately re-polls
 
+### UC15: Toggle type display mode
+**Trigger:** User opens Settings, changes the "Typen-Anzeige" selector, taps Apply
+1. Three modes: **Text** (default) / **Icon + Text** / **Nur Icon**
+2. `typeDisplayMode` updates; `updateTypeDisplay()` hides/shows `<span>` labels on type chips and scope chips
+3. Card type badges re-render on next `updateView()` call
+4. Mode persisted in localStorage; restored on page load
+
 ## State Variables
 
 | Variable | Type | Description |
@@ -128,4 +136,25 @@ and a voting/signing system.
 | `latestTimestamp` | `string\|null` | Last known server timestamp for long-poll |
 | `searchScope` | `"below"\|"here"\|"global"` | Scope filter for search |
 | `activeTypes` | `Set<string>` | Which type suffixes to show |
+| `typeDisplayMode` | `"text"\|"icon+text"\|"icon"` | How type labels render in chips and badges |
 | `actionTrail` | `Array` | Last N user actions (for bug reports) |
+
+## Test Coverage Notes
+
+| UC | Covered by test | Gap |
+|----|----------------|-----|
+| UC1 | testAddData, testBuildEntriesVotesUrl | fetch/poll flow untested |
+| UC2 | testNavigateTo, testInitializeTopicMap | — |
+| UC3 | testNavigateTo, testNavTopic | popstate wiring (needs browser) |
+| UC4 | testOpenBottomSheetNewMode, testAddEntryWoCheck, testCheckData, testRequireTopicFlag | submitEntry (needs fetch mock) |
+| UC5 | testOpenBottomSheetEditMode, testBottomSheetSuffixStripping | gesture:longpress (needs browser) |
+| UC6 | — | gesture:doubletap (needs browser) |
+| UC7 | — | gesture:tap (needs browser) |
+| UC8 | — | drill-arrow click (needs browser) |
+| UC9 | testAddVoteByGui, testSetVoteByOthers, testAddVotesData, testDebounceKey | gesture:swipe (needs browser) |
+| UC10 | testGetSignedCount, testAddVotesData | sign button click (needs browser) |
+| UC11 | testGetFilteredEntries, testScopeChips | — |
+| UC12 | testLoadSaveSettings | applySettings flow (needs browser) |
+| UC13 | testSanitiseForReport, testBuildStateSnapshot, testBuildReportText, testBuildFullReport, testPushAction | — |
+| UC14 | testAddData | poll lifecycle (needs browser) |
+| UC15 | testGetTypeDef (iconClass) | updateTypeDisplay DOM (needs browser) |
