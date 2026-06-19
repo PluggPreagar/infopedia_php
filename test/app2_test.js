@@ -417,5 +417,19 @@ function testBottomSheetSuffixStripping() {
 }
 testBottomSheetSuffixStripping();
 
+// ── nav-topic ─────────────────────────────────────────────────────────────────
+function testNavTopic() {
+    suite('nav-topic — shows current topic path');
+    rs();
+    navigateTo('/climate');
+    const navTopic = document.getElementById('nav-topic');
+    assert('shows /climate',   navTopic ? navTopic.textContent : 'missing', '/climate');
+    navigateTo('/climate/solutions');
+    assert('shows deep path',  navTopic ? navTopic.textContent : 'missing', '/climate/solutions');
+    navigateTo('/');
+    assert('empty at root',    navTopic ? navTopic.textContent : 'missing', '');
+}
+testNavTopic();
+
 // ── Done ─────────────────────────────────────────────────────────────────────
 harnessFinish();
