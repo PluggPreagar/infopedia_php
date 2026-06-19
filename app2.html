@@ -20,6 +20,17 @@
     }
     nav a { color: #fff; }
     #nav-back { margin-right: auto; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw; }
+    #nav-topic {
+        flex: 1;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #777;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0 0.5rem;
+        pointer-events: none;
+    }
     #nav-search-icon { cursor: pointer; padding: 0.3rem; }
     #nav-search-bar { display: none; flex: 1; }
     #nav-search-bar.open { display: flex; align-items: center; gap: 0.4rem; }
@@ -202,6 +213,7 @@
 
 <nav>
   <a id="nav-back" href="infopage.html"><i class="fas fa-arrow-left"></i> fayf.info</a>
+  <span id="nav-topic"></span>
   <div id="nav-search-bar">
     <input id="search-input" type="text" placeholder="Suchen…">
     <button class="scope-chip active" data-scope="below">Below</button>
@@ -808,11 +820,11 @@ function getFilteredEntries() {
 
 function updateView() {
     runtimeCheck("updateView");
-    // update nav back link
     const navBack = document.getElementById("nav-back");
     if (selectedTopic === "/") {
         navBack.innerHTML = `<i class="fas fa-arrow-left"></i> fayf.info`;
         navBack.href = "infopage.html";
+        navBack.onclick = null;
     } else {
         const parts = selectedTopic.split("/").filter(Boolean);
         const parentTopic = parts.length > 1 ? "/" + parts.slice(0, -1).join("/") : "/";
@@ -820,6 +832,8 @@ function updateView() {
         navBack.href = "#";
         navBack.onclick = e => { e.preventDefault(); navigateTo(parentTopic); };
     }
+    const navTopic = document.getElementById("nav-topic");
+    if (navTopic) navTopic.textContent = selectedTopic === "/" ? "" : selectedTopic;
     renderCards(getFilteredEntries());
     runtimeCheck("updateView-end");
 }
@@ -1031,6 +1045,15 @@ function stopLongPoll() {
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) stopLongPoll();
     else if (tenantId) startLongPoll();
+});
+
+window.addEventListener("popstate", () => {
+    const params = new URLSearchParams(window.location.search);
+    const topic = params.get("topic") || "/";
+    if (topic !== selectedTopic) {
+        selectedTopic = topic;
+        updateView();
+    }
 });
 
 // ── Add entry ─────────────────────────────────────────────────────────────────
