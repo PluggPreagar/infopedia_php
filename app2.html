@@ -919,6 +919,7 @@ function buildVotesUrl(extra = {}) {
 
 async function safeJson(res, label) {
     const text = await res.text();
+    if (!text.trim()) return null;
     try {
         return JSON.parse(text);
     } catch (err) {
