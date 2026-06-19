@@ -437,5 +437,23 @@ function testNavTopic() {
 }
 testNavTopic();
 
+// ── Scope chips ───────────────────────────────────────────────────────────────
+function testScopeChips() {
+    suite('scope chips — reordered German labels');
+    const chips = Array.from(document.querySelectorAll('.scope-chip'));
+    const scopes = chips.map(c => c.dataset.scope);
+    assert('global is first',    scopes[0], 'global');
+    assert('here is second',     scopes[1], 'here');
+    assert('below is third',     scopes[2], 'below');
+    const labels = chips.map(c => {
+        const span = c.querySelector('span');
+        return span ? span.textContent.trim() : c.textContent.trim();
+    });
+    assert('global label',       labels[0], 'Global');
+    assert('here label is Hier', labels[1], 'Hier');
+    assert('below is Darunter',  labels[2], 'Darunter');
+}
+testScopeChips();
+
 // ── Done ─────────────────────────────────────────────────────────────────────
 harnessFinish();
