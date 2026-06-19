@@ -88,12 +88,18 @@ testEscapeHtml();
 function testGetTypeDef() {
     suite('getTypeDef');
     const factDef = getTypeDef('Hello!');
-    assert('fakt label',        factDef.label,                 'Fakt');
-    assert('fakt cssClass',     factDef.cssClass,               'fakt');
-    assert('suffix stored',     factDef.suffix,                 '!');
-    assert('fake cssClass',     getTypeDef('Hello!-').cssClass, 'fake');
-    assert('thema label',       getTypeDef('Topic>').label,     'Thema');
-    assert('unknown → default', getTypeDef('no-suffix').label,  'Eintrag');
+    assert('fakt label',        factDef.label,                     'Fakt');
+    assert('fakt cssClass',     factDef.cssClass,                   'fakt');
+    assert('suffix stored',     factDef.suffix,                     '!');
+    assert('fakt iconClass',    factDef.iconClass,                  'fa-circle-check');
+    assert('fake cssClass',     getTypeDef('Hello!-').cssClass,     'fake');
+    assert('fake iconClass',    getTypeDef('Hello!-').iconClass,    'fa-circle-xmark');
+    assert('meinung iconClass', getTypeDef('Hi.').iconClass,        'fa-comment');
+    assert('unklar iconClass',  getTypeDef('Hi?').iconClass,        'fa-circle-question');
+    assert('gegenfrage icon',   getTypeDef('Hi??').iconClass,       'fa-right-left');
+    assert('thema iconClass',   getTypeDef('Topic>').iconClass,     'fa-folder-open');
+    assert('thema label',       getTypeDef('Topic>').label,         'Thema');
+    assert('unknown → default', getTypeDef('no-suffix').label,      'Eintrag');
 }
 testGetTypeDef();
 
