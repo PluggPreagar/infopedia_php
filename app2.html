@@ -872,13 +872,56 @@ document.getElementById("chip-bar").addEventListener("click", e => {
     updateView();
 });
 
-document.getElementById("card-list").addEventListener("click", e => {
+// ── Card tap / long-press / double-tap ────────────────────────────────────────
+let _lastTapKey  = null;
+let _lastTapTime = 0;
+let _lpTimer     = null;
+let _lpConsumed  = false;
+
+const _cardList = document.getElementById("card-list");
+
+_cardList.addEventListener("pointerdown", e => {
+    const card = e.target.closest(".card");
+    if (!card || e.target.closest(".vote-btn") || e.target.closest(".sign-btn") || e.target.closest(".drill-arrow")) return;
+    _lpConsumed = false;
+    clearTimeout(_lpTimer);
+    _lpTimer = setTimeout(() => {
+        _lpTimer = null;
+        _lpConsumed = true;
+        const key = card.dataset.fullKey;
+        if (!key) return;
+        const [topic, nodeId] = splitKey(key);
+        const entry = data[topic] && data[topic][nodeId];
+        if (!entry) return;
+        pushAction("longPress", key);
+        openBottomSheet(entry);
+    }, 500);
+}, { passive: true });
+
+_cardList.addEventListener("pointerup",   () => { clearTimeout(_lpTimer); _lpTimer = null; }, { passive: true });
+_cardList.addEventListener("pointermove", () => { clearTimeout(_lpTimer); _lpTimer = null; }, { passive: true });
+
+_cardList.addEventListener("click", e => {
+    if (_lpConsumed) { _lpConsumed = false; return; }
     const card = e.target.closest(".card");
     if (!card) return;
-    // don't drill if vote/sign button clicked
     if (e.target.closest(".vote-btn") || e.target.closest(".sign-btn")) return;
+
+    if (e.target.closest(".drill-arrow")) {
+        navigateTo(card.dataset.fullKey);
+        return;
+    }
+
     const key = card.dataset.fullKey;
-    navigateTo(key);
+    const now = Date.now();
+    if (_lastTapKey === key && now - _lastTapTime < 350) {
+        _lastTapKey = null; _lastTapTime = 0;
+        navigateTo(key);
+        openBottomSheet();
+    } else {
+        _lastTapKey = key; _lastTapTime = now;
+        showToast("Lange drücken zum Bearbeiten · Doppelklick für Untereinträge", "info", 2000);
+    }
 });
 
 // vote button delegation (1 s debounce per key)
@@ -992,20 +1035,38 @@ document.addEventListener("visibilitychange", () => {
 
 // ── Add entry ─────────────────────────────────────────────────────────────────
 let bsSelectedType = ".";
+let _bsEditEntry = null;
 
 const BS_TYPE_COLORS = { ".": "#888", "!": "#4CAF50", "!-": "#f44336", "?": "#FF9800", "??": "#2196F3" };
 function updateBsColor(type) {
     document.getElementById("bottom-sheet").style.setProperty("--bs-color", BS_TYPE_COLORS[type] || "#888");
 }
 
-function openBottomSheet() {
-    if (REQUIRE_TOPIC_FOR_ENTRY && selectedTopic === "/") { showToast("Wähle zuerst ein Thema.", "info"); return; }
+function openBottomSheet(editEntry = null) {
+    _bsEditEntry = editEntry;
+    if (!editEntry && REQUIRE_TOPIC_FOR_ENTRY && selectedTopic === "/") {
+        showToast("Wähle zuerst ein Thema.", "info"); return;
+    }
+    const heading = document.querySelector("#bottom-sheet h3");
+    if (heading) heading.textContent = editEntry ? "Eintrag bearbeiten" : "Neuer Eintrag";
+    if (editEntry) {
+        const type = getTypeFromMessage(editEntry.message);
+        bsSelectedType = type || ".";
+        const rawText = editEntry.message.replace(/[.!?@>\-]+$/, "").trim();
+        document.getElementById("bs-textarea").value = rawText;
+    } else {
+        bsSelectedType = ".";
+        document.getElementById("bs-textarea").value = "";
+    }
+    document.querySelectorAll(".bs-type-chip").forEach(c => {
+        c.classList.toggle("active", c.dataset.type === bsSelectedType);
+    });
     updateBsColor(bsSelectedType);
     document.getElementById("bottom-sheet-overlay").classList.add("open");
-    document.getElementById("bs-textarea").value = "";
     document.getElementById("bs-textarea").focus();
 }
 function closeBottomSheet() {
+    _bsEditEntry = null;
     document.getElementById("bottom-sheet-overlay").classList.remove("open");
 }
 
@@ -1013,17 +1074,19 @@ async function submitEntry() {
     const text = document.getElementById("bs-textarea").value.trim();
     if (text.length < 3) { showToast("Zu kurz (mind. 3 Zeichen).", "error"); return; }
     const message = matchType(text, bsSelectedType);
-    const nodeId = generateNodeId();
-    const fullPath = selectedTopic === "/" ? "/" + nodeId : selectedTopic + "/" + nodeId;
+    const isEdit  = !!_bsEditEntry;
+    const nodeId   = isEdit ? _bsEditEntry.nodeId  : generateNodeId();
+    const topic    = isEdit ? _bsEditEntry.topic   : selectedTopic;
+    const fullPath = topic === "/" ? "/" + nodeId : topic + "/" + nodeId;
     const body = new URLSearchParams({ entry: `${fullPath} | ${message}` });
     try {
         const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
         if (res.ok) {
             const json = await res.json();
-            pushAction("addEntry", selectedTopic + "/" + nodeId);
-            addEntry(selectedTopic, nodeId, message, 0, json.timestamp || "");
+            pushAction(isEdit ? "editEntry" : "addEntry", fullPath);
+            addEntry(topic, nodeId, message, isEdit ? (_bsEditEntry.votes || 0) : 0, json.timestamp || "");
             updateView();
-            showToast("Eintrag hinzugefügt!", "success");
+            showToast(isEdit ? "Eintrag aktualisiert!" : "Eintrag hinzugefügt!", "success");
             closeBottomSheet();
         } else {
             showToast("Eintrag konnte nicht gespeichert werden.", "error", 3000, { label: "submitEntry", status: res.status, url: res.url });
