@@ -299,6 +299,7 @@
 
 <div id="toast-container"></div>
 
+<script src="gesture.js"></script>
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
 let tenantId = "";
@@ -743,35 +744,7 @@ function debounceKey(key, ms) {
     return true;
 }
 
-function addSwipeHandlerToCard(card) {
-    if (card.__swipeBound) return;
-    card.__swipeBound = true;
-    let startX = 0, startY = 0, startTime = 0;
-
-    card.addEventListener("touchstart", e => {
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-        startTime = Date.now();
-    }, { passive: true });
-
-    card.addEventListener("touchend", e => {
-        const dx = e.changedTouches[0].clientX - startX;
-        const dy = e.changedTouches[0].clientY - startY;
-        const dt = Date.now() - startTime;
-        if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) / 1.5 || dt > 700) return;
-        const key = card.dataset.fullKey;
-        if (!key || !debounceKey("swipe_" + key, 1000)) return;
-        const delta = dx > 0 ? 1 : -1;
-        card.classList.add(delta > 0 ? "swiping-right" : "swiping-left");
-        setTimeout(() => card.classList.remove("swiping-right", "swiping-left"), 400);
-        handleVote(key, delta);
-    }, { passive: true });
-}
-
 // ── Render cards with IntersectionObserver batching ───────────────────────────
-function addSwipeHandlersToAllCards() {
-    document.querySelectorAll(".card").forEach(addSwipeHandlerToCard);
-}
 
 function renderCards(entries) {
     runtimeCheck("renderCards");
@@ -800,7 +773,7 @@ function renderCards(entries) {
             list.appendChild(s);
             observer.observe(s);
         }
-        addSwipeHandlersToAllCards();
+        // gesture handling is delegated — no per-card wiring needed
     }
 
     observer = new IntersectionObserver(entries => {
@@ -904,80 +877,62 @@ document.getElementById("chip-bar").addEventListener("click", e => {
     updateView();
 });
 
-// ── Card tap / long-press / double-tap ────────────────────────────────────────
-let _lastTapKey  = null;
-let _lastTapTime = 0;
-let _lpTimer     = null;
-let _lpConsumed  = false;
+// ── Card list — all interaction in one place ──────────────────────────────────
+function entryFromKey(key) {
+    const [topic, nodeId] = splitKey(key);
+    return data[topic]?.[nodeId] ?? null;
+}
 
-const _cardList = document.getElementById("card-list");
+function initCardList() {
+    const list = document.getElementById("card-list");
+    initGestureDetector(list);
 
-_cardList.addEventListener("pointerdown", e => {
-    const card = e.target.closest(".card");
-    if (!card || e.target.closest(".vote-btn") || e.target.closest(".sign-btn") || e.target.closest(".drill-arrow")) return;
-    _lpConsumed = false;
-    clearTimeout(_lpTimer);
-    _lpTimer = setTimeout(() => {
-        _lpTimer = null;
-        _lpConsumed = true;
-        const key = card.dataset.fullKey;
-        if (!key) return;
-        const [topic, nodeId] = splitKey(key);
-        const entry = data[topic] && data[topic][nodeId];
-        if (!entry) return;
-        pushAction("longPress", key);
-        openBottomSheet(entry);
-    }, 500);
-}, { passive: true });
-
-_cardList.addEventListener("pointerup",   () => { clearTimeout(_lpTimer); _lpTimer = null; }, { passive: true });
-_cardList.addEventListener("pointermove", () => { clearTimeout(_lpTimer); _lpTimer = null; }, { passive: true });
-
-_cardList.addEventListener("click", e => {
-    if (_lpConsumed) { _lpConsumed = false; return; }
-    const card = e.target.closest(".card");
-    if (!card) return;
-    if (e.target.closest(".vote-btn") || e.target.closest(".sign-btn")) return;
-
-    if (e.target.closest(".drill-arrow")) {
-        navigateTo(card.dataset.fullKey);
-        return;
-    }
-
-    const key = card.dataset.fullKey;
-    const now = Date.now();
-    if (_lastTapKey === key && now - _lastTapTime < 350) {
-        _lastTapKey = null; _lastTapTime = 0;
-        navigateTo(key);
-        openBottomSheet();
-    } else {
-        _lastTapKey = key; _lastTapTime = now;
+    list.addEventListener("gesture:tap", e => {
+        if (e.target.closest(".vote-btn") || e.target.closest(".sign-btn")) return;
+        if (e.target.closest(".drill-arrow")) {
+            navigateTo(e.target.closest(".card")?.dataset.fullKey);
+            return;
+        }
+        if (!e.target.closest(".card")) return;
         showToast("Lange drücken zum Bearbeiten · Doppelklick für Untereinträge", "info", 2000);
-    }
-});
+    });
 
-// vote button delegation (1 s debounce per key)
-document.getElementById("card-list").addEventListener("click", e => {
-    const upBtn = e.target.closest(".upvote-btn");
-    const dnBtn = e.target.closest(".downvote-btn");
-    if (upBtn) {
-        e.stopPropagation();
-        if (debounceKey("vote_" + upBtn.dataset.key, 1000)) handleVote(upBtn.dataset.key, 1);
-    }
-    if (dnBtn) {
-        e.stopPropagation();
-        if (debounceKey("vote_" + dnBtn.dataset.key, 1000)) handleVote(dnBtn.dataset.key, -1);
-    }
-});
+    list.addEventListener("gesture:doubletap", e => {
+        const card = e.target.closest(".card");
+        if (!card) return;
+        navigateTo(card.dataset.fullKey);
+        openBottomSheet();
+    });
 
-// sign button delegation
-document.getElementById("card-list").addEventListener("click", e => {
-    const btn = e.target.closest(".sign-btn");
-    if (!btn) return;
-    e.stopPropagation();
-    const [topic, nodeId] = splitKey(btn.dataset.key);
-    signEntry(topic, nodeId);
-});
+    list.addEventListener("gesture:longpress", e => {
+        const card = e.target.closest(".card");
+        if (!card) return;
+        const entry = entryFromKey(card.dataset.fullKey);
+        if (!entry) return;
+        pushAction("longPress", card.dataset.fullKey);
+        openBottomSheet(entry);
+    });
+
+    list.addEventListener("gesture:swipe", e => {
+        const card = e.target.closest(".card");
+        if (!card) return;
+        const key = card.dataset.fullKey;
+        if (!key || !debounceKey("swipe_" + key, 1000)) return;
+        card.classList.add(e.detail.direction === "right" ? "swiping-right" : "swiping-left");
+        setTimeout(() => card.classList.remove("swiping-right", "swiping-left"), 400);
+        handleVote(key, e.detail.direction === "right" ? 1 : -1);
+    });
+
+    list.addEventListener("click", e => {
+        const upBtn = e.target.closest(".upvote-btn");
+        const dnBtn = e.target.closest(".downvote-btn");
+        const sign  = e.target.closest(".sign-btn");
+        if (upBtn) { e.stopPropagation(); if (debounceKey("vote_" + upBtn.dataset.key, 1000)) handleVote(upBtn.dataset.key,  1); }
+        if (dnBtn) { e.stopPropagation(); if (debounceKey("vote_" + dnBtn.dataset.key, 1000)) handleVote(dnBtn.dataset.key, -1); }
+        if (sign)  { e.stopPropagation(); const [t, n] = splitKey(sign.dataset.key); signEntry(t, n); }
+    });
+}
+initCardList();
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 let pollActive = false;
