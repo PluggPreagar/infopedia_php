@@ -166,7 +166,12 @@ if ($raw === false) {
     // File doesn't exist yet — return an empty dataset.
     if (!file_exists($source_file)) {
         log_return('data file not yet created, returning empty dataset');
-        echo _get_respond("Timestamp,entry\n", $format, $since);
+        $out = _get_respond("Timestamp,entry\n", $format, $since);
+        if ($since !== '' && $out === '') {
+            http_response_code(204);
+            exit;
+        }
+        echo $out;
         exit;
     }
     // File read failed — fall back to stale cache if present.
@@ -174,7 +179,12 @@ if ($raw === false) {
     if ($stale !== '') {
         log_warn('source read failed, serving stale cache: ' . $source_file);
         log_return(strlen($stale) . ' bytes from stale cache');
-        echo _get_respond($stale, $format, $since);
+        $out = _get_respond($stale, $format, $since);
+        if ($since !== '' && $out === '') {
+            http_response_code(204);
+            exit;
+        }
+        echo $out;
         exit;
     }
     log_error('source read failed and no cache: ' . $source_file);
@@ -258,7 +268,7 @@ function _filter_since(string $csv, string $since): string {
         if (str_starts_with($line, 'Timestamp,')) {
             continue;
         }
-        if (strcmp($line, $since_a) > 0 && strcmp($line, $ts_max) <= 0) {
+        if (strcmp($line, $since_a) > 0 && strcmp(substr($line, 0, 19), $ts_max) <= 0) {
             $kept[] = $line;
         }
     }

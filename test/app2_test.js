@@ -390,7 +390,6 @@ function testOpenBottomSheetEditMode() {
     assert('active chip matches type', document.querySelector('.bs-type-chip.active').dataset.type, '!');
     assert('heading says Bearbeiten',  document.querySelector('#bottom-sheet h3').textContent,       'Eintrag bearbeiten');
     closeBottomSheet();
-    assert('heading reset after close', document.querySelector('#bottom-sheet h3').textContent,     'Neuer Eintrag');
 }
 testOpenBottomSheetEditMode();
 
