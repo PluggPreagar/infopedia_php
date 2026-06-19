@@ -137,8 +137,14 @@ if ($refresh) {
 // 4. Serve from cache when valid and not forced-refresh.
 if (!$refresh && isCacheValid($cache_file, $cache_max_age, $outdated_file, $cache_delay)) {
     $data = readCache($cache_file);
-    log_return(strlen($data) . ' bytes from cache');
-    echo _get_respond($data, $format, $since);
+    $out = _get_respond($data, $format, $since);
+    if ($since !== '' && $out === '') {
+        log_return('204 no new entries since ' . $since . ' (cache)');
+        http_response_code(204);
+        exit;
+    }
+    log_return(strlen($out) . ' bytes from cache');
+    echo $out;
     exit;
 }
 
