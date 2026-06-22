@@ -282,6 +282,7 @@
     <div style="margin-top:0.75rem;font-size:0.8rem;color:#999">
       <a href="wrapper.php?test=app2.html" target="_blank" style="color:#999">Tests ausführen</a>
     </div>
+    <div id="settings-version" style="margin-top:0.5rem;font-size:0.75rem;color:#bbb"></div>
   </div>
 </div>
 
@@ -1144,6 +1145,10 @@ function openSettings() {
     document.getElementById("settings-issue-mail").value = s.issueMailto    || "";
     document.getElementById("settings-type-display").value = typeDisplayMode;
     document.getElementById("settings-overlay").classList.add("open");
+    fetch("version.json").then(r => r.ok ? r.json() : null).then(v => {
+        const el = document.getElementById("settings-version");
+        el.textContent = v ? `${v.branch} · ${v.sha.slice(0,7)} · ${v.time}` : "";
+    }).catch(() => {});
 }
 function closeSettings() {
     document.getElementById("settings-overlay").classList.remove("open");
