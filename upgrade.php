@@ -81,6 +81,14 @@ for ($i = 0; $i < $zip->count(); $i++) {
 
     // Write to __DIR__
     $dest = __DIR__ . '/' . $rel;
+    // Guard against path traversal in ZIP entry names.
+    $abs = realpath(__DIR__) . '/';
+    $normalised = $abs . ltrim($rel, '/');
+    if (strpos(str_replace('\\', '/', $normalised), str_replace('\\', '/', $abs)) !== 0
+        || strpos($rel, '..') !== false) {
+        $errors++; $log[] = ['path' => $rel, 'st' => 'skip'];
+        continue;
+    }
     $dir  = dirname($dest);
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 

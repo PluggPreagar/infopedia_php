@@ -150,7 +150,7 @@ if (!$refresh && isCacheValid($cache_file, $cache_max_age, $outdated_file, $cach
 
 // 5. Long-poll: hold connection until source file changes or timeout expires.
 $poll_timeout = (int)($config['poll_timeout'] ?? 25);
-if ($since !== '' && $poll_timeout > 0 && file_exists($source_file)) {
+if ($since !== '' && $since_int > 0 && $poll_timeout > 0 && file_exists($source_file)) {
     $stop_at = time() + $poll_timeout;
     while (time() < $stop_at) {
         clearstatcache(true, $source_file);

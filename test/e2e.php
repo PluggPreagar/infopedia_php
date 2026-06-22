@@ -221,6 +221,9 @@ sleep(2);
 
 // Lower poll_timeout to 2 for timing test.
 $orig_cfg = file_get_contents('infopedia.cfg');
+register_shutdown_function(function() use ($orig_cfg) {
+    file_put_contents('infopedia.cfg', $orig_cfg);
+});
 $patched  = preg_replace('/^poll_timeout\s*=.*/m', 'poll_timeout = 2', $orig_cfg);
 file_put_contents('infopedia.cfg', $patched);
 
@@ -247,6 +250,11 @@ ok($elapsed < 1.0,          'GET since past → fast (data exists)', round($elap
 
 // Restore original cfg.
 file_put_contents('infopedia.cfg', $orig_cfg);
+
+// Cleanup long-poll test data.
+foreach (['data/entries_e2e.csv', 'data/entries_e2e.cache'] as $f) {
+    if (file_exists($f)) unlink($f);
+}
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
