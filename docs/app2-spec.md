@@ -45,7 +45,7 @@ Business use cases and acceptance criteria live in [`docs/app2-use-cases.md`](./
 | UC3 | `navigateTo(parentTopic)` on back-tap; `popstate` event reads `?topic=` param |
 | UC4 | `openBottomSheet()` (no arg = new mode); `submitEntry()` POSTs to `/entries?sid=…&tid=…`; stub topic via `checkData()` |
 | UC5 | `openBottomSheet(entry)` (with arg = edit mode); `gesture:longpress` (≥ 500 ms); suffix stripped from textarea |
-| UC6 | `gesture:doubletap` (≤ 350 ms) → `navigateTo(card.fullKey)` + `openBottomSheet()` |
+| UC6 | ~~`gesture:doubletap` → `navigateTo` + `openBottomSheet()`~~ **DEPRECATED 0.2.0** — handler removed; use UC2 + UC4 |
 | UC7 | `gesture:tap` → toast only |
 | UC8 | drill-arrow click → `navigateTo(card.fullKey)` |
 | UC9 | `addVoteByGui()` (optimistic); `gesture:swipe` (≥ 50 px); `debounceKey(key, 1000)`; server sync via `addVotesData()` |
@@ -53,6 +53,7 @@ Business use cases and acceptance criteria live in [`docs/app2-use-cases.md`](./
 | UC11 | `getFilteredEntries()` — scope + type filter + text search; `>` type always shown regardless of `activeTypes` |
 | UC12 | `applySettings()` — clears data and poll, reloads; `loadSettings()`/`saveSettings()` via `localStorage` |
 | UC13 | `pushAction()`, `buildStateSnapshot()`, `sanitiseForReport()`, `buildReportText()`, `buildFullReport()` |
+| UC13a | Settings "Bug Melden" button → `closeSettings()` + `openIssueReport(null)` |
 | UC14 | Long-poll: server 204 → immediate re-poll; server 200 → `addData()` + `updateView()` |
 | UC15 | `typeDisplayMode` → `updateTypeDisplay()`; persisted in `localStorage` via `saveSettings()` |
 
@@ -63,15 +64,17 @@ Business use cases and acceptance criteria live in [`docs/app2-use-cases.md`](./
 | UC1 | `testAddData`, `testBuildEntriesVotesUrl` | fetch/poll lifecycle |
 | UC2 | `testNavigateTo`, `testInitializeTopicMap` | — |
 | UC3 | `testNavigateTo`, `testNavTopic` | popstate wiring |
-| UC4 | `testOpenBottomSheetNewMode`, `testAddEntryWoCheck`, `testCheckData`, `testRequireTopicFlag` | `submitEntry` (needs fetch mock) |
+| UC4 | `testOpenBottomSheetNewMode`, `testAddEntryWoCheck`, `testCheckData`, `testRequireTopicFlag` | `submitEntry` incl. AC4.4 guard (needs fetch mock) |
+| UC4a | — (AC4a.7 is backend-only; frontend flow identical to UC4) | tenant auto-creation (needs live server) |
 | UC5 | `testOpenBottomSheetEditMode`, `testBottomSheetSuffixStripping` | `gesture:longpress` |
-| UC6 | — | `gesture:doubletap` |
+| UC6 | — | removed (deprecated 0.2.0) |
 | UC7 | — | `gesture:tap` |
 | UC8 | — | drill-arrow click |
 | UC9 | `testAddVoteByGui`, `testSetVoteByOthers`, `testAddVotesData`, `testDebounceKey` | `gesture:swipe` |
-| UC10 | `testGetSignedCount`, `testAddVotesData` | sign button click |
+| UC10 | `testGetSignedCount`, `testAddVotesData`, `testBuildCardVerified` | sign button click needs browser |
 | UC11 | `testGetFilteredEntries`, `testScopeChips` | — |
 | UC12 | `testLoadSaveSettings` | `applySettings` flow |
 | UC13 | `testSanitiseForReport`, `testBuildStateSnapshot`, `testBuildReportText`, `testBuildFullReport`, `testPushAction` | — |
+| UC13a | (shared with UC13 — no new unit tests needed) | settings button click (needs browser) |
 | UC14 | `testAddData` | poll lifecycle |
 | UC15 | `testGetTypeDef` (iconClass) | `updateTypeDisplay` DOM |
