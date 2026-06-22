@@ -47,9 +47,15 @@ Technical implementation details live in [`docs/app2-spec.md`](./app2-spec.md).
 - **AC4.1** — The "+" button is always visible while browsing.
 - **AC4.2** — Tapping it opens a sheet with an empty text field and "Meinung" pre-selected.
 - **AC4.3** — The user can select a different entry type before submitting.
-- **AC4.4** — Submitting without text is blocked.
+- **AC4.4** — Submitting with fewer than 3 characters is blocked.
 - **AC4.5** — After submitting, the new entry appears immediately without a page reload.
 - **AC4.6** — Adding an entry inside a topic that does not yet exist creates a placeholder topic card at the parent level.
+
+#### UC4a: Add a new entry on empty tenant
+**Trigger:** User taps the "+" button on an empty/new tenant 
+
+- **AC4a** - like UC4 -> AC4.1, AC4.2, AC4.3, AC4.4, AC4.5, AC4.6 
+- **AC4a.7** - the tenant is created automatically
 
 ### UC5: Edit an existing entry
 **Trigger:** User holds a card for ≥ 500 ms (long-press)
@@ -58,7 +64,7 @@ Technical implementation details live in [`docs/app2-spec.md`](./app2-spec.md).
 - **AC5.2** — The sheet heading indicates edit mode ("Eintrag bearbeiten").
 - **AC5.3** — After submitting, the card updates immediately without a page reload.
 
-### UC6: Add a sub-entry via double-tap
+### UC6: Add a sub-entry via double-tap -- REMOVED 0.2.0
 **Trigger:** User double-taps a card
 
 DEPRECATED: use UC2 (navigate into a topic) + UC4 (add entry) instead for a clearer, more consistent UX.
@@ -114,6 +120,11 @@ DEPRECATED: use UC2 (navigate into a topic) + UC4 (add entry) instead for a clea
 - **AC13.3** — Sensitive session identifiers are redacted automatically.
 - **AC13.4** — Submission options: copy to clipboard, open GitHub issue, send via email.
 - **AC13.5** — Nothing is sent without explicit user confirmation.
+
+#### UC13a: Report a bug on manual request
+**Trigger:** User taps "Bug Melden" in Settings
+
+- **AC13a** - like UC13 -> AC13a.1, AC13a.2, AC13a.3, AC13a.4, AC13a.5
 
 ### UC14: Real-time updates
 **Trigger:** Another user adds or edits an entry on the same tenant

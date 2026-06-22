@@ -215,6 +215,7 @@ features -- but the order and gates hold.
    step gates. Never report success unverified.
 9. **CW9 -- finishing-a-development-branch** *(when tasks complete):* verify tests, present
    options (merge / PR / keep / discard), and clean up the worktree.
+10. **CW10 -- Coverage - check which use cases are covered by unit tests and which need manual testing or not implemented**
 
 ## Data & Compatibility Constraints
 

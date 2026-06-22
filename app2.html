@@ -277,6 +277,10 @@
     <div style="display:flex;gap:0.5rem">
       <button class="settings-btn primary" id="settings-apply">Übernehmen</button>
       <button class="settings-btn secondary" id="settings-close">Schließen</button>
+      <button class="settings-btn secondary" id="settings-bug-report">Bug Melden</button>
+    </div>
+    <div style="margin-top:0.75rem;font-size:0.8rem;color:#999">
+      <a href="wrapper.php?test=app2.html" target="_blank" style="color:#999">Tests ausführen</a>
     </div>
   </div>
 </div>
@@ -894,14 +898,7 @@ function initCardList() {
             return;
         }
         if (!e.target.closest(".card")) return;
-        showToast("Lange drücken zum Bearbeiten · Doppelklick für Untereinträge", "info", 2000);
-    });
-
-    list.addEventListener("gesture:doubletap", e => {
-        const card = e.target.closest(".card");
-        if (!card) return;
-        navigateTo(card.dataset.fullKey);
-        openBottomSheet();
+        showToast("Lange drücken zum Bearbeiten", "info", 2000);
     });
 
     list.addEventListener("gesture:longpress", e => {
@@ -1100,7 +1097,7 @@ async function submitEntry() {
 }
 
 // wire FAB and sheet buttons
-document.getElementById("fab").addEventListener("click", openBottomSheet);
+document.getElementById("fab").addEventListener("click", () => openBottomSheet());
 document.getElementById("bs-cancel").addEventListener("click", closeBottomSheet);
 document.getElementById("bs-submit").addEventListener("click", submitEntry);
 document.getElementById("bottom-sheet-overlay").addEventListener("click", e => {
@@ -1183,6 +1180,10 @@ document.getElementById("settings-close").addEventListener("click", closeSetting
 document.getElementById("settings-apply").addEventListener("click", applySettings);
 document.getElementById("settings-overlay").addEventListener("click", e => {
     if (e.target === document.getElementById("settings-overlay")) closeSettings();
+});
+document.getElementById("settings-bug-report").addEventListener("click", () => {
+    closeSettings();
+    openIssueReport(null);
 });
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────

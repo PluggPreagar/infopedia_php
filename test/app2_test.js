@@ -452,6 +452,54 @@ function testBottomSheetSuffixStripping() {
 }
 testBottomSheetSuffixStripping();
 
+// UC10 — AC10.2: Bewiesen ✓ / Widerlegung ✓ when signed ≥ 2
+function testBuildCardVerified() {
+    const _tdm = typeDisplayMode;
+    typeDisplayMode = 'text';
+
+    suite('buildCard — signed < 2 → no verified badge (AC10.2)');
+    rs();
+    addEntryWoCheck('/', 'n1', 'True!', 0, '');
+    const card0 = buildCard(data['/']['n1']);
+    assert('0 signed → not bewiesen',          card0.querySelector('.type-badge').classList.contains('bewiesen'), false);
+    assert('0 signed → sign-count no verified', card0.querySelector('.sign-count').classList.contains('verified'), false);
+
+    suite('buildCard — signed = 1 → boundary, still no badge (AC10.2)');
+    rs();
+    addEntryWoCheck('/', 'n1', 'True!', 0, '');
+    addVotesData({ '/n1': { votes: 0, attrs: { signed_count: 1 } } });
+    const card1 = buildCard(data['/']['n1']);
+    assert('1 signed → not bewiesen', card1.querySelector('.type-badge').classList.contains('bewiesen'), false);
+
+    suite('buildCard — Fakt signed = 2 → Bewiesen ✓ (AC10.2)');
+    rs();
+    addEntryWoCheck('/', 'n1', 'True!', 0, '');
+    addVotesData({ '/n1': { votes: 0, attrs: { signed_count: 2 } } });
+    const card2 = buildCard(data['/']['n1']);
+    assert('2 signed → bewiesen class',        card2.querySelector('.type-badge').classList.contains('bewiesen'), true);
+    assert('2 signed → Bewiesen ✓ label',      card2.querySelector('.type-badge').textContent.trim(),             'Bewiesen ✓');
+    assert('2 signed → sign-count verified',   card2.querySelector('.sign-count').classList.contains('verified'), true);
+
+    suite('buildCard — Fake signed = 2 → Widerlegung ✓ (AC10.2)');
+    rs();
+    addEntryWoCheck('/', 'n2', 'Wrong!-', 0, '');
+    addVotesData({ '/n2': { votes: 0, attrs: { signed_count: 2 } } });
+    const cardFake = buildCard(data['/']['n2']);
+    assert('fake 2 signed → widerlegung class', cardFake.querySelector('.type-badge').classList.contains('widerlegung'), true);
+    assert('fake 2 signed → Widerlegung ✓',     cardFake.querySelector('.type-badge').textContent.trim(),                'Widerlegung ✓');
+
+    suite('buildCard — Opinion signed = 2 → NOT verified (AC10.2)');
+    rs();
+    addEntryWoCheck('/', 'n3', 'Just opinion.', 0, '');
+    addVotesData({ '/n3': { votes: 0, attrs: { signed_count: 2 } } });
+    const cardOp = buildCard(data['/']['n3']);
+    assert('opinion 2 signed → not bewiesen',    cardOp.querySelector('.type-badge').classList.contains('bewiesen'),    false);
+    assert('opinion 2 signed → not widerlegung', cardOp.querySelector('.type-badge').classList.contains('widerlegung'), false);
+
+    typeDisplayMode = _tdm;
+}
+testBuildCardVerified();
+
 // UC3 — nav-topic span shows current path
 function testNavTopic() {
     suite('nav-topic — shows current topic path');
