@@ -629,7 +629,11 @@ function addVotesData(dataLoaded) {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function loadSettings() {
-    try { return JSON.parse(localStorage.getItem("fayf_settings") || "{}"); } catch { return {}; }
+    const defaults = {
+        issueGithubUrl: 'https://github.com/PluggPreagar/infopedia_php/issues/new',
+        issueMailto:    'bugs@fayf.info',
+    };
+    try { return { ...defaults, ...JSON.parse(localStorage.getItem("fayf_settings") || "{}") }; } catch { return defaults; }
 }
 function saveSettings(patch) {
     const s = loadSettings();
