@@ -50,6 +50,7 @@ Technical implementation details live in [`docs/app2-spec.md`](./app2-spec.md).
 - **AC4.4** — Submitting with fewer than 3 characters is blocked.
 - **AC4.5** — After submitting, the new entry appears immediately without a page reload.
 - **AC4.6** — Adding an entry inside a topic that does not yet exist creates a placeholder topic card at the parent level.
+- **AC4.7** — The bottom sheet can be closed using the "X" button.
 
 #### UC4a: Add a new entry on empty tenant
 **Trigger:** User taps the "+" button on an empty/new tenant 
@@ -75,7 +76,7 @@ DEPRECATED: use UC2 (navigate into a topic) + UC4 (add entry) instead for a clea
 ### UC7: Single-tap hint
 **Trigger:** User taps a card body (not a button)
 
-- **AC7.1** — A hint toast appears explaining long-press (edit) and double-tap (sub-entry).
+- **AC7.1** — A hint toast appears explaining long-press to edit.
 - **AC7.2** — No navigation occurs and no sheet opens.
 
 ### UC8: Drill into a topic via the arrow
@@ -111,6 +112,7 @@ DEPRECATED: use UC2 (navigate into a topic) + UC4 (add entry) instead for a clea
 
 - **AC12.1** — Applying a new tenant ID reloads the app with that tenant's data.
 - **AC12.2** — The URL reflects the active tenant.
+- **AC12.3** — The settings panel shows the deployed version (branch, commit SHA, timestamp) if `version.json` is available on the server.
 
 ### UC13: Report a bug
 **Trigger:** User taps "Melden" on an error toast
