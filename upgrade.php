@@ -13,6 +13,9 @@ $repo     = $u['repo']   ?? 'PluggPreagar/infopedia_php';
 $patterns = !empty($u['files'])
     ? preg_split('/\s+/', trim($u['files']), -1, PREG_SPLIT_NO_EMPTY)
     : ['*.php', '*.html', '*.js', '*.md', 'justfile'];
+$excludes = !empty($u['exclude'])
+    ? preg_split('/\s+/', trim($u['exclude']), -1, PREG_SPLIT_NO_EMPTY)
+    : [];
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 if ($token === '' || ($_GET['token'] ?? '') !== $token) {
@@ -26,6 +29,13 @@ function upgrade_fail(string $msg): never {
     echo '<body style="font-family:monospace;padding:1rem"><p style="color:red">Error: '
         . htmlspecialchars($msg) . '</p></body>';
     exit;
+}
+
+function matches(string $rel, array $patterns): bool {
+    foreach ($patterns as $p) {
+        if (fnmatch($p, $rel) || fnmatch($p, basename($rel))) return true;
+    }
+    return false;
 }
 
 // ── Download ──────────────────────────────────────────────────────────────────
@@ -61,12 +71,7 @@ for ($i = 0; $i < $zip->count(); $i++) {
     // Skip directory entries
     if ($rel === '' || str_ends_with($rel, '/')) continue;
 
-    // Positive pattern filter — check full relative path and basename
-    $allow = false;
-    foreach ($patterns as $p) {
-        if (fnmatch($p, $rel) || fnmatch($p, basename($rel))) { $allow = true; break; }
-    }
-    if (!$allow) {
+    if (!matches($rel, $patterns) || matches($rel, $excludes)) {
         $skipped++;
         $log[] = ['path' => $rel, 'st' => 'skipped'];
         continue;
