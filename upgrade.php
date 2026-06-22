@@ -53,8 +53,10 @@ if ($zip->open($tmp) !== true) {
     upgrade_fail('ZipArchive::open failed');
 }
 
-// Detect top-level prefix, e.g. "infopedia_php-refactor-202606/"
-$prefix = '';
+// Detect top-level prefix, e.g. "infopedia_php-dev/" and read commit metadata
+$prefix      = '';
+$commitSha   = $zip->comment ?: '(unknown)';
+$commitMtime = $zip->count() > 0 ? ($zip->statIndex(0)['mtime'] ?? 0) : 0;
 if ($zip->count() > 0) {
     $first = $zip->getNameIndex(0);
     if (($pos = strpos($first, '/')) !== false) {
@@ -94,6 +96,12 @@ for ($i = 0; $i < $zip->count(); $i++) {
 $zip->close();
 unlink($tmp);
 
+file_put_contents(__DIR__ . '/version.json', json_encode([
+    'sha'    => $commitSha,
+    'time'   => $commitMtime ? gmdate('Y-m-d H:i:s', $commitMtime) . ' UTC' : null,
+    'branch' => $branch,
+]));
+
 // ── HTML output ───────────────────────────────────────────────────────────────
 $zipUrl = 'https://github.com/' . $repo . '/archive/refs/heads/' . $branch . '.zip';
 header('Content-Type: text/html; charset=utf-8');
@@ -101,7 +109,11 @@ header('Content-Type: text/html; charset=utf-8');
 <html><head><title>upgrade</title></head>
 <body style="font-family:monospace;padding:1rem;max-width:900px">
 <h2>upgrade — <?= htmlspecialchars($branch) ?></h2>
-<p><a href="<?= htmlspecialchars($zipUrl) ?>">GitHub ZIP</a></p>
+<p>
+  commit: <code><?= htmlspecialchars($commitSha) ?></code><br>
+  time: <?= $commitMtime ? gmdate('Y-m-d H:i:s', $commitMtime) . ' UTC' : '(unknown)' ?><br>
+  <a href="<?= htmlspecialchars($zipUrl) ?>">GitHub ZIP</a>
+</p>
 <table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;width:100%">
 <tr style="background:#eee"><th align="left">file</th><th>status</th></tr>
 <?php foreach ($log as $row):
