@@ -452,6 +452,17 @@ function testBottomSheetSuffixStripping() {
 }
 testBottomSheetSuffixStripping();
 
+// UC4 — AC4.7: bottom sheet closes via X button
+function testBottomSheetCloseButton() {
+    suite('bottomSheet — X button closes sheet (AC4.7)');
+    rs();
+    openBottomSheet();
+    assert('sheet open before click', document.getElementById('bottom-sheet-overlay').classList.contains('open'), true);
+    document.getElementById('bs-close').click();
+    assert('sheet closed after X click', document.getElementById('bottom-sheet-overlay').classList.contains('open'), false);
+}
+testBottomSheetCloseButton();
+
 // UC10 — AC10.2: Bewiesen ✓ / Widerlegung ✓ when signed ≥ 2
 function testBuildCardVerified() {
     const _tdm = typeDisplayMode;
