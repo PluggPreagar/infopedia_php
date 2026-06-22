@@ -1,15 +1,21 @@
 <?php
 /**
  * upgrade.php — pull latest from GitHub, overwrite matching files.
- * Usage: ?token=<UPGRADE_TOKEN>
+ * Usage: ?token=<upgradeToken from infopedia.cfg>
  */
 
-define('UPGRADE_TOKEN',  'change-me');   // <-- set your secret here
-define('UPGRADE_BRANCH', 'refactor/202606');
-define('REPO',           'PluggPreagar/infopedia_php');
+// ── Config ────────────────────────────────────────────────────────────────────
+$ini      = file_exists(__DIR__ . '/infopedia.cfg') ? parse_ini_file(__DIR__ . '/infopedia.cfg', true) : [];
+$u        = $ini['upgrade'] ?? [];
+$token    = $u['token']  ?? '';
+$branch   = $u['branch'] ?? 'dev';
+$repo     = $u['repo']   ?? 'PluggPreagar/infopedia_php';
+$patterns = !empty($u['files'])
+    ? preg_split('/\s+/', trim($u['files']), -1, PREG_SPLIT_NO_EMPTY)
+    : ['*.php', '*.html', '*.js', '*.md', 'justfile'];
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-if (($_GET['token'] ?? '') !== UPGRADE_TOKEN) {
+if ($token === '' || ($_GET['token'] ?? '') !== $token) {
     http_response_code(403);
     header('Content-Type: text/plain');
     exit('Forbidden');
@@ -22,18 +28,8 @@ function upgrade_fail(string $msg): never {
     exit;
 }
 
-// ── Config ────────────────────────────────────────────────────────────────────
-$patterns = ['*.php', '*.html', '*.js', '*.md', 'justfile'];
-$cfgFile  = __DIR__ . '/infopedia.cfg';
-if (file_exists($cfgFile)) {
-    $ini = parse_ini_file($cfgFile, true);
-    if (!empty($ini['general']['upgradeFiles'])) {
-        $patterns = preg_split('/\s+/', trim($ini['general']['upgradeFiles']), -1, PREG_SPLIT_NO_EMPTY);
-    }
-}
-
 // ── Download ──────────────────────────────────────────────────────────────────
-$url   = 'https://codeload.github.com/' . REPO . '/zip/refs/heads/' . UPGRADE_BRANCH;
+$url   = 'https://codeload.github.com/' . $repo . '/zip/refs/heads/' . $branch;
 $bytes = file_get_contents($url);
 if (!$bytes) upgrade_fail('Download failed: ' . $url);
 
@@ -94,12 +90,12 @@ $zip->close();
 unlink($tmp);
 
 // ── HTML output ───────────────────────────────────────────────────────────────
-$zipUrl = 'https://github.com/' . REPO . '/archive/refs/heads/' . UPGRADE_BRANCH . '.zip';
+$zipUrl = 'https://github.com/' . $repo . '/archive/refs/heads/' . $branch . '.zip';
 header('Content-Type: text/html; charset=utf-8');
 ?><!doctype html>
 <html><head><title>upgrade</title></head>
 <body style="font-family:monospace;padding:1rem;max-width:900px">
-<h2>upgrade — <?= htmlspecialchars(UPGRADE_BRANCH) ?></h2>
+<h2>upgrade — <?= htmlspecialchars($branch) ?></h2>
 <p><a href="<?= htmlspecialchars($zipUrl) ?>">GitHub ZIP</a></p>
 <table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;width:100%">
 <tr style="background:#eee"><th align="left">file</th><th>status</th></tr>
