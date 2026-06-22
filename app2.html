@@ -267,10 +267,6 @@
     <label>Tenant ID
       <input id="settings-tenant" type="text" placeholder="demo">
     </label>
-    <label style="display:block;margin-top:0.75rem;font-size:0.85rem">GitHub Issues URL <span style="color:#999">(optional)</span></label>
-    <input id="settings-github-url" type="url" placeholder="https://github.com/user/repo/issues/new" style="width:100%;box-sizing:border-box;margin-top:0.25rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px">
-    <label style="display:block;margin-top:0.5rem;font-size:0.85rem">Feedback E-Mail <span style="color:#999">(optional)</span></label>
-    <input id="settings-issue-mail" type="email" placeholder="bugs@example.com" style="width:100%;box-sizing:border-box;margin-top:0.25rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px">
     <label style="font-size:0.9rem;display:flex;align-items:center;gap:0.5rem">
       Typen-Anzeige:
       <select id="settings-type-display" style="padding:0.3rem;border-radius:4px;border:1px solid #ccc;">
@@ -393,9 +389,6 @@ function openIssueReport(errorCtx) {
     if (document.getElementById("issue-overlay").classList.contains("open")) return;
     document.getElementById("issue-details").value = buildReportText(errorCtx);
     document.getElementById("issue-user-msg").value = "";
-    const s = loadSettings();
-    document.getElementById("issue-mail").style.display   = s.issueMailto    ? "" : "none";
-    document.getElementById("issue-github").style.display = s.issueGithubUrl ? "" : "none";
     document.getElementById("issue-overlay").classList.add("open");
 }
 
@@ -1163,9 +1156,7 @@ document.getElementById("nav-search-bar").addEventListener("click", e => {
 function openSettings() {
     const s = loadSettings();
     document.getElementById("settings-tenant").value     = tenantId;
-    document.getElementById("settings-github-url").value = s.issueGithubUrl || "";
-    document.getElementById("settings-issue-mail").value = s.issueMailto    || "";
-    document.getElementById("settings-type-display").value = typeDisplayMode;
+document.getElementById("settings-type-display").value = typeDisplayMode;
     document.getElementById("settings-overlay").classList.add("open");
     fetch("version.json").then(r => r.ok ? r.json() : null).then(v => {
         const el = document.getElementById("settings-version");
@@ -1190,10 +1181,7 @@ function applySettings() {
         url.searchParams.set("tid", tenantId);
         history.pushState({}, "", url);
     }
-    const githubUrl = document.getElementById("settings-github-url").value.trim();
-    const issueMailto = document.getElementById("settings-issue-mail").value.trim().replace(/[?&\s]/g, "");
-    saveSettings({ issueGithubUrl: githubUrl, issueMailto });
-    const newDisplayMode = document.getElementById("settings-type-display").value;
+const newDisplayMode = document.getElementById("settings-type-display").value;
     if (newDisplayMode !== typeDisplayMode) {
         typeDisplayMode = newDisplayMode;
         saveSettings({ typeDisplayMode: newDisplayMode });
