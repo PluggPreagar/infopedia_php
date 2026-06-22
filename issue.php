@@ -17,7 +17,12 @@ if (strlen($report) > 65536) {
 }
 
 $issueDir = $config['issueDir'] ?? 'data/issues';
-if (!is_dir($issueDir)) mkdir($issueDir, 0755, true);
+if (!is_dir($issueDir)) {
+    @mkdir($issueDir, 0755, true);
+    if (!is_dir($issueDir)) {
+        respond_error('WRITE_ERROR', 'cannot create issue directory', 500);
+    }
+}
 
 $filename = $issueDir . '/' . date('Y-m-d_H-i-s') . '_' . uniqid() . '.txt';
 if (file_put_contents($filename, $report) === false) {
