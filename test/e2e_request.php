@@ -47,5 +47,7 @@ function e2e_route(string $path): ?string {
         '/dumps'     => 'dumps.php',
         '/health'    => 'health.php',
         '/stats'     => 'statistic.php',
+        '/issue'     => 'issue.php',
+        'issue.php'  => 'issue.php',
     ][$path] ?? null;
 }

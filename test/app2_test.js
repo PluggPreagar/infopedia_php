@@ -147,7 +147,7 @@ function testBuildStateSnapshot() {
 testBuildStateSnapshot();
 
 // UC13 — bug report
-function testBuildReportText() {
+function testBuildReportTextBasic() {
     suite('buildReportText');
     rs();
     const rep = buildReportText(null);
@@ -159,7 +159,7 @@ function testBuildReportText() {
     assert('has Fehlerdetails',    repCtx.includes('--- Fehlerdetails ---'), true);
     assert('has error label',      repCtx.includes('sendVote'),             true);
 }
-testBuildReportText();
+testBuildReportTextBasic();
 
 // UC13 — bug report
 function testBuildFullReport() {
@@ -542,6 +542,46 @@ function testScopeChips() {
     assert('below is Darunter',  labels[2], 'Darunter');
 }
 testScopeChips();
+
+// UC13 — buildReportText: seeds action trail + error context
+function testBuildReportTextSeeded() {
+    suite('buildReportText — empty trail');
+    rs();
+    const r = buildReportText(null);
+    assertMatch('has version',       r, /Version: 0\.2\.0/);
+    assertMatch('has keine actions', r, /\(keine\)/);
+
+    suite('buildReportText — seeded trail + error context');
+    rs();
+    actionTrail = [
+        { ts: '2026-06-22T10:00:00.000Z', action: 'navigate', detail: '/climate' },
+        { ts: '2026-06-22T10:00:01.000Z', action: 'addEntry', detail: '/climate/sol' },
+    ];
+    const ctx = { label: 'submitEntry', status: 500, url: '/entries', err: 'Network error from www' };
+    const r2 = buildReportText(ctx);
+    assertMatch('contains navigate action', r2, /navigate.*climate/);
+    assertMatch('contains addEntry action', r2, /addEntry/);
+    assertMatch('contains error label',    r2, /submitEntry/);
+    assertMatch('contains status 500',     r2, /500/);
+    assertMatch('contains URL',            r2, /\/entries/);
+    assertMatch('SID is not exposed',      r2, /\[sid\]/);
+}
+testBuildReportTextSeeded();
+
+// UC13 — issue panel opens, shows generated text, has Senden button
+function testIssueReportPanel() {
+    suite('openIssueReport — panel opens and populates');
+    rs();
+    actionTrail = [{ ts: '2026-06-22T10:00:00.000Z', action: 'vote', detail: '/abc +1' }];
+    openIssueReport(null);
+    assert('overlay is open',    document.getElementById('issue-overlay').classList.contains('open'), true);
+    assertMatch('details pre-filled', document.getElementById('issue-details').value, /vote/);
+    assert('user-msg empty',     document.getElementById('issue-user-msg').value, '');
+    assert('send button exists', !!document.getElementById('issue-send'), true);
+    closeIssueReport();
+    assert('overlay closed',     document.getElementById('issue-overlay').classList.contains('open'), false);
+}
+testIssueReportPanel();
 
 // ── Done ─────────────────────────────────────────────────────────────────────
 harnessFinish();

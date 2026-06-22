@@ -177,6 +177,34 @@ if ($throttled) {
     echo "  SKIP  throttle not triggered (throttle_max=0 or > 20)\n";
 }
 
+// ─── issue.php ────────────────────────────────────────────────────────────────
+
+section('issue.php — save report');
+
+// POST with report text → 201
+$r = post('issue.php', "sid=$sid&tid=$tid", 'report=Test+Fehlerbericht+%3A%29');
+ok($r['status'] === 201, 'POST report → 201');
+ok(($r['json']['status'] ?? '') === 'ok', 'body status = ok');
+
+// Verify file was written to data/issues/
+$files = glob('data/issues/*.txt');
+ok(count($files) > 0, 'issue file created in data/issues/');
+if (count($files) > 0) {
+    $content = file_get_contents($files[0]);
+    ok(str_contains($content, 'Test Fehlerbericht'), 'report text in file');
+}
+
+// POST with empty report → 400
+$r = post('issue.php', "sid=$sid&tid=$tid", 'report=');
+ok($r['status'] === 400, 'empty report → 400');
+
+// GET → 405
+$r = get('issue.php', "sid=$sid&tid=$tid");
+ok($r['status'] === 405, 'GET → 405');
+
+// cleanup
+foreach (glob('data/issues/*.txt') as $f) unlink($f);
+
 // ─── Teardown ─────────────────────────────────────────────────────────────────
 
 foreach (['data/entries_e2e.csv', 'data/votes_e2e.csv', 'data/entries_e2e.cache'] as $f) {
