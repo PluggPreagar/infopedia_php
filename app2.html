@@ -126,7 +126,9 @@
       padding: 1.25rem 1rem 2rem; display: flex; flex-direction: column; gap: 0.75rem;
       --bs-color: #888;
     }
-    #bottom-sheet h3 { font-size: 1rem; color: #333; }
+    #bottom-sheet h3 { font-size: 1rem; color: #333; margin: 0; }
+    #bs-header { display: flex; align-items: center; justify-content: space-between; }
+    #bs-close { background: none; border: none; font-size: 1.25rem; color: #999; cursor: pointer; padding: 0.1rem 0.3rem; line-height: 1; }
     #bs-type-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
     .bs-type-chip {
       padding: 0.3rem 0.8rem; border-radius: 14px; font-size: 0.82rem;
@@ -242,7 +244,10 @@
 
 <div id="bottom-sheet-overlay">
   <div id="bottom-sheet">
-    <h3>Neuer Eintrag</h3>
+    <div id="bs-header">
+      <h3>Neuer Eintrag</h3>
+      <button id="bs-close" aria-label="Schließen">✕</button>
+    </div>
     <div id="bs-type-chips">
       <button class="bs-type-chip active" data-type="."><i class="fas fa-comment"></i><span>Meinung</span></button>
       <button class="bs-type-chip" data-type="!"><i class="fas fa-circle-check"></i><span>Fakt</span></button>
@@ -1100,6 +1105,7 @@ async function submitEntry() {
 // wire FAB and sheet buttons
 document.getElementById("fab").addEventListener("click", () => openBottomSheet());
 document.getElementById("bs-cancel").addEventListener("click", closeBottomSheet);
+document.getElementById("bs-close").addEventListener("click", closeBottomSheet);
 document.getElementById("bs-submit").addEventListener("click", submitEntry);
 document.getElementById("bottom-sheet-overlay").addEventListener("click", e => {
     if (e.target === document.getElementById("bottom-sheet-overlay")) closeBottomSheet();
