@@ -135,22 +135,23 @@ if ($refresh) {
 }
 
 // 4. Serve from cache when valid and not forced-refresh.
+//    When $since is set and cache has nothing new, fall through to the long-poll
+//    wait below instead of returning 204 immediately.
 if (!$refresh && isCacheValid($cache_file, $cache_max_age, $outdated_file, $cache_delay)) {
     $data = readCache($cache_file);
-    $out = _get_respond($data, $format, $since);
-    if ($since !== '' && $out === '') {
-        log_return('204 no new entries since ' . $since . ' (cache)');
-        http_response_code(204);
+    $out  = _get_respond($data, $format, $since);
+    if ($out !== '' || $since === '') {
+        log_return(strlen($out) . ' bytes from cache');
+        echo $out;
         exit;
     }
-    log_return(strlen($out) . ' bytes from cache');
-    echo $out;
-    exit;
+    // $since set but nothing new in cache — fall through to long-poll.
 }
 
-// 5. Long-poll for tenant (local file): wait up to 50 s for new data after $since.
-if ($since !== '' && file_exists($source_file)) {
-    $stop_at = time() + 50;
+// 5. Long-poll: hold connection until source file changes or timeout expires.
+$poll_timeout = (int)($config['poll_timeout'] ?? 25);
+if ($since !== '' && $poll_timeout > 0 && file_exists($source_file)) {
+    $stop_at = time() + $poll_timeout;
     while (time() < $stop_at) {
         clearstatcache(true, $source_file);
         if (filemtime($source_file) > $since_int) {

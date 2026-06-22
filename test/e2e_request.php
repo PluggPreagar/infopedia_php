@@ -41,13 +41,14 @@ function e2e_route(string $path): ?string {
         return 'files.php';
     }
     return [
-        '/'          => 'index.php',
-        '/entries'   => 'entries.php',
-        '/votes'     => 'votes.php',
-        '/dumps'     => 'dumps.php',
-        '/health'    => 'health.php',
-        '/stats'     => 'statistic.php',
-        '/issue'     => 'issue.php',
-        'issue.php'  => 'issue.php',
+        '/'           => 'index.php',
+        '/entries'    => 'entries.php',
+        '/votes'      => 'votes.php',
+        '/dumps'      => 'dumps.php',
+        '/health'     => 'health.php',
+        '/stats'      => 'statistic.php',
+        '/issue'      => 'issue.php',
+        'issue.php'   => 'issue.php',
+        'entries.php' => 'entries.php',
     ][$path] ?? null;
 }

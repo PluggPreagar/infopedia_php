@@ -211,6 +211,43 @@ foreach (['data/entries_e2e.csv', 'data/votes_e2e.csv', 'data/entries_e2e.cache'
     if (file_exists($f)) unlink($f);
 }
 
+// ─── entries.php — long-poll behaviour ───────────────────────────────────────
+section('entries.php — long-poll');
+
+// POST a known entry so the source file exists; sleep 2s so the entry ages past
+// the 1-second grace window in _filter_since before since-based GETs run.
+post('entries.php', "sid=$sid&tid=$tid", 'entry=/longpoll/test | Node for poll.');
+sleep(2);
+
+// Lower poll_timeout to 2 for timing test.
+$orig_cfg = file_get_contents('infopedia.cfg');
+$patched  = preg_replace('/^poll_timeout\s*=.*/m', 'poll_timeout = 2', $orig_cfg);
+file_put_contents('infopedia.cfg', $patched);
+
+// GET without ?since — must return 200 immediately (under 1s).
+$t0 = microtime(true);
+$r  = get('entries.php', "tid=$tid");
+$elapsed = microtime(true) - $t0;
+ok($r['status'] === 200,    'GET without since → 200');
+ok($elapsed < 1.0,          'GET without since → fast (no hold)', round($elapsed, 2) . 's');
+
+// GET with ?since far in future — must hold ≥ 2s then return 204.
+$t0 = microtime(true);
+$r  = get('entries.php', "tid=$tid&since=2099-01-01+00:00:00");
+$elapsed = microtime(true) - $t0;
+ok($r['status'] === 204,    'GET since future → 204 after hold');
+ok($elapsed >= 2.0,         'GET since future → held ≥ 2s', round($elapsed, 2) . 's');
+
+// GET with ?since=<very old> — data exists → 200 immediately.
+$t0 = microtime(true);
+$r  = get('entries.php', "tid=$tid&since=2000-01-01+00:00:00");
+$elapsed = microtime(true) - $t0;
+ok($r['status'] === 200,    'GET since past → 200 with data');
+ok($elapsed < 1.0,          'GET since past → fast (data exists)', round($elapsed, 2) . 's');
+
+// Restore original cfg.
+file_put_contents('infopedia.cfg', $orig_cfg);
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
 echo "\n";
