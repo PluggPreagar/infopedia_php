@@ -6,7 +6,9 @@ SYNC IMPACT REPORT
     CW = The Basic Workflow      CD = Data & Compatibility  CP = PHP-Specific principles
     CT = Tooling & Commands      CV = Versioning & Commits
 - Numbering: CA1-CA18 (CA15-CA17 added 1.8.0; CA18 added 1.9.0), CC1-CC5 (sub-steps CC1.1-CC1.6), CW1-CW9, CP1-CP3, others per section
-- Companion file: .specify/memory/requirements.md (+ requirements/S1...S6) maps IDs to steps
+- Companion files: `.ai/requirements.md` (+ `requirements/S1...S6`) maps IDs to steps;
+  `docs/app2-use-cases.md` — UC1–UC15 + AC (business, no implementation detail);
+  `docs/app2-spec.md` — state vars, functions, test coverage (implementation detail only)
 - Added sections: none (CA14 added to Core Assumptions)
 - Removed sections: none
 - Templates requiring updates:
@@ -226,6 +228,15 @@ features -- but the order and gates hold.
   char (`>!?.-`).
 - **CD4 -- `infopedia.html` is the SPA shell (~4.9k lines):** edit surgically, never rewrite
   wholesale; `infopedia.php` only string-replaces markers like `<!-- timestamp -->`.
+- **CD5 -- `app2.html` has a two-layer spec:** user-facing behavior lives in
+  [`docs/app2-use-cases.md`](../docs/app2-use-cases.md) (UC1–UC15, ACs numbered `AC<UC>.<n>`,
+  e.g. `AC4.1`); implementation detail (state variables, function references, test coverage)
+  lives in [`docs/app2-spec.md`](../docs/app2-spec.md). Keep the layers separate: no function
+  names in the use-case doc, no ACs in the spec. Any change that adds, removes, or alters a
+  user-facing interaction MUST update the use-case doc and cite the UC ID in the commit message.
+- **CD6 -- check for new DEPRECATED, REMOVED marks** on features/use cases before implementing:
+  the spec is the source of truth, not the code. The code is a reference implementation
+  of the spec. The spec is the only source of truth for new features.
 
 ## PHP-Specific Foundations
 
