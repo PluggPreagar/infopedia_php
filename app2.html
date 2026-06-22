@@ -450,10 +450,10 @@ function submitReportSend() {
         .catch(() => showToast("Senden fehlgeschlagen.", "error"));
 }
 
-document.getElementById("issue-send").addEventListener("click", submitReportSend);
 document.getElementById("issue-copy").addEventListener("click", submitReportClipboard);
 document.getElementById("issue-mail").addEventListener("click", submitReportMail);
 document.getElementById("issue-github").addEventListener("click", submitReportGithub);
+document.getElementById("issue-send").addEventListener("click", submitReportSend);
 
 // ── Debug ─────────────────────────────────────────────────────────────────────
 function runtimeCheck(msg = "") {

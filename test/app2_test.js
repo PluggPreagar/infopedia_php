@@ -557,7 +557,7 @@ function testBuildReportText() {
         { ts: '2026-06-22T10:00:00.000Z', action: 'navigate', detail: '/climate' },
         { ts: '2026-06-22T10:00:01.000Z', action: 'addEntry', detail: '/climate/sol' },
     ];
-    const ctx = { label: 'submitEntry', status: 500, url: '/entries', err: 'Network error' };
+    const ctx = { label: 'submitEntry', status: 500, url: '/entries', err: 'Network error from www' };
     const r2 = buildReportText(ctx);
     assertMatch('contains navigate action', r2, /navigate.*climate/);
     assertMatch('contains addEntry action', r2, /addEntry/);
