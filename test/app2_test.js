@@ -147,7 +147,7 @@ function testBuildStateSnapshot() {
 testBuildStateSnapshot();
 
 // UC13 — bug report
-function testBuildReportText() {
+function testBuildReportTextBasic() {
     suite('buildReportText');
     rs();
     const rep = buildReportText(null);
@@ -159,7 +159,7 @@ function testBuildReportText() {
     assert('has Fehlerdetails',    repCtx.includes('--- Fehlerdetails ---'), true);
     assert('has error label',      repCtx.includes('sendVote'),             true);
 }
-testBuildReportText();
+testBuildReportTextBasic();
 
 // UC13 — bug report
 function testBuildFullReport() {
@@ -544,7 +544,7 @@ function testScopeChips() {
 testScopeChips();
 
 // UC13 — buildReportText: seeds action trail + error context
-function testBuildReportText() {
+function testBuildReportTextSeeded() {
     suite('buildReportText — empty trail');
     rs();
     const r = buildReportText(null);
@@ -566,7 +566,7 @@ function testBuildReportText() {
     assertMatch('contains URL',            r2, /\/entries/);
     assertMatch('SID is not exposed',      r2, /\[sid\]/);
 }
-testBuildReportText();
+testBuildReportTextSeeded();
 
 // UC13 — issue panel opens, shows generated text, has Senden button
 function testIssueReportPanel() {

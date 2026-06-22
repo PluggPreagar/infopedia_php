@@ -12,6 +12,10 @@ if (trim($report) === '') {
     respond_error('INVALID_ENTRY', 'report must not be empty', 400);
 }
 
+if (strlen($report) > 65536) {
+    respond_error('PAYLOAD_TOO_LARGE', 'report exceeds 64 KB limit', 413);
+}
+
 $issueDir = $config['issueDir'] ?? 'data/issues';
 if (!is_dir($issueDir)) mkdir($issueDir, 0755, true);
 
