@@ -299,6 +299,7 @@
     <p style="margin:0;font-size:0.85rem;color:#666">Technische Details (automatisch — bitte prüfen und ggf. anpassen):</p>
     <textarea id="issue-details" rows="10" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:0.78rem"></textarea>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button id="issue-send">📤 Senden</button>
       <button id="issue-copy">📋 Kopieren</button>
       <button id="issue-mail">✉️ E-Mail</button>
       <button id="issue-github">🐛 GitHub</button>
@@ -439,6 +440,17 @@ function submitReportGithub() {
     closeIssueReport();
 }
 
+function submitReportSend() {
+    const report = buildFullReport();
+    closeIssueReport();
+    fetch('issue.php', { method: 'POST', body: new URLSearchParams({ report }) })
+        .then(r => r.ok
+            ? showToast("Bericht gesendet!", "success", 2000)
+            : showToast("Senden fehlgeschlagen.", "error"))
+        .catch(() => showToast("Senden fehlgeschlagen.", "error"));
+}
+
+document.getElementById("issue-send").addEventListener("click", submitReportSend);
 document.getElementById("issue-copy").addEventListener("click", submitReportClipboard);
 document.getElementById("issue-mail").addEventListener("click", submitReportMail);
 document.getElementById("issue-github").addEventListener("click", submitReportGithub);
