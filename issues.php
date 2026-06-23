@@ -155,9 +155,15 @@ function render_detail(string $base, array $states, string $id): void {
         return;
     }
 
-    $raw  = file_get_contents($issue['path']);
-    // Skip line 1 (# Title) — already shown in the PHP <h1> above
-    $body = ltrim(substr($raw, (strpos($raw, "\n") ?: 0) + 1));
+    $raw = file_get_contents($issue['path']);
+    if ($raw === false) {
+        http_response_code(500);
+        html_head('Fehler');
+        echo '<p>Issue-Datei konnte nicht gelesen werden.</p><p><a href="issues.php">← Übersicht</a></p>';
+        html_foot();
+        return;
+    }
+    $body    = ltrim(substr($raw, (strpos($raw, "\n") ?: 0) + 1));
     $current = $issue['state'];
 
     $transitions = [
@@ -188,7 +194,100 @@ function render_detail(string $base, array $states, string $id): void {
   <?php endforeach ?>
 </div>
 <?php endif ?>
+<button id="edit-btn" style="margin-bottom:0.5rem">Bearbeiten</button>
+<textarea id="edit-area" hidden rows="20"
+  style="width:100%;box-sizing:border-box;font-family:monospace;font-size:0.85rem;margin-bottom:0.5rem;"></textarea>
+<div id="edit-bar" hidden style="margin-bottom:0.5rem;display:flex;gap:0.5rem;align-items:center;">
+  <button id="save-btn">Speichern</button>
+  <button id="cancel-btn">Abbrechen</button>
+  <span id="edit-err" style="color:#c00;font-size:0.85rem;"></span>
+</div>
 <div id="md-body" data-raw="<?= htmlspecialchars($body) ?>"></div>
+<script>
+function initEdit(filename, fullRaw) {
+    const mdBody    = document.getElementById('md-body');
+    const editBtn   = document.getElementById('edit-btn');
+    const editArea  = document.getElementById('edit-area');
+    const editBar   = document.getElementById('edit-bar');
+    const saveBtn   = document.getElementById('save-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const editErr   = document.getElementById('edit-err');
+
+    editBtn.addEventListener('click', () => {
+        editArea.value      = fullRaw;
+        mdBody.hidden       = true;
+        editBtn.hidden      = true;
+        editArea.hidden     = false;
+        editBar.hidden      = false;
+        editErr.textContent = '';
+    });
+
+    cancelBtn.addEventListener('click', () => {
+        mdBody.hidden   = false;
+        editBtn.hidden  = false;
+        editArea.hidden = true;
+        editBar.hidden  = true;
+    });
+
+    saveBtn.addEventListener('click', () => {
+        saveBtn.disabled = true;
+        const snapshot = editArea.value;
+        editArea.disabled = true;
+        fetch('issue.php', {
+            method: 'POST',
+            body: new URLSearchParams({ report: snapshot, filename })
+        })
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(() => {
+            const nl        = snapshot.indexOf('\n');
+            const titleLine = nl >= 0 ? snapshot.slice(0, nl) : snapshot;
+            const bodyPart  = nl >= 0 ? snapshot.slice(nl + 1) : '';
+
+            mdBody.dataset.raw = bodyPart;
+            mdBody.innerHTML   = renderMd(bodyPart);
+
+            const m = titleLine.match(/^#\s+(.+)/u);
+            if (m) {
+                const h1 = document.querySelector('h1');
+                if (h1) {
+                    for (const node of h1.childNodes) {
+                        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                            node.textContent = m[1] + ' ';
+                            break;
+                        }
+                    }
+                }
+            } else {
+                const h1 = document.querySelector('h1');
+                if (h1) {
+                    for (const node of h1.childNodes) {
+                        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                            node.textContent = '(kein Titel) ';
+                            break;
+                        }
+                    }
+                }
+            }
+
+            fullRaw         = snapshot;
+            mdBody.hidden   = false;
+            editBtn.hidden  = false;
+            editArea.hidden = true;
+            editBar.hidden  = true;
+        })
+        .catch(status => {
+            editErr.textContent = status === 404
+                ? 'Issue wurde verschoben – bitte Seite neu laden.'
+                : 'Speichern fehlgeschlagen.';
+        })
+        .finally(() => {
+            saveBtn.disabled  = false;
+            editArea.disabled = false;
+        });
+    });
+}
+initEdit(<?= json_encode($current . '/' . $id) ?>, <?= json_encode($raw, JSON_INVALID_UTF8_SUBSTITUTE) ?>);
+</script>
 <?php html_foot();
 }
 
