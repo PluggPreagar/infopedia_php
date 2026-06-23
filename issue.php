@@ -24,7 +24,7 @@ if (!is_dir($issueDir)) {
     }
 }
 
-$filename = $issueDir . '/' . date('Y-m-d_H-i-s') . '_' . uniqid() . '.txt';
+$filename = $issueDir . '/new/' . date('Y-m-d_H-i-s') . '_' . uniqid() . '.md';
 if (file_put_contents($filename, $report) === false) {
     respond_error('WRITE_ERROR', 'Could not save report', 500);
 }
