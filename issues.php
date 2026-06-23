@@ -98,8 +98,38 @@ function html_foot(): void { ?>
 // ── Views (stubs — implemented in subsequent tasks) ───────────────────────────
 
 function render_overview(string $base): void {
-    html_head('Issues');
-    echo '<h1>Issues</h1><p><em>TODO: overview</em></p>';
+    $cols = ['new' => [], 'ready' => []];
+    foreach (array_keys($cols) as $state) {
+        $dir   = "$base/$state";
+        $files = is_dir($dir) ? (glob("$dir/*.txt") ?: []) : [];
+        rsort($files);
+        foreach ($files as $f) {
+            $id           = basename($f);
+            $cols[$state][] = [
+                'id'    => $id,
+                'titel' => parse_titel($f),
+                'ts'    => filename_to_display($id),
+            ];
+        }
+    }
+    html_head('Issues'); ?>
+<h1>Issues</h1>
+<?php foreach (['new' => 'Neu', 'ready' => 'Bereit'] as $state => $label): ?>
+<h2><?= $label ?></h2>
+<?php if (empty($cols[$state])): ?>
+  <p style="color:#888;font-size:0.9rem">Keine Issues.</p>
+<?php else: ?>
+<table>
+  <tr><th>Datum</th><th>Titel</th></tr>
+  <?php foreach ($cols[$state] as $row): ?>
+  <tr>
+    <td style="white-space:nowrap;color:#666;font-size:0.85rem"><?= htmlspecialchars($row['ts']) ?></td>
+    <td><a href="issues.php?id=<?= urlencode($row['id']) ?>"><?= htmlspecialchars($row['titel']) ?></a></td>
+  </tr>
+  <?php endforeach ?>
+</table>
+<?php endif ?>
+<?php endforeach;
     html_foot();
 }
 
