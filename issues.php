@@ -155,7 +155,14 @@ function render_detail(string $base, array $states, string $id): void {
         return;
     }
 
-    $raw     = file_get_contents($issue['path']);
+    $raw = file_get_contents($issue['path']);
+    if ($raw === false) {
+        http_response_code(500);
+        html_head('Fehler');
+        echo '<p>Issue-Datei konnte nicht gelesen werden.</p><p><a href="issues.php">← Übersicht</a></p>';
+        html_foot();
+        return;
+    }
     $body    = ltrim(substr($raw, (strpos($raw, "\n") ?: 0) + 1));
     $current = $issue['state'];
 
@@ -224,16 +231,17 @@ function initEdit(filename, fullRaw) {
 
     saveBtn.addEventListener('click', () => {
         saveBtn.disabled = true;
+        const snapshot = editArea.value;
+        editArea.disabled = true;
         fetch('issue.php', {
             method: 'POST',
-            body: new URLSearchParams({ report: editArea.value, filename })
+            body: new URLSearchParams({ report: snapshot, filename })
         })
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(() => {
-            const newRaw    = editArea.value;
-            const nl        = newRaw.indexOf('\n');
-            const titleLine = nl >= 0 ? newRaw.slice(0, nl) : newRaw;
-            const bodyPart  = nl >= 0 ? newRaw.slice(nl + 1) : '';
+            const nl        = snapshot.indexOf('\n');
+            const titleLine = nl >= 0 ? snapshot.slice(0, nl) : snapshot;
+            const bodyPart  = nl >= 0 ? snapshot.slice(nl + 1) : '';
 
             mdBody.dataset.raw = bodyPart;
             mdBody.innerHTML   = renderMd(bodyPart);
@@ -249,21 +257,36 @@ function initEdit(filename, fullRaw) {
                         }
                     }
                 }
+            } else {
+                const h1 = document.querySelector('h1');
+                if (h1) {
+                    for (const node of h1.childNodes) {
+                        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                            node.textContent = '(kein Titel) ';
+                            break;
+                        }
+                    }
+                }
             }
 
-            fullRaw         = newRaw;
+            fullRaw         = snapshot;
             mdBody.hidden   = false;
             editBtn.hidden  = false;
             editArea.hidden = true;
             editBar.hidden  = true;
         })
-        .catch(() => {
-            editErr.textContent = 'Speichern fehlgeschlagen.';
+        .catch(status => {
+            editErr.textContent = status === 404
+                ? 'Issue wurde verschoben – bitte Seite neu laden.'
+                : 'Speichern fehlgeschlagen.';
         })
-        .finally(() => { saveBtn.disabled = false; });
+        .finally(() => {
+            saveBtn.disabled  = false;
+            editArea.disabled = false;
+        });
     });
 }
-initEdit(<?= json_encode($current . '/' . $id) ?>, <?= json_encode($raw) ?>);
+initEdit(<?= json_encode($current . '/' . $id) ?>, <?= json_encode($raw, JSON_INVALID_UTF8_SUBSTITUTE) ?>);
 </script>
 <?php html_foot();
 }

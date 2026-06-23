@@ -35,8 +35,8 @@ if ($filename !== '') {
 } else {
     $issueDirNew = $issueDir . '/new';
     if (!is_dir($issueDirNew)) {
-        @mkdir($issueDir, 0755, true);
-        if (!is_dir($issueDir)) {
+        @mkdir($issueDirNew, 0755, true);
+        if (!is_dir($issueDirNew)) {
             respond_error('WRITE_ERROR', 'cannot create issue directory', 500);
         }
     }

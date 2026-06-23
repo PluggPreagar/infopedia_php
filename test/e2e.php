@@ -186,8 +186,8 @@ $r = post('issue.php', "sid=$sid&tid=$tid", 'report=Test+Fehlerbericht+%3A%29');
 ok($r['status'] === 201, 'POST report → 201');
 ok(($r['json']['status'] ?? '') === 'ok', 'body status = ok');
 
-// Verify file was written to data/issues/
-$files = glob('data/issues/*.txt');
+// Verify file was written to data/issues/new/
+$files = glob('data/issues/new/*.md');
 ok(count($files) > 0, 'issue file created in data/issues/');
 if (count($files) > 0) {
     $content = file_get_contents($files[0]);
@@ -203,7 +203,7 @@ $r = get('issue.php', "sid=$sid&tid=$tid");
 ok($r['status'] === 405, 'GET → 405');
 
 // cleanup
-foreach (glob('data/issues/*.txt') as $f) unlink($f);
+foreach (glob('data/issues/new/*.md') as $f) unlink($f);
 
 // ─── issue.php — edit ────────────────────────────────────────────────────────
 
