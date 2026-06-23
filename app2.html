@@ -962,6 +962,7 @@ initCardList();
 // ── Data loading ──────────────────────────────────────────────────────────────
 let pollActive = false;
 let pollController = null;
+let pollGeneration = 0;
 
 function buildEntriesUrl(extra = {}) {
     const p = new URLSearchParams({ sid, tid: tenantId, format: "json", ...extra });
@@ -1009,7 +1010,9 @@ async function loadInitialData() {
 
 async function startLongPoll() {
     pollActive = true;
+    const gen = ++pollGeneration;
     async function poll() {
+        if (gen !== pollGeneration) return;
         if (!pollActive || document.hidden) {
             setTimeout(poll, 2000);
             return;
