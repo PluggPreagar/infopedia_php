@@ -278,7 +278,7 @@
     <div style="display:flex;gap:0.5rem">
       <button class="settings-btn primary" id="settings-apply">Übernehmen</button>
       <button class="settings-btn secondary" id="settings-close">Schließen</button>
-      <button class="settings-btn secondary" id="settings-bug-report">Bug Melden</button>
+      <button class="settings-btn secondary" id="settings-bug-report">Issue melden</button>
     </div>
     <div style="margin-top:0.75rem;font-size:0.8rem;color:#999">
       <a href="wrapper.php?test=app2.html" target="_blank" style="color:#999">Tests ausführen</a>
@@ -363,24 +363,25 @@ function sanitiseForReport(text) {
 // ── Issue report builder (CA17) ────────────────────────────────────────────────
 function buildReportText(errorCtx) {
     const lines = [];
+    lines.push("=== Issuebericht ===");
     lines.push("Zeit: " + new Date().toISOString() + " | Version: " + APP_VERSION);
     lines.push("");
-    lines.push("## Letzte Aktionen");
+    lines.push("--- GUI-Test-Befehle ---");
     if (actionTrail.length === 0) {
-        lines.push("*(keine)*");
+        lines.push("(keine)");
     } else {
         actionTrail.slice().reverse().forEach(a => {
-            lines.push("- " + a.ts.slice(11, 19) + "  " + a.action + (a.detail ? ": " + a.detail : ""));
+            lines.push(a.detail ? a.action + '("' + a.detail + '")' : a.action + '()');
         });
     }
     lines.push("");
-    lines.push("## Zustand");
+    lines.push("--- Zustand ---");
     lines.push("```");
     lines.push(buildStateSnapshot());
     lines.push("```");
     if (errorCtx) {
         lines.push("");
-        lines.push("## Fehlerdetails");
+        lines.push("--- Fehlerdetails ---");
         if (errorCtx.label)  lines.push("**Fehler:** " + errorCtx.label);
         if (errorCtx.status) lines.push("**Status:** " + errorCtx.status);
         if (errorCtx.url)    lines.push("**URL:** `" + errorCtx.url + "`");
@@ -429,7 +430,7 @@ function submitReportClipboard() {
 function submitReportMail() {
     const s = loadSettings();
     if (!s.issueMailto) return;
-    const subject = encodeURIComponent("Fehlerbericht fayf.info " + APP_VERSION);
+    const subject = encodeURIComponent("Issuebericht fayf.info " + APP_VERSION);
     const body    = encodeURIComponent(buildFullReport());
     window.open("mailto:" + s.issueMailto + "?subject=" + subject + "&body=" + body);
     closeIssueReport();
@@ -438,7 +439,7 @@ function submitReportMail() {
 function submitReportGithub() {
     const s = loadSettings();
     if (!s.issueGithubUrl) return;
-    const title = encodeURIComponent("Fehlerbericht fayf.info " + APP_VERSION);
+    const title = encodeURIComponent("Issuebericht fayf.info " + APP_VERSION);
     const body  = encodeURIComponent(buildFullReport());
     const sep = s.issueGithubUrl.includes("?") ? "&" : "?";
     window.open(s.issueGithubUrl + sep + "title=" + title + "&body=" + body, "_blank");
@@ -1181,7 +1182,7 @@ function closeSettings() {
 function applySettings() {
     const newTenant = document.getElementById("settings-tenant").value.trim().replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 30);
     if (newTenant && newTenant !== tenantId) {
-        pushAction("changeTenant", "[tid]");
+        pushAction("loadTenant", "[tid]");
         tenantId = newTenant;
         saveSettings({ tenantId });
         stopLongPoll();

@@ -53,7 +53,7 @@ Business use cases and acceptance criteria live in [`docs/app2-use-cases.md`](./
 | UC11 | `getFilteredEntries()` — scope + type filter + text search; `>` type always shown regardless of `activeTypes` |
 | UC12 | `applySettings()` — clears data and poll, reloads; `loadSettings()`/`saveSettings()` via `localStorage` |
 | UC13 | `pushAction()`, `buildStateSnapshot()`, `sanitiseForReport()`, `buildReportText()`, `buildFullReport()` |
-| UC13a | Settings "Bug Melden" button → `closeSettings()` + `openIssueReport(null)` |
+| UC13a | Settings "Issue melden" button → `closeSettings()` + `openIssueReport(null)` |
 | UC14 | Long-poll: server 204 → immediate re-poll; server 200 → `addData()` + `updateView()` |
 | UC15 | `typeDisplayMode` → `updateTypeDisplay()`; persisted in `localStorage` via `saveSettings()` |
 

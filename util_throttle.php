@@ -8,7 +8,7 @@
 
 // Sanitise $key to safe filename characters (prevent path traversal).
 function _throttle_safe_key(string $key): string {
-    return preg_replace('/[^a-zA-Z0-9]/', '', $key);
+    return substr(preg_replace('/[^a-zA-Z0-9_-]/', '', $key), 0, 64);
 }
 
 function _throttle_file(string $dir, string $key): string {

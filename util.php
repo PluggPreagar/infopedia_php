@@ -4,20 +4,21 @@
     $debug= $config['debug'] ?? $debug ?? false; // Enable debug mode
 
     $configFile = 'infopedia.cfg';
-    $session_id = ($_GET['sid'] ?? $_POST['sid'] ?? '') ; // session id from GET or POST (==systemid)
-    // random session id if not provided
-    if (empty($session_id)) {
-        $session_id = bin2hex(random_bytes(4)); // Generate a random session ID
+    // Strip chars outside [a-zA-Z0-9_-] and truncate; used for SID, TID, throttle keys.
+    function sanitize_id(string $val, int $max = 32): string {
+        return substr(preg_replace('/[^a-zA-Z0-9_-]/', '', $val), 0, $max);
     }
 
-    $tenant_id = ($_GET['tid'] ?? $_POST['tid'] ?? '') ; // tenant_id id from GET or POST (==tenantid)
-    // check tenant id is alphanumeric only + not longer than 30 chars
+    $session_id = sanitize_id($_GET['sid'] ?? $_POST['sid'] ?? '', 32);
+    if (empty($session_id)) {
+        $session_id = bin2hex(random_bytes(4));
+    }
+
+    $tenant_id = ($_GET['tid'] ?? $_POST['tid'] ?? '');
     if ($tenant_id !== ''
-            && $tenant_id !== 'default'
-            && $tenant_id !== 'none'
-            && $tenant_id !== 'all'
-            && (!preg_match('/^[a-zA-Z0-9_-]+$/', $tenant_id) || strlen($tenant_id) > 30)
-            ) {
+        && !in_array($tenant_id, ['default', 'none', 'all'], true)
+        && sanitize_id($tenant_id, 30) !== $tenant_id
+    ) {
         http_response_code(400);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['error' => ['code' => 'INVALID_TID', 'message' => 'Tenant ID must be 1–30 alphanumeric/-/_ characters.']]);
@@ -90,8 +91,8 @@
             $logMessage .= " " . $session_id . (isset($tenant_id) ? "@".$tenant_id : "") . " ; ";
             $logMessage .= " " . $_SERVER['SCRIPT_NAME'] . " ; ";
         }
-        // quote message to avoid log injection, replace newlines with spaces
-        $message = str_replace(["\n", "\r"], ' ', $message);
+        // quote message to avoid log injection: strip newlines, escape the column delimiter
+        $message = str_replace(["\n", "\r", " ; "], [' ', ' ', ' : '], $message);
         // shorten log message to 500 chars
         if (strlen($message) > 500) {
             $message = substr($message, 0, 500) . "...(truncated)";
