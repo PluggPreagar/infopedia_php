@@ -363,24 +363,25 @@ function sanitiseForReport(text) {
 // ── Issue report builder (CA17) ────────────────────────────────────────────────
 function buildReportText(errorCtx) {
     const lines = [];
+    lines.push("=== Issuebericht ===");
     lines.push("Zeit: " + new Date().toISOString() + " | Version: " + APP_VERSION);
     lines.push("");
-    lines.push("## Letzte Aktionen");
+    lines.push("--- GUI-Test-Befehle ---");
     if (actionTrail.length === 0) {
-        lines.push("*(keine)*");
+        lines.push("(keine)");
     } else {
         actionTrail.slice().reverse().forEach(a => {
-            lines.push("- " + a.ts.slice(11, 19) + "  " + a.action + (a.detail ? ": " + a.detail : ""));
+            lines.push(a.detail ? a.action + '("' + a.detail + '")' : a.action + '()');
         });
     }
     lines.push("");
-    lines.push("## Zustand");
+    lines.push("--- Zustand ---");
     lines.push("```");
     lines.push(buildStateSnapshot());
     lines.push("```");
     if (errorCtx) {
         lines.push("");
-        lines.push("## Fehlerdetails");
+        lines.push("--- Fehlerdetails ---");
         if (errorCtx.label)  lines.push("**Fehler:** " + errorCtx.label);
         if (errorCtx.status) lines.push("**Status:** " + errorCtx.status);
         if (errorCtx.url)    lines.push("**URL:** `" + errorCtx.url + "`");

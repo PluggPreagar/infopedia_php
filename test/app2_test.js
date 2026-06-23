@@ -134,7 +134,7 @@ function testSanitiseForReport() {
 }
 testSanitiseForReport();
 
-// UC13 — bug report
+// UC13 — issue report
 function testBuildStateSnapshot() {
     suite('buildStateSnapshot');
     rs(); selectedTopic = '/climate'; searchScope = 'here';
@@ -146,18 +146,18 @@ function testBuildStateSnapshot() {
 }
 testBuildStateSnapshot();
 
-// UC13 — bug report
+// UC13 — issue report
 function testBuildReportTextBasic() {
     suite('buildReportText');
     rs();
     const rep = buildReportText(null);
-    assert('has header',           rep.includes('=== Fehlerbericht ==='),   true);
-    assert('has aktionen section', rep.includes('--- Letzte Aktionen ---'), true);
-    assert('has zustand section',  rep.includes('--- Zustand ---'),         true);
-    assert('no error section',     rep.includes('--- Fehlerdetails ---'),   false);
+    assert('has header',              rep.includes('=== Issuebericht ==='),     true);
+    assert('has GUI commands section', rep.includes('--- GUI-Test-Befehle ---'), true);
+    assert('has zustand section',     rep.includes('--- Zustand ---'),           true);
+    assert('no error section',        rep.includes('--- Fehlerdetails ---'),     false);
     const repCtx = buildReportText({ label: 'sendVote', status: 500 });
-    assert('has Fehlerdetails',    repCtx.includes('--- Fehlerdetails ---'), true);
-    assert('has error label',      repCtx.includes('sendVote'),             true);
+    assert('has Fehlerdetails',       repCtx.includes('--- Fehlerdetails ---'),  true);
+    assert('has error label',         repCtx.includes('sendVote'),               true);
 }
 testBuildReportTextBasic();
 
