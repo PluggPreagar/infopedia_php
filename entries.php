@@ -42,10 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         respond_error('INVALID_ENTRY', 'Missing entry parameter.', 400);
     }
 
-    $max_entry_length = (int)($config['max_entry_length'] ?? 65536);
-    if (strlen($entry) > $max_entry_length) {
-        respond_error('INVALID_ENTRY', 'Entry too large (max ' . $max_entry_length . ' bytes).', 400);
-    }
+    require_max_length($entry, (int)($config['max_entry_length'] ?? 65536), 'entry');
 
     // Must have at least two ' | ' separators (path | [middle |] content).
     if (substr_count($entry, ' | ') < 1) {
