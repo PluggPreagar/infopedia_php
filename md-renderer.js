@@ -11,7 +11,8 @@ function renderMd(text) {
     }
 
     function safeUrl(url) {
-        if (/^javascript:/i.test(url.trim())) return '#';
+        const t = url.trim();
+        if (/^javascript:/i.test(t) || /^data:/i.test(t)) return '#';
         return url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
     }
 
