@@ -124,10 +124,10 @@ if (!$refresh && isCacheValid($cache_file, $cache_max_age, $outdated_file, $cach
 // 5. Long-poll: hold until entries or votes file changes.
 //    Cross-watching votes releases the entries connection when votes update,
 //    keeping both client polls in sync.
-$poll_timeout   = (int)($config['poll_timeout'] ?? 25);
-$votes_source   = $tenant_id !== '' ? 'data/votes_' . $tenant_id . '.csv' : 'data/votes.csv';
+$poll_timeout = (int)($config['poll_timeout'] ?? 25);
+$now          = time();
 if ($since !== '' && $since_int > 0) {
-    long_poll([$source_file, $votes_source], $since_int, $poll_timeout);
+    long_poll($tenant_id, $now, $poll_timeout);
 }
 
 // 6. Fetch from source.

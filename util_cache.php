@@ -42,30 +42,35 @@ function touchOutdated(string $file): void {
 }
 
 /**
- * Hold the connection until any of $watch_files has been modified since
- * $since_int, or until $timeout seconds have elapsed.
+ * Hold the connection until the entries or votes CSV for tenant $tid is
+ * modified after $now, or until $timeout seconds have elapsed.
  *
- * Non-existent files are silently ignored. Returns false immediately when no
- * watchable files exist, timeout is 0, or since_int is 0.
+ * File paths are derived internally: data/entries[_tid].csv and
+ * data/votes[_tid].csv.  Non-existent files are silently ignored.
+ * Returns false immediately when no watchable files exist or timeout is 0.
  *
- * @param string[] $watch_files Paths to watch.
- * @param int      $since_int   Unix timestamp of the client's last known state.
- * @param int      $timeout     Maximum seconds to hold.
- * @return bool    true = at least one file changed; false = timeout (no change).
+ * @param string $tid     Tenant ID; empty string → default (no suffix).
+ * @param int    $now     Unix timestamp captured before entering the poll.
+ * @param int    $timeout Maximum seconds to hold.
+ * @return bool  true = at least one file changed; false = timeout (no change).
  */
-function long_poll(array $watch_files, int $since_int, int $timeout): bool {
-    if ($timeout <= 0 || $since_int <= 0) {
+function long_poll(string $tid, int $now, int $timeout = 25): bool {
+    if ($timeout <= 0) {
         return false;
     }
-    $watch_files = array_values(array_filter($watch_files, 'file_exists'));
-    if (empty($watch_files)) {
+    $suffix = $tid !== '' ? '_' . $tid : '';
+    $files  = array_values(array_filter([
+        'data/entries' . $suffix . '.csv',
+        'data/votes'   . $suffix . '.csv',
+    ], 'file_exists'));
+    if (empty($files)) {
         return false;
     }
-    $stop_at = time() + $timeout;
+    $stop_at = $now + $timeout;
     while (time() < $stop_at) {
         clearstatcache();
-        foreach ($watch_files as $f) {
-            if (filemtime($f) > $since_int) {
+        foreach ($files as $f) {
+            if (filemtime($f) > $now) {
                 return true;
             }
         }
