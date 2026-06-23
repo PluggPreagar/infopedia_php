@@ -155,9 +155,8 @@ function render_detail(string $base, array $states, string $id): void {
         return;
     }
 
-    $raw  = file_get_contents($issue['path']);
-    // Skip line 1 (# Title) — already shown in the PHP <h1> above
-    $body = ltrim(substr($raw, (strpos($raw, "\n") ?: 0) + 1));
+    $raw     = file_get_contents($issue['path']);
+    $body    = ltrim(substr($raw, (strpos($raw, "\n") ?: 0) + 1));
     $current = $issue['state'];
 
     $transitions = [
@@ -188,7 +187,84 @@ function render_detail(string $base, array $states, string $id): void {
   <?php endforeach ?>
 </div>
 <?php endif ?>
+<button id="edit-btn" style="margin-bottom:0.5rem">Bearbeiten</button>
+<textarea id="edit-area" hidden rows="20"
+  style="width:100%;box-sizing:border-box;font-family:monospace;font-size:0.85rem;margin-bottom:0.5rem;"></textarea>
+<div id="edit-bar" hidden style="margin-bottom:0.5rem;display:flex;gap:0.5rem;align-items:center;">
+  <button id="save-btn">Speichern</button>
+  <button id="cancel-btn">Abbrechen</button>
+  <span id="edit-err" style="color:#c00;font-size:0.85rem;"></span>
+</div>
 <div id="md-body" data-raw="<?= htmlspecialchars($body) ?>"></div>
+<script>
+function initEdit(filename, fullRaw) {
+    const mdBody    = document.getElementById('md-body');
+    const editBtn   = document.getElementById('edit-btn');
+    const editArea  = document.getElementById('edit-area');
+    const editBar   = document.getElementById('edit-bar');
+    const saveBtn   = document.getElementById('save-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const editErr   = document.getElementById('edit-err');
+
+    editBtn.addEventListener('click', () => {
+        editArea.value      = fullRaw;
+        mdBody.hidden       = true;
+        editBtn.hidden      = true;
+        editArea.hidden     = false;
+        editBar.hidden      = false;
+        editErr.textContent = '';
+    });
+
+    cancelBtn.addEventListener('click', () => {
+        mdBody.hidden   = false;
+        editBtn.hidden  = false;
+        editArea.hidden = true;
+        editBar.hidden  = true;
+    });
+
+    saveBtn.addEventListener('click', () => {
+        saveBtn.disabled = true;
+        fetch('issue.php', {
+            method: 'POST',
+            body: new URLSearchParams({ report: editArea.value, filename })
+        })
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(() => {
+            const newRaw    = editArea.value;
+            const nl        = newRaw.indexOf('\n');
+            const titleLine = nl >= 0 ? newRaw.slice(0, nl) : newRaw;
+            const bodyPart  = nl >= 0 ? newRaw.slice(nl + 1) : '';
+
+            mdBody.dataset.raw = bodyPart;
+            mdBody.innerHTML   = renderMd(bodyPart);
+
+            const m = titleLine.match(/^#\s+(.+)/u);
+            if (m) {
+                const h1 = document.querySelector('h1');
+                if (h1) {
+                    for (const node of h1.childNodes) {
+                        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                            node.textContent = m[1] + ' ';
+                            break;
+                        }
+                    }
+                }
+            }
+
+            fullRaw         = newRaw;
+            mdBody.hidden   = false;
+            editBtn.hidden  = false;
+            editArea.hidden = true;
+            editBar.hidden  = true;
+        })
+        .catch(() => {
+            editErr.textContent = 'Speichern fehlgeschlagen.';
+        })
+        .finally(() => { saveBtn.disabled = false; });
+    });
+}
+initEdit(<?= json_encode($current . '/' . $id) ?>, <?= json_encode($raw) ?>);
+</script>
 <?php html_foot();
 }
 
