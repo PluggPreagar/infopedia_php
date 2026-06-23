@@ -13,14 +13,6 @@ require_once 'util_cache.php';
 require_once 'util_http.php';
 require_once 'util_throttle.php';
 
-// ─── Validate tenant id ───────────────────────────────────────────────────────
-// util.php does a die() for invalid tids, but only when the value is non-empty
-// AND fails the regex AND is not a special keyword AND is <= 30 chars — the
-// condition is inverted (all must be true to die), so re-validate cleanly here.
-if ($tenant_id !== '' && !preg_match('/^[a-zA-Z0-9_-]{1,30}$/', $tenant_id)) {
-    respond_error('INVALID_TID', 'Tenant ID must be 1–30 alphanumeric/-/_ characters.', 400);
-}
-
 // ─── Shared config ────────────────────────────────────────────────────────────
 $cache_max_age     = (int)($config['cache_time']       ?? 3600);
 $cache_delay       = (int)($config['cache_time_delay'] ?? 5);
@@ -42,12 +34,7 @@ if ($tenant_id !== '') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 1. Throttle check.
-    $throttle_key = $session_id;
-    if (!checkThrottle('data/', $throttle_key, $throttle_max, $throttle_window)) {
-        $retry = throttleRetryAfter('data/', $throttle_key, $throttle_window);
-        header('Retry-After: ' . $retry);
-        respond_error('THROTTLED', "Too many requests. Retry after {$retry} seconds.", 429);
-    }
+    require_throttle('data', $session_id, $throttle_max, $throttle_window);
 
     // 2. Get and validate entry.
     $entry = $_POST['entry'] ?? $_GET['entry'] ?? null;
@@ -90,14 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         log_warn('unknown tenant, skipping write: ' . $source_file);
         respond_error('INVALID_TID', 'Unknown tenant.', 400);
     }
-    // CSV-escape: wrap in quotes if entry contains comma, quote, or newline.
-    if (strpbrk($entry, ',"' . "\n\r") !== false) {
-        $entry_escaped = str_replace('"', '""', $entry);
-        $csv_entry = '"' . $entry_escaped . '"';
-    } else {
-        $csv_entry = $entry;
-    }
-    if (file_put_contents($source_file, $timestamp . ',' . $csv_entry . "\n", FILE_APPEND) === false) {
+    if (file_put_contents($source_file, $timestamp . ',' . csv_quote($entry) . "\n", FILE_APPEND) === false) {
         log_error('entries POST failed to append to ' . $source_file);
         respond_error('WRITE_ERROR', 'Could not save entry.', 500);
     }
@@ -117,21 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // 1. Validate format.
 $format = $_GET['format'] ?? 'json';
-$valid_formats = ['json', 'csv', 'txt.0.2', 'txt.0.3'];
-if (!in_array($format, $valid_formats, true)) {
-    respond_error('INVALID_FORMAT', 'format must be one of: ' . implode(', ', $valid_formats) . '.', 400);
-}
+validate_format($format);
 
 // 2. Set Content-Type early (before any potential long-poll delay).
 set_content_type($format);
 
 // 3. Check refresh throttle when ?refresh is set.
 if ($refresh) {
-    if (!checkThrottle('data/', $session_id, $throttle_max, $throttle_window)) {
-        $retry = throttleRetryAfter('data/', $session_id, $throttle_window);
-        header('Retry-After: ' . $retry);
-        respond_error('THROTTLED', "Too many requests. Retry after {$retry} seconds.", 429);
-    }
+    require_throttle('data', $session_id, $throttle_max, $throttle_window);
 }
 
 // 4. Serve from cache when valid and not forced-refresh.
@@ -230,16 +203,7 @@ function _get_respond(string $csv, string $format, string $since): string {
         }
     }
 
-    return match ($format) {
-        'json'    => json_encode(
-                         csv_to_json($csv),
-                         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
-                     ),
-        'csv'     => $csv,
-        'txt.0.2' => csv_to_txt02($csv),
-        'txt.0.3' => csv_to_txt03($csv),
-        default   => $csv,
-    };
+    return csv_as_format($csv, $format);
 }
 
 /**
