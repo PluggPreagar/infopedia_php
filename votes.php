@@ -80,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         respond_error('INVALID_ENTRY', 'entry body must not be empty', 400);
     }
 
+    require_max_length($raw_entry, (int)($config['max_entry_length'] ?? 65536), 'entry');
+
     // Must have a path and at least one pipe-delimited column.
     $columns = explode(' | ', $raw_entry);
     if (count($columns) < 2) {
@@ -87,9 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Validate: must contain at least one votes: or signed: attribute.
+    // SID in vote attributes is whitelisted to alphanumeric/underscore/hyphen.
     $hasVote = false;
     foreach ($columns as $col) {
-        if (preg_match('/^votes:[^:]+:-?\d+$/', $col) || preg_match('/^signed:[^:]+:\d+$/', $col)) {
+        if (preg_match('/^votes:[a-zA-Z0-9_-]+:-?\d+$/', $col) || preg_match('/^signed:[a-zA-Z0-9_-]+:\d+$/', $col)) {
             $hasVote = true;
             break;
         }

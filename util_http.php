@@ -39,3 +39,10 @@
             respond_error('INVALID_FORMAT', 'format must be one of: ' . implode(', ', $valid) . '.', 400);
         }
     }
+
+    // Reject with 400 if $val exceeds $max bytes. $param names the field in the error message.
+    function require_max_length(string $val, int $max, string $param): void {
+        if (strlen($val) > $max) {
+            respond_error('INVALID_ENTRY', $param . ' too large (max ' . $max . ' bytes)', 400);
+        }
+    }
