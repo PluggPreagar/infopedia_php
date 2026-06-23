@@ -4,24 +4,21 @@
     $debug= $config['debug'] ?? $debug ?? false; // Enable debug mode
 
     $configFile = 'infopedia.cfg';
-    $session_id = ($_GET['sid'] ?? $_POST['sid'] ?? '') ; // session id from GET or POST (==systemid)
-    // Whitelist: alphanumeric + underscore + hyphen, max 32 chars.
-    // Silently regenerate if the client sends something outside that range.
-    if ($session_id !== '' && !preg_match('/^[a-zA-Z0-9_-]{1,32}$/', $session_id)) {
-        $session_id = '';
-    }
-    if (empty($session_id)) {
-        $session_id = bin2hex(random_bytes(4)); // Generate a random session ID
+    // Strip chars outside [a-zA-Z0-9_-] and truncate; used for SID, TID, throttle keys.
+    function sanitize_id(string $val, int $max = 32): string {
+        return substr(preg_replace('/[^a-zA-Z0-9_-]/', '', $val), 0, $max);
     }
 
-    $tenant_id = ($_GET['tid'] ?? $_POST['tid'] ?? '') ; // tenant_id id from GET or POST (==tenantid)
-    // check tenant id is alphanumeric only + not longer than 30 chars
+    $session_id = sanitize_id($_GET['sid'] ?? $_POST['sid'] ?? '', 32);
+    if (empty($session_id)) {
+        $session_id = bin2hex(random_bytes(4));
+    }
+
+    $tenant_id = ($_GET['tid'] ?? $_POST['tid'] ?? '');
     if ($tenant_id !== ''
-            && $tenant_id !== 'default'
-            && $tenant_id !== 'none'
-            && $tenant_id !== 'all'
-            && (!preg_match('/^[a-zA-Z0-9_-]+$/', $tenant_id) || strlen($tenant_id) > 30)
-            ) {
+        && !in_array($tenant_id, ['default', 'none', 'all'], true)
+        && sanitize_id($tenant_id, 30) !== $tenant_id
+    ) {
         http_response_code(400);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['error' => ['code' => 'INVALID_TID', 'message' => 'Tenant ID must be 1–30 alphanumeric/-/_ characters.']]);

@@ -80,10 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         respond_error('INVALID_ENTRY', 'entry body must not be empty', 400);
     }
 
-    $max_entry_length = (int)($config['max_entry_length'] ?? 65536);
-    if (strlen($raw_entry) > $max_entry_length) {
-        respond_error('INVALID_ENTRY', 'entry body too large (max ' . $max_entry_length . ' bytes)', 400);
-    }
+    require_max_length($raw_entry, (int)($config['max_entry_length'] ?? 65536), 'entry');
 
     // Must have a path and at least one pipe-delimited column.
     $columns = explode(' | ', $raw_entry);
