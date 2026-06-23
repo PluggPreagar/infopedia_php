@@ -42,6 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         respond_error('INVALID_ENTRY', 'Missing entry parameter.', 400);
     }
 
+    require_max_length($entry, (int)($config['max_entry_length'] ?? 65536), 'entry');
+
     // Must have at least two ' | ' separators (path | [middle |] content).
     if (substr_count($entry, ' | ') < 1) {
         respond_error('INVALID_ENTRY', 'Entry must contain at least two pipe-separated columns.', 400);
