@@ -1182,7 +1182,7 @@ function closeSettings() {
 function applySettings() {
     const newTenant = document.getElementById("settings-tenant").value.trim().replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 30);
     if (newTenant && newTenant !== tenantId) {
-        pushAction("changeTenant", "[tid]");
+        pushAction("loadTenant", "[tid]");
         tenantId = newTenant;
         saveSettings({ tenantId });
         stopLongPoll();
