@@ -50,10 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Long-poll: if ?since= given and no new data yet, wait for any change.
     //    Cross-watching entries releases the votes connection when entries update,
     //    keeping both client polls in sync.
-    $poll_timeout   = (int)($config['poll_timeout'] ?? 25);
-    $entries_source = $tenant_id !== '' ? 'data/entries_' . $tenant_id . '.csv' : 'data/entries.csv';
+    $poll_timeout = (int)($config['poll_timeout'] ?? 25);
+    $now          = time();
     if ($since !== '' && $since_int > 0 && !_votes_has_since($csv, $since)) {
-        if (long_poll([$localCsv, $entries_source], $since_int, $poll_timeout)) {
+        if (long_poll($tenant_id, $now, $poll_timeout)) {
             $csv = sortCsvData(@file_get_contents($localCsv) ?: "Timestamp,entry\n");
             $csv = aggregateVotes($csv, $session_id);
         }
