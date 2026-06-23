@@ -1,6 +1,6 @@
 <?php
 /**
- * upgrade.php — pull latest from GitHub, overwrite matching files.
+ * deploy.php — pull latest from GitHub, overwrite matching files.
  * Usage: ?token=<upgradeToken from infopedia.cfg>
  */
 
@@ -114,9 +114,9 @@ file_put_contents(__DIR__ . '/version.json', json_encode([
 $zipUrl = 'https://github.com/' . $repo . '/archive/refs/heads/' . $branch . '.zip';
 header('Content-Type: text/html; charset=utf-8');
 ?><!doctype html>
-<html><head><title>upgrade</title></head>
+<html><head><title>deploy</title></head>
 <body style="font-family:monospace;padding:1rem;max-width:900px">
-<h2>upgrade — <?= htmlspecialchars($branch) ?></h2>
+<h2>deploy — <?= htmlspecialchars($branch) ?></h2>
 <p>
   commit: <code><?= htmlspecialchars($commitSha) ?></code><br>
   time: <?= $commitMtime ? gmdate('Y-m-d H:i:s', $commitMtime) . ' UTC' : '(unknown)' ?><br>
