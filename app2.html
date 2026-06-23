@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>fayf — Fact Farming</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    /* ── Reset + base ───────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: Arial, sans-serif; color: #333; background: #f5f5f5; }
+    body { display: flex; flex-direction: column; }
+    a { text-decoration: none; color: inherit; }
+
+    /* ── Nav ────────────────────────────────────────── */
+    nav {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: #333; color: #fff;
+      padding: 0.5rem 1rem; position: sticky; top: 0; z-index: 100;
+    }
+    nav a { color: #fff; }
+    #nav-back { margin-right: auto; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw; }
+    #nav-topic {
+        flex: 1;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #777;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0 0.5rem;
+        pointer-events: none;
+    }
+    #nav-search-icon { cursor: pointer; padding: 0.3rem; }
+    #nav-search-bar { display: none; flex: 1; }
+    #nav-search-bar.open { display: flex; align-items: center; gap: 0.4rem; }
+    #search-input { flex: 1; padding: 0.3rem 0.6rem; border-radius: 4px; border: none; font-size: 0.9rem; }
+    .scope-chip {
+      padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; cursor: pointer;
+      background: #555; color: #fff; border: none;
+    }
+    .scope-chip.active { background: #4CAF50; }
+    .scope-chip i { margin-right: 0.2rem; }
+    .scope-chip span { display: inline; }
+    #nav-settings-icon { cursor: pointer; padding: 0.3rem; }
+
+    /* ── Chip filter bar ────────────────────────────── */
+    #chip-bar {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+      padding: 0.5rem 1rem; background: #fff;
+      border-bottom: 1px solid #e0e0e0; position: sticky; top: 3rem; z-index: 90;
+    }
+    .type-chip {
+      padding: 0.25rem 0.75rem; border-radius: 14px; font-size: 0.8rem;
+      border: 2px solid transparent; cursor: pointer; background: #eee; color: #555;
+    }
+    .type-chip.active { color: #fff; border-color: transparent; }
+    .type-chip i, .bs-type-chip i { margin-right: 0.2rem; }
+    .type-chip span, .bs-type-chip span { display: inline; }
+    .type-chip[data-type="."].active   { background: #888; }
+    .type-chip[data-type="!"].active   { background: #4CAF50; }
+    .type-chip[data-type="!-"].active  { background: #f44336; }
+    .type-chip[data-type="?"].active   { background: #FF9800; }
+    .type-chip[data-type="??"].active  { background: #2196F3; }
+
+    /* ── Card list ──────────────────────────────────── */
+    #card-list { flex: 1; padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; max-width: 800px; width: 100%; margin: 0 auto; }
+
+    /* ── Card ───────────────────────────────────────── */
+    .card {
+      background: #fff; border-radius: 8px;
+      border: 1px solid #e0e0e0; padding: 0.75rem 1rem;
+      cursor: pointer; transition: box-shadow 0.15s;
+    }
+    .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .type-badge {
+      padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.72rem;
+      font-weight: bold; color: #fff; white-space: nowrap; flex-shrink: 0;
+    }
+    .type-badge.meinung   { background: #888; }
+    .type-badge.fakt      { background: #4CAF50; }
+    .type-badge.bewiesen  { background: #2e7d32; }
+    .type-badge.fake      { background: #f44336; }
+    .type-badge.widerlegung { background: #b71c1c; }
+    .type-badge.unklar    { background: #FF9800; }
+    .type-badge.gegenfrage { background: #2196F3; }
+    .card-text { font-size: 0.95rem; line-height: 1.4; flex: 1; }
+    .card-footer { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; }
+    .vote-score { font-weight: bold; font-size: 0.9rem; min-width: 2rem; text-align: center; }
+    .vote-score.pos { color: #4CAF50; }
+    .vote-score.neg { color: #f44336; }
+    .vote-score.zero { color: #aaa; }
+    .vote-btn {
+      background: none; border: 1px solid #ccc; border-radius: 4px;
+      padding: 0.15rem 0.5rem; cursor: pointer; font-size: 0.8rem; color: #666;
+    }
+    .vote-btn:hover { border-color: #4CAF50; color: #4CAF50; }
+    .sign-count { font-size: 0.8rem; color: #888; margin-left: auto; }
+    .sign-count.verified { color: #2e7d32; font-weight: bold; }
+    .sign-btn {
+      background: none; border: 1px solid #ccc; border-radius: 4px;
+      padding: 0.15rem 0.5rem; cursor: pointer; font-size: 0.75rem; color: #666;
+    }
+    .sign-btn:hover { border-color: #2e7d32; color: #2e7d32; }
+    .drill-arrow { color: #ccc; font-size: 0.8rem; margin-left: 0.25rem; }
+    .ts-label { font-size: 0.75rem; color: #bbb; }
+
+    /* ── FAB ────────────────────────────────────────── */
+    #fab {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 200;
+      width: 3.2rem; height: 3.2rem; border-radius: 50%;
+      background: #4CAF50; color: #fff; border: none;
+      font-size: 1.5rem; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #fab:hover { background: #45a049; }
+
+    /* ── Bottom sheet (add entry) ───────────────────── */
+    #bottom-sheet-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 300;
+    }
+    #bottom-sheet-overlay.open { display: flex; align-items: flex-end; }
+    #bottom-sheet {
+      background: #fff; width: 100%; border-radius: 12px 12px 0 0;
+      padding: 1.25rem 1rem 2rem; display: flex; flex-direction: column; gap: 0.75rem;
+      --bs-color: #888;
+    }
+    #bottom-sheet h3 { font-size: 1rem; color: #333; margin: 0; }
+    #bs-header { display: flex; align-items: center; justify-content: space-between; }
+    #bs-close { background: none; border: none; font-size: 1.25rem; color: #999; cursor: pointer; padding: 0.1rem 0.3rem; line-height: 1; }
+    #bs-type-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .bs-type-chip {
+      padding: 0.3rem 0.8rem; border-radius: 14px; font-size: 0.82rem;
+      border: 2px solid #ccc; cursor: pointer; background: #fff; color: #555;
+    }
+    .bs-type-chip.active { color: #fff; border-color: transparent; }
+    .bs-type-chip[data-type="."].active  { background: #888; }
+    .bs-type-chip[data-type="!"].active  { background: #4CAF50; }
+    .bs-type-chip[data-type="!-"].active { background: #f44336; }
+    .bs-type-chip[data-type="?"].active  { background: #FF9800; }
+    .bs-type-chip[data-type="??"].active { background: #2196F3; }
+    #bs-textarea {
+      width: 100%; min-height: 5rem; padding: 0.6rem;
+      border: 2px solid var(--bs-color); border-radius: 6px; font-size: 1rem;
+      resize: vertical; font-family: inherit; transition: border-color 0.15s;
+    }
+    #bs-submit {
+      padding: 0.7rem; background: var(--bs-color); color: #fff;
+      border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+      transition: filter 0.15s;
+    }
+    #bs-submit:hover { filter: brightness(0.88); }
+    #bs-cancel {
+      padding: 0.5rem; background: none; border: none;
+      color: #888; font-size: 0.9rem; cursor: pointer; text-align: center;
+    }
+
+    /* ── Toast ──────────────────────────────────────── */
+    #toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 500; }
+
+    /* ── Settings overlay (reuse from app.html pattern) */
+    #settings-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 400;
+      align-items: center; justify-content: center;
+    }
+    #settings-overlay.open { display: flex; }
+    #settings-panel {
+      background: #fff; border-radius: 8px; padding: 1.5rem;
+      width: min(400px, 90vw); display: flex; flex-direction: column; gap: 1rem;
+    }
+    #settings-panel h2 { font-size: 1.1rem; }
+    #settings-tenant { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 4px; }
+    .settings-btn {
+      padding: 0.5rem 1rem; border-radius: 4px; border: none; cursor: pointer; font-size: 0.9rem;
+    }
+    .settings-btn.primary { background: #4CAF50; color: #fff; }
+    .settings-btn.secondary { background: #eee; color: #333; }
+
+    /* ── Swipe feedback ─────────────────────────────── */
+    .card.swiping-right { border-left: 4px solid #4CAF50; }
+    .card.swiping-left  { border-left: 4px solid #f44336; }
+
+    /* ── Responsive ─────────────────────────────────── */
+    @media (max-width: 600px) {
+      nav { padding: 0.4rem 0.6rem; }
+      #card-list { padding: 0.5rem; }
+    }
+
+    /* ── Issue report overlay (CA17) ───────────────────── */
+    #issue-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 450;
+      align-items: center; justify-content: center;
+    }
+    #issue-overlay.open { display: flex; }
+    #issue-panel {
+      background: #fff; border-radius: 8px; padding: 1.5rem;
+      width: min(540px, 95vw); display: flex; flex-direction: column; gap: 0.75rem;
+      max-height: 90vh; overflow-y: auto;
+    }
+    #issue-panel h3 { font-size: 1.05rem; margin: 0; }
+    #issue-panel textarea { resize: vertical; }
+    .toast-report-btn {
+      display: inline-block;
+      margin-left: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 3px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    .toast-report-btn:hover { background: rgba(255,255,255,0.35); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a id="nav-back" href="infopage.html"><i class="fas fa-arrow-left"></i> fayf.info</a>
+  <span id="nav-topic"></span>
+  <div id="nav-search-bar">
+    <input id="search-input" type="text" placeholder="Suchen…">
+    <button class="scope-chip" data-scope="global"><i class="fas fa-globe"></i><span>Global</span></button>
+    <button class="scope-chip" data-scope="here"><i class="fas fa-crosshairs"></i><span>Hier</span></button>
+    <button class="scope-chip active" data-scope="below"><i class="fas fa-layer-group"></i><span>Darunter</span></button>
+  </div>
+  <i class="fas fa-search" id="nav-search-icon"></i>
+  <i class="fas fa-cog" id="nav-settings-icon"></i>
+</nav>
+
+<div id="chip-bar">
+  <button class="type-chip active" data-type="."><i class="fas fa-comment"></i><span>Meinung</span></button>
+  <button class="type-chip active" data-type="!"><i class="fas fa-circle-check"></i><span>Fakt</span></button>
+  <button class="type-chip active" data-type="!-"><i class="fas fa-circle-xmark"></i><span>Fake</span></button>
+  <button class="type-chip active" data-type="?"><i class="fas fa-circle-question"></i><span>Unklar</span></button>
+  <button class="type-chip active" data-type="??"><i class="fas fa-right-left"></i><span>Frage</span></button>
+</div>
+
+<div id="card-list"></div>
+
+<button id="fab"><i class="fas fa-plus"></i></button>
+
+<div id="bottom-sheet-overlay">
+  <div id="bottom-sheet">
+    <div id="bs-header">
+      <h3>Neuer Eintrag</h3>
+      <button id="bs-close" aria-label="Schließen">✕</button>
+    </div>
+    <div id="bs-type-chips">
+      <button class="bs-type-chip active" data-type="."><i class="fas fa-comment"></i><span>Meinung</span></button>
+      <button class="bs-type-chip" data-type="!"><i class="fas fa-circle-check"></i><span>Fakt</span></button>
+      <button class="bs-type-chip" data-type="!-"><i class="fas fa-circle-xmark"></i><span>Fake</span></button>
+      <button class="bs-type-chip" data-type="?"><i class="fas fa-circle-question"></i><span>Unklar</span></button>
+      <button class="bs-type-chip" data-type="??"><i class="fas fa-right-left"></i><span>Gegenfrage</span></button>
+    </div>
+    <textarea id="bs-textarea" placeholder="Dein Beitrag…"></textarea>
+    <button id="bs-submit">Hinzufügen</button>
+    <button id="bs-cancel">Abbrechen</button>
+  </div>
+</div>
+
+<div id="settings-overlay">
+  <div id="settings-panel">
+    <h2>Einstellungen</h2>
+    <label>Tenant ID
+      <input id="settings-tenant" type="text" placeholder="demo">
+    </label>
+    <label style="font-size:0.9rem;display:flex;align-items:center;gap:0.5rem">
+      Typen-Anzeige:
+      <select id="settings-type-display" style="padding:0.3rem;border-radius:4px;border:1px solid #ccc;">
+        <option value="text">Text</option>
+        <option value="icon+text">Icon + Text</option>
+        <option value="icon">Nur Icon</option>
+      </select>
+    </label>
+    <div style="display:flex;gap:0.5rem">
+      <button class="settings-btn primary" id="settings-apply">Übernehmen</button>
+      <button class="settings-btn secondary" id="settings-close">Schließen</button>
+      <button class="settings-btn secondary" id="settings-bug-report">Bug Melden</button>
+    </div>
+    <div style="margin-top:0.75rem;font-size:0.8rem;color:#999">
+      <a href="wrapper.php?test=app2.html" target="_blank" style="color:#999">Tests ausführen</a>
+    </div>
+    <div id="settings-version" style="margin-top:0.5rem;font-size:0.75rem;color:#bbb"></div>
+  </div>
+</div>
+
+<div id="issue-overlay">
+  <div id="issue-panel">
+    <h3>Problem melden</h3>
+    <p style="margin:0;font-size:0.85rem;color:#666">Titel <span style="color:#c00">*</span></p>
+    <input type="text" id="issue-titel" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:0.9rem;padding:0.35rem 0.5rem;border:1px solid #ccc;border-radius:4px" placeholder="Kurzer Titel des Problems">
+    <p style="margin:0;font-size:0.85rem;color:#666">Was ist passiert? (optional)</p>
+    <textarea id="issue-user-msg" rows="3" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:0.9rem" placeholder="Beschreibe kurz, was du gemacht hast..."></textarea>
+    <p style="margin:0;font-size:0.85rem;color:#666">Technische Details (automatisch — bitte prüfen und ggf. anpassen):</p>
+    <textarea id="issue-details" rows="10" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:0.78rem"></textarea>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button id="issue-send">📤 Senden</button>
+      <button id="issue-copy">📋 Kopieren</button>
+      <button id="issue-mail">✉️ E-Mail</button>
+      <button id="issue-github">🐛 GitHub</button>
+      <button id="issue-close" style="margin-left:auto">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="gesture.js"></script>
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let tenantId = "";
+let sid = "www";
+let data = {};          // { "/topic": { "nodeId": { topic, nodeId, message, votes, timestamp } } }
+let votesData = {};     // { "/topic/nodeId": { votes: N, signed: N } }
+let topicMap = {};      // { "/topic": "DisplayName" }
+let selectedTopic = "/";
+let latestTimestamp = null;
+let searchScope = "below";   // "here" | "below" | "global"
+let activeTypes = new Set([".", "!", "!-", "?", "??"]); // visible types
+
+// ── Version ────────────────────────────────────────────────────────────────────
+const APP_VERSION = "0.3.0";
+
+// ── Server config (fetched from config.php) ────────────────────────────────────
+let serverConfig = {};
+fetch('config.php').then(r => r.ok ? r.json() : {}).then(c => { serverConfig = c; }).catch(() => {});
+
+// set true to block entry creation when no topic is selected (root "/")
+const REQUIRE_TOPIC_FOR_ENTRY = false;
+let typeDisplayMode = "text"; // "text" | "icon+text" | "icon"
+
+// ── Action trail (CA17) ────────────────────────────────────────────────────────
+const ACTION_TRAIL_MAX = 10;
+let actionTrail = [];
+
+function pushAction(action, detail) {
+    actionTrail.push({ ts: new Date().toISOString(), action, detail: detail || "" });
+    if (actionTrail.length > ACTION_TRAIL_MAX) actionTrail.shift();
+}
+
+function buildStateSnapshot() {
+    const searchVal = document.getElementById("search-input").value.trim();
+    const cards = document.querySelectorAll("#card-list .card").length;
+    return [
+        "Thema:  " + selectedTopic,
+        "Tenant: [verborgen]",
+        "Filter: " + (activeTypes.size ? [...activeTypes].join(", ") : "alle"),
+        "Suche:  " + (searchVal ? '"' + searchVal + '" (' + searchScope + ')' : "keine"),
+        "Karten: " + cards,
+    ].join("\n");
+}
+
+function sanitiseForReport(text) {
+    let s = String(text);
+    if (sid)      s = s.split(sid).join("[sid]");
+    if (tenantId) s = s.split(tenantId).join("[tid]");
+    return s;
+}
+
+// ── Issue report builder (CA17) ────────────────────────────────────────────────
+function buildReportText(errorCtx) {
+    const lines = [];
+    lines.push("Zeit: " + new Date().toISOString() + " | Version: " + APP_VERSION);
+    lines.push("");
+    lines.push("## Letzte Aktionen");
+    if (actionTrail.length === 0) {
+        lines.push("*(keine)*");
+    } else {
+        actionTrail.slice().reverse().forEach(a => {
+            lines.push("- " + a.ts.slice(11, 19) + "  " + a.action + (a.detail ? ": " + a.detail : ""));
+        });
+    }
+    lines.push("");
+    lines.push("## Zustand");
+    lines.push("```");
+    lines.push(buildStateSnapshot());
+    lines.push("```");
+    if (errorCtx) {
+        lines.push("");
+        lines.push("## Fehlerdetails");
+        if (errorCtx.label)  lines.push("**Fehler:** " + errorCtx.label);
+        if (errorCtx.status) lines.push("**Status:** " + errorCtx.status);
+        if (errorCtx.url)    lines.push("**URL:** `" + errorCtx.url + "`");
+        if (errorCtx.err)    lines.push("**Detail:** " + String(errorCtx.err));
+    }
+    return sanitiseForReport(lines.join("\n"));
+}
+
+function openIssueReport(errorCtx) {
+    if (document.getElementById("issue-overlay").classList.contains("open")) return;
+    document.getElementById("issue-details").value = buildReportText(errorCtx);
+    document.getElementById("issue-user-msg").value = "";
+    document.getElementById("issue-titel").value = "";
+    document.getElementById("issue-send").disabled = true;
+    document.getElementById("issue-overlay").classList.add("open");
+}
+
+function closeIssueReport() {
+    document.getElementById("issue-overlay").classList.remove("open");
+}
+
+document.getElementById("issue-close").addEventListener("click", closeIssueReport);
+document.getElementById("issue-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("issue-overlay")) closeIssueReport();
+});
+document.getElementById("issue-titel").addEventListener("input", () => {
+    document.getElementById("issue-send").disabled =
+        document.getElementById("issue-titel").value.trim() === "";
+});
+
+// ── Issue report submission (CA17) ────────────────────────────────────────────
+function buildFullReport() {
+    const titel   = document.getElementById("issue-titel").value.trim();
+    const userMsg = document.getElementById("issue-user-msg").value.trim();
+    const details = document.getElementById("issue-details").value;
+    const desc    = userMsg ? "\n\n## Beschreibung\n" + userMsg : "";
+    return "# " + titel + "\n\n" + details + desc;
+}
+
+function submitReportClipboard() {
+    navigator.clipboard.writeText(buildFullReport())
+        .then(() => { showToast("Bericht kopiert!", "success", 2000); closeIssueReport(); })
+        .catch(() => showToast("Kopieren fehlgeschlagen.", "error"));
+}
+
+function submitReportMail() {
+    const s = loadSettings();
+    if (!s.issueMailto) return;
+    const subject = encodeURIComponent("Fehlerbericht fayf.info " + APP_VERSION);
+    const body    = encodeURIComponent(buildFullReport());
+    window.open("mailto:" + s.issueMailto + "?subject=" + subject + "&body=" + body);
+    closeIssueReport();
+}
+
+function submitReportGithub() {
+    const s = loadSettings();
+    if (!s.issueGithubUrl) return;
+    const title = encodeURIComponent("Fehlerbericht fayf.info " + APP_VERSION);
+    const body  = encodeURIComponent(buildFullReport());
+    const sep = s.issueGithubUrl.includes("?") ? "&" : "?";
+    window.open(s.issueGithubUrl + sep + "title=" + title + "&body=" + body, "_blank");
+    closeIssueReport();
+}
+
+function submitReportSend() {
+    const report = buildFullReport();
+    closeIssueReport();
+    fetch('issue.php', { method: 'POST', body: new URLSearchParams({ report }) })
+        .then(r => r.ok
+            ? showToast("Bericht gesendet!", "success", 2000)
+            : showToast("Senden fehlgeschlagen.", "error"))
+        .catch(() => showToast("Senden fehlgeschlagen.", "error"));
+}
+
+document.getElementById("issue-copy").addEventListener("click", submitReportClipboard);
+document.getElementById("issue-mail").addEventListener("click", submitReportMail);
+document.getElementById("issue-github").addEventListener("click", submitReportGithub);
+document.getElementById("issue-send").addEventListener("click", submitReportSend);
+
+// ── Debug ─────────────────────────────────────────────────────────────────────
+function runtimeCheck(msg = "") {
+    // hook point — intentionally empty; call sites kept for future instrumentation
+}
+
+// ── Key helpers ───────────────────────────────────────────────────────────────
+function fullKey(topic, nodeId) {
+    return topic + ("/" === topic ? "" : "/") + nodeId;
+}
+function splitKey(key) {
+    const lastSlash = key.lastIndexOf("/");
+    if (lastSlash <= 0) return ["/", key.replace(/^\//, "")];
+    return [key.substring(0, lastSlash), key.substring(lastSlash + 1)];
+}
+
+// ── Entry helpers ─────────────────────────────────────────────────────────────
+function generateNodeId() {
+    return Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
+}
+function getTypeFromMessage(message) {
+    for (const t of [">", "!-", "??", "!", "?", ".", "@", "--"]) {
+        if (message && message.endsWith(t)) return t;
+    }
+    return "";
+}
+function matchType(message, type) {
+    const current = getTypeFromMessage(message);
+    if (current === type) return message;
+    if (!current) return message + type;
+    if (type === "--") return message + type;
+    return message.slice(0, -current.length).trim() + type;
+}
+function formatTimestamp(ts) {
+    if (!ts) return "";
+    const d = new Date(ts.replace(" ", "T"));
+    if (isNaN(d)) return ts;
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString("de-DE", { day: "numeric", month: "short" });
+    return d.getFullYear().toString();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(message, type = "info", duration = 3000, errorCtx = null) {
+    const container = document.getElementById("toast-container");
+    const el = document.createElement("div");
+    el.style.cssText = `
+        background:${type === "success" ? "#4CAF50" : type === "error" ? "#f44336" : "#333"};
+        color:#fff;padding:0.75rem 1rem;margin-bottom:0.4rem;border-radius:6px;
+        box-shadow:0 2px 6px rgba(0,0,0,0.25);font-size:0.9rem;display:flex;align-items:center;
+    `;
+    const span = document.createElement("span");
+    span.textContent = message;
+    el.appendChild(span);
+    if (type === "error" && errorCtx) {
+        const btn = document.createElement("button");
+        btn.textContent = "Melden";
+        btn.className = "toast-report-btn";
+        btn.onclick = (e) => { e.stopPropagation(); openIssueReport(errorCtx); };
+        el.appendChild(btn);
+    }
+    container.appendChild(el);
+    setTimeout(() => el.remove(), duration);
+}
+
+// ── Data write ────────────────────────────────────────────────────────────────
+function addEntryWoCheck(topic, nodeId, message, votes, timestamp) {
+    runtimeCheck("addEntryWoCheck");
+    if (!topic || topic === "") topic = "/";
+    if (!data[topic]) data[topic] = {};
+    if (message && message.endsWith("--")) {
+        delete data[topic][nodeId];
+    } else {
+        data[topic][nodeId] = { topic, nodeId, timestamp: timestamp || "", message, votes: votes || 0 };
+    }
+    runtimeCheck("addEntryWoCheck-end");
+}
+function addEntry(topic, nodeId, message, votes, timestamp) {
+    runtimeCheck("addEntry");
+    addEntryWoCheck(topic, nodeId, message, votes, timestamp);
+    checkData(topic, nodeId, message);
+    runtimeCheck("addEntry-end");
+}
+function addVoteByGui(topic, nodeId, deltaVotes) {
+    runtimeCheck("addVoteByGui");
+    if (data[topic] && data[topic][nodeId]) {
+        data[topic][nodeId].votes = (data[topic][nodeId].votes || 0) + deltaVotes;
+    }
+    const key = fullKey(topic, nodeId);
+    if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+    votesData[key].votes = (votesData[key].votes || 0) + deltaVotes;
+    runtimeCheck("addVoteByGui-end");
+}
+function setVoteByOthers(topic, nodeId, votes) {
+    runtimeCheck("setVoteByOthers");
+    const key = fullKey(topic, nodeId);
+    if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+    votesData[key].votes = votes;
+    if (data[topic] && data[topic][nodeId]) data[topic][nodeId].votes = votes;
+    runtimeCheck("setVoteByOthers-end");
+}
+
+// ── checkData: ensure topic map consistency ───────────────────────────────────
+function checkData(topic, nodeId, message) {
+    runtimeCheck("checkData");
+    // ensure parent topics exist
+    if (topic && topic !== "/") {
+        const parts = topic.split("/").filter(Boolean);
+        let path = "";
+        for (const part of parts) {
+            const parentPath = path || "/";
+            if (!data[parentPath]) data[parentPath] = {};
+            path += "/" + part;
+            const found = Object.values(data[parentPath] || {}).some(e => fullKey(e.topic, e.nodeId) === path || e.message.replace(/[.!?@>-]+$/, "") === part);
+            if (!found) {
+                // create stub topic entry
+                const stubId = part;
+                data[parentPath][stubId] = { topic: parentPath, nodeId: stubId, message: part + ">", votes: 0, timestamp: "" };
+            }
+        }
+    }
+    runtimeCheck("checkData-end");
+}
+
+// ── Topic map ─────────────────────────────────────────────────────────────────
+function initializeTopicMap() {
+    runtimeCheck("initializeTopicMap");
+    topicMap = {};
+    Object.entries(data).forEach(([topic, nodes]) => {
+        Object.values(nodes).forEach(entry => {
+            if (entry.message && entry.message.endsWith(">")) {
+                const childTopic = fullKey(entry.topic, entry.nodeId);
+                topicMap[childTopic] = entry.message.replace(/>$/, "").trim();
+            }
+        });
+    });
+    runtimeCheck("initializeTopicMap-end");
+}
+
+// ── Merge loaded data ─────────────────────────────────────────────────────────
+function addData(dataLoaded) {
+    runtimeCheck("addData");
+    if (!dataLoaded || Object.keys(dataLoaded).length === 0) return;
+    // Backend returns flat { "/path/node": { timestamp, message, attrs, votes } }
+    Object.entries(dataLoaded).forEach(([fullPath, entry]) => {
+        const [topic, nodeId] = splitKey(fullPath);
+        // votes from backend may be an object {sid: n, others: n}; sum to a scalar
+        let voteCount = 0;
+        if (entry.votes && typeof entry.votes === "object") {
+            voteCount = Object.values(entry.votes).reduce((a, b) => a + b, 0);
+        } else if (typeof entry.votes === "number") {
+            voteCount = entry.votes;
+        }
+        addEntryWoCheck(topic, nodeId, entry.message, voteCount, entry.timestamp);
+        if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(entry.timestamp)) {
+            if (!latestTimestamp || entry.timestamp > latestTimestamp) latestTimestamp = entry.timestamp;
+        }
+    });
+    checkData();
+    initializeTopicMap();
+    runtimeCheck("addData-end");
+}
+function addVotesData(dataLoaded) {
+    runtimeCheck("addVotesData");
+    if (!dataLoaded) return;
+    // Backend returns flat { "/path/node": { timestamp, message, attrs, votes } }
+    // votes is an object like { sid: n, others: n }; attrs may contain signed count
+    Object.entries(dataLoaded).forEach(([key, entry]) => {
+        let v = 0;
+        if (entry.votes && typeof entry.votes === "object") {
+            v = Object.values(entry.votes).reduce((a, b) => a + b, 0);
+        } else if (typeof entry.votes === "number") {
+            v = entry.votes;
+        }
+        const s = parseInt((entry.attrs && entry.attrs.signed_count) || 0, 10);
+        if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+        votesData[key].votes = v;
+        votesData[key].signed = s;
+        const [topic, nodeId] = splitKey(key);
+        if (data[topic] && data[topic][nodeId]) data[topic][nodeId].votes = v;
+    });
+    runtimeCheck("addVotesData-end");
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function loadSettings() {
+    const defaults = {
+        issueGithubUrl: serverConfig.issueGithubUrl || 'https://github.com/PluggPreagar/infopedia_php/issues/new',
+        issueMailto:    serverConfig.issueMailto    || 'bugs@fayf.info',
+    };
+    try { return { ...defaults, ...JSON.parse(localStorage.getItem("fayf_settings") || "{}") }; } catch { return defaults; }
+}
+function saveSettings(patch) {
+    const s = loadSettings();
+    localStorage.setItem("fayf_settings", JSON.stringify({ ...s, ...patch }));
+}
+
+// ── Type system ───────────────────────────────────────────────────────────────
+const TYPE_DEFS = {
+    "!-": { label: "Fake",       cssClass: "fake",       color: "#f44336", iconClass: "fa-circle-xmark"    },
+    "!":  { label: "Fakt",       cssClass: "fakt",       color: "#4CAF50", iconClass: "fa-circle-check"    },
+    "??": { label: "Gegenfrage", cssClass: "gegenfrage", color: "#2196F3", iconClass: "fa-right-left"      },
+    "?":  { label: "Unklar",     cssClass: "unklar",     color: "#FF9800", iconClass: "fa-circle-question" },
+    ".":  { label: "Meinung",    cssClass: "meinung",    color: "#888",    iconClass: "fa-comment"         },
+    "@":  { label: "Quelle",     cssClass: "meinung",    color: "#888",    iconClass: "fa-link"            },
+    ">":  { label: "Thema",      cssClass: "fakt",       color: "#4CAF50", iconClass: "fa-folder-open"     },
+};
+const TYPE_DEF_DEFAULT = { label: "Eintrag", cssClass: "meinung", color: "#888", iconClass: "fa-circle-dot" };
+
+function getTypeDef(message) {
+    const suffix = getTypeFromMessage(message);
+    const base = TYPE_DEFS[suffix] || TYPE_DEF_DEFAULT;
+    return { ...base, suffix };
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function getSignedCount(topic, nodeId) {
+    const key = fullKey(topic, nodeId);
+    return (votesData[key] && votesData[key].signed) || 0;
+}
+
+function buildCard(entry) {
+    const { topic, nodeId, message, votes, timestamp } = entry;
+    const suffix = getTypeFromMessage(message);
+    let typeDef = TYPE_DEFS[suffix] || TYPE_DEF_DEFAULT;
+    const signed = getSignedCount(topic, nodeId);
+    const verified = signed >= 2 && (suffix === "!" || suffix === "!-");
+    if (verified) {
+        typeDef = suffix === "!"
+            ? { label: "Bewiesen ✓", cssClass: "bewiesen", color: "#2e7d32" }
+            : { label: "Widerlegung ✓", cssClass: "widerlegung", color: "#b71c1c" };
+    }
+
+    const cleanMsg = escapeHtml(message.replace(/[.!?@>\-]+$/, "").trim() || message);
+    const voteCount = votes || 0;
+    const scoreClass = voteCount > 0 ? "pos" : voteCount < 0 ? "neg" : "zero";
+    const scoreStr = voteCount > 0 ? "+" + voteCount : String(voteCount);
+    const key = fullKey(topic, nodeId);
+    const hasDrillIn = suffix === ">" || (data[key] && Object.keys(data[key]).length > 0);
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.topic = topic;
+    card.dataset.nodeId = nodeId;
+    card.dataset.fullKey = key;
+    card.innerHTML = `
+        <div class="card-header">
+            <span class="type-badge ${typeDef.cssClass}">${(() => {
+                const icon = typeDef.iconClass ? `<i class="fas ${typeDef.iconClass}"></i>` : '';
+                if (typeDisplayMode === 'icon') return icon;
+                if (typeDisplayMode === 'icon+text') return icon + (icon ? ' ' : '') + typeDef.label;
+                return typeDef.label;
+            })()}</span>
+            <span class="card-text">${cleanMsg}</span>
+            ${hasDrillIn ? '<i class="fas fa-chevron-right drill-arrow"></i>' : ""}
+        </div>
+        <div class="card-footer">
+            <button class="vote-btn upvote-btn" data-key="${escapeHtml(key)}">▲</button>
+            <span class="vote-score ${scoreClass}">${scoreStr}</span>
+            <button class="vote-btn downvote-btn" data-key="${escapeHtml(key)}">▼</button>
+            <span class="sign-count ${signed >= 2 ? "verified" : ""}">${signed > 0 ? "✓ " + signed : ""}</span>
+            <button class="sign-btn" data-key="${escapeHtml(key)}">Bestätigen</button>
+            <span class="ts-label">${formatTimestamp(timestamp)}</span>
+        </div>
+    `;
+    return card;
+}
+
+// ── Voting ────────────────────────────────────────────────────────────────────
+async function sendVote(topic, nodeId, delta) {
+    runtimeCheck("sendVote");
+    if (!tenantId) return;
+    const key = fullKey(topic, nodeId);
+    const entry = data[topic] && data[topic][nodeId];
+    if (!entry) return;
+    const body = new URLSearchParams({
+        entry: `${key} | votes:${sid}:${delta} | ${entry.message}`
+    });
+    try {
+        const res = await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (!res.ok) console.error("[app2] sendVote non-ok:", res.status, res.url);
+    } catch (err) {
+        console.error("[app2] sendVote:", err);
+        showToast("Bewertung konnte nicht gespeichert werden.", "error", 3000, { label: "sendVote", err });
+    }
+    runtimeCheck("sendVote-end");
+}
+
+function handleVote(key, delta) {
+    const [topic, nodeId] = splitKey(key);
+    pushAction("vote", key + " " + (delta > 0 ? "+" : "") + delta);
+    addVoteByGui(topic, nodeId, delta);
+    sendVote(topic, nodeId, delta);
+    // update score in existing card without full re-render
+    const card = document.querySelector(`.card[data-full-key="${key}"]`);
+    if (card) {
+        const votes = (data[topic] && data[topic][nodeId] && data[topic][nodeId].votes) || 0;
+        const score = card.querySelector(".vote-score");
+        score.textContent = votes > 0 ? "+" + votes : String(votes);
+        score.className = "vote-score " + (votes > 0 ? "pos" : votes < 0 ? "neg" : "zero");
+    }
+}
+
+// ── Swipe voting ──────────────────────────────────────────────────────────────
+const _debounceMap = {};
+function debounceKey(key, ms) {
+    const now = Date.now();
+    if (_debounceMap[key] && now - _debounceMap[key] < ms) return false;
+    _debounceMap[key] = now;
+    return true;
+}
+
+// ── Render cards with IntersectionObserver batching ───────────────────────────
+
+function renderCards(entries) {
+    runtimeCheck("renderCards");
+    const list = document.getElementById("card-list");
+    list.innerHTML = "";
+    if (!entries || entries.length === 0) {
+        list.innerHTML = `<p style="color:#999;text-align:center;padding:2rem">Keine Einträge. Füge den ersten hinzu!</p>`;
+        return;
+    }
+    const BATCH = 80;
+    let rendered = 0;
+    let observer;
+
+    function renderBatch() {
+        const sentinel = document.getElementById("card-sentinel");
+        if (sentinel) sentinel.remove();
+        const end = Math.min(rendered + BATCH, entries.length);
+        for (let i = rendered; i < end; i++) {
+            list.appendChild(buildCard(entries[i]));
+        }
+        rendered = end;
+        if (rendered < entries.length) {
+            const s = document.createElement("div");
+            s.id = "card-sentinel";
+            s.style.height = "1px";
+            list.appendChild(s);
+            observer.observe(s);
+        }
+        // gesture handling is delegated — no per-card wiring needed
+    }
+
+    observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) { observer.disconnect(); renderBatch(); }
+    }, { rootMargin: "200px" });
+
+    renderBatch();
+    runtimeCheck("renderCards-end");
+}
+
+// ── Filtering ─────────────────────────────────────────────────────────────────
+function getFilteredEntries() {
+    runtimeCheck("getFilteredEntries");
+    const searchInput = document.getElementById("search-input");
+    const searchVal = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const result = [];
+    Object.entries(data).forEach(([topic, nodes]) => {
+        // scope filter
+        if (searchScope === "here" && topic !== selectedTopic) return;
+        if (searchScope === "below" && topic !== selectedTopic && !topic.startsWith(selectedTopic === "/" ? "/" : selectedTopic + "/")) return;
+        // for non-search: only show direct children of selectedTopic (skip for global scope)
+        if (!searchVal && searchScope !== "global" && topic !== selectedTopic) return;
+
+        Object.values(nodes).forEach(entry => {
+            const suffix = getTypeFromMessage(entry.message);
+            if (!activeTypes.has(suffix) && suffix !== ">") return;
+            if (searchVal && !entry.message.toLowerCase().includes(searchVal)) return;
+            result.push(entry);
+        });
+    });
+    result.sort((a, b) => (b.votes || 0) - (a.votes || 0) || a.message.localeCompare(b.message));
+    runtimeCheck("getFilteredEntries-end");
+    return result;
+}
+
+function updateView() {
+    runtimeCheck("updateView");
+    const navBack = document.getElementById("nav-back");
+    if (selectedTopic === "/") {
+        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> fayf.info`;
+        navBack.href = "infopage.html";
+        navBack.onclick = null;
+    } else {
+        const parts = selectedTopic.split("/").filter(Boolean);
+        const parentTopic = parts.length > 1 ? "/" + parts.slice(0, -1).join("/") : "/";
+        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> ${escapeHtml(topicMap[parentTopic] || "zurück")}`;
+        navBack.href = "#";
+        navBack.onclick = e => { e.preventDefault(); navigateTo(parentTopic); };
+    }
+    const navTopic = document.getElementById("nav-topic");
+    if (navTopic) navTopic.textContent = selectedTopic === "/" ? "" : selectedTopic;
+    renderCards(getFilteredEntries());
+    runtimeCheck("updateView-end");
+}
+
+function navigateTo(topic) {
+    runtimeCheck("navigateTo");
+    pushAction("navigate", topic);
+    selectedTopic = topic;
+    const url = new URL(window.location.href);
+    url.searchParams.set("topic", topic);
+    history.pushState({}, "", url);
+    updateView();
+    runtimeCheck("navigateTo-end");
+}
+
+// ── Signing ───────────────────────────────────────────────────────────────────
+async function signEntry(topic, nodeId) {
+    runtimeCheck("signEntry");
+    if (!tenantId) return;
+    const key = fullKey(topic, nodeId);
+    const entry = data[topic] && data[topic][nodeId];
+    if (!entry) return;
+    const body = new URLSearchParams({
+        entry: `${key} | signed:${sid}:1 | ${entry.message}`
+    });
+    try {
+        const res = await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (res.ok) {
+            pushAction("sign", key);
+            if (!votesData[key]) votesData[key] = { votes: 0, signed: 0 };
+            votesData[key].signed = (votesData[key].signed || 0) + 1;
+            showToast("Bestätigt!", "success", 1500);
+            updateView();
+        }
+    } catch (err) {
+        console.error("[app2] signEntry:", err);
+        showToast("Bestätigung konnte nicht gespeichert werden.", "error", 3000, { label: "signEntry", err });
+    }
+    runtimeCheck("signEntry-end");
+}
+
+// ── Event wiring ──────────────────────────────────────────────────────────────
+document.getElementById("chip-bar").addEventListener("click", e => {
+    const chip = e.target.closest(".type-chip");
+    if (!chip) return;
+    const type = chip.dataset.type;
+    if (activeTypes.has(type)) { activeTypes.delete(type); chip.classList.remove("active"); }
+    else { activeTypes.add(type); chip.classList.add("active"); }
+    pushAction("filterType", [...activeTypes].join(","));
+    updateView();
+});
+
+// ── Card list — all interaction in one place ──────────────────────────────────
+function entryFromKey(key) {
+    const [topic, nodeId] = splitKey(key);
+    return data[topic]?.[nodeId] ?? null;
+}
+
+function initCardList() {
+    const list = document.getElementById("card-list");
+    initGestureDetector(list);
+
+    list.addEventListener("gesture:tap", e => {
+        if (e.target.closest(".vote-btn") || e.target.closest(".sign-btn")) return;
+        if (e.target.closest(".drill-arrow")) {
+            navigateTo(e.target.closest(".card")?.dataset.fullKey);
+            return;
+        }
+        if (!e.target.closest(".card")) return;
+        showToast("Lange drücken zum Bearbeiten", "info", 2000);
+    });
+
+    list.addEventListener("gesture:longpress", e => {
+        const card = e.target.closest(".card");
+        if (!card) return;
+        const entry = entryFromKey(card.dataset.fullKey);
+        if (!entry) return;
+        pushAction("longPress", card.dataset.fullKey);
+        openBottomSheet(entry);
+    });
+
+    list.addEventListener("gesture:swipe", e => {
+        const card = e.target.closest(".card");
+        if (!card) return;
+        const key = card.dataset.fullKey;
+        if (!key || !debounceKey("swipe_" + key, 1000)) return;
+        card.classList.add(e.detail.direction === "right" ? "swiping-right" : "swiping-left");
+        setTimeout(() => card.classList.remove("swiping-right", "swiping-left"), 400);
+        handleVote(key, e.detail.direction === "right" ? 1 : -1);
+    });
+
+    list.addEventListener("click", e => {
+        const upBtn = e.target.closest(".upvote-btn");
+        const dnBtn = e.target.closest(".downvote-btn");
+        const sign  = e.target.closest(".sign-btn");
+        if (upBtn) { e.stopPropagation(); if (debounceKey("vote_" + upBtn.dataset.key, 1000)) handleVote(upBtn.dataset.key,  1); }
+        if (dnBtn) { e.stopPropagation(); if (debounceKey("vote_" + dnBtn.dataset.key, 1000)) handleVote(dnBtn.dataset.key, -1); }
+        if (sign)  { e.stopPropagation(); const [t, n] = splitKey(sign.dataset.key); signEntry(t, n); }
+    });
+}
+initCardList();
+
+// ── Data loading ──────────────────────────────────────────────────────────────
+let pollActive = false;
+let pollController = null;
+
+function buildEntriesUrl(extra = {}) {
+    const p = new URLSearchParams({ sid, tid: tenantId, format: "json", ...extra });
+    return "entries?" + p.toString();
+}
+function buildVotesUrl(extra = {}) {
+    const p = new URLSearchParams({ sid, tid: tenantId, format: "json", ...extra });
+    return "votes?" + p.toString();
+}
+
+async function safeJson(res, label) {
+    const text = await res.text();
+    if (!text.trim()) return null;
+    try {
+        return JSON.parse(text);
+    } catch (err) {
+        console.error("[app2] " + label + " JSON parse error:", err.message,
+            "\n  status:", res.status, res.url,
+            "\n  body:", text.slice(0, 500));
+        throw new Error(label + ": ungültiges JSON (Status " + res.status + ") — Details in der Konsole");
+    }
+}
+
+async function loadInitialData() {
+    if (!tenantId) { showToast("Kein Tenant gesetzt — öffne Einstellungen.", "error"); return; }
+    runtimeCheck("loadInitialData");
+    try {
+        const [eRes, vRes] = await Promise.all([
+            fetch(buildEntriesUrl()),
+            fetch(buildVotesUrl()),
+        ]);
+        let loadError = false;
+        if (eRes.ok) addData(await safeJson(eRes, "entries"));
+        else { console.warn("[app2] entries fetch", eRes.status, eRes.url); loadError = true; }
+        if (vRes.ok) addVotesData(await safeJson(vRes, "votes"));
+        else { console.warn("[app2] votes fetch", vRes.status, vRes.url); loadError = true; }
+        updateView();
+        if (!loadError) showToast("Daten geladen.", "success", 1500);
+    } catch (err) {
+        console.error("[app2] loadInitialData:", err);
+        showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000, { label: "loadInitialData", err });
+    }
+    runtimeCheck("loadInitialData-end");
+}
+
+async function startLongPoll() {
+    pollActive = true;
+    async function poll() {
+        if (!pollActive || document.hidden) {
+            setTimeout(poll, 2000);
+            return;
+        }
+        runtimeCheck("poll");
+        try {
+            pollController = new AbortController();
+            const res = await fetch(buildEntriesUrl(latestTimestamp ? { since: latestTimestamp } : {}), { signal: pollController.signal });
+            if (res.status === 200) {
+                addData(await safeJson(res, "poll"));
+                updateView();
+            }
+            // 204 = nothing new → backend already held 50 s, re-poll immediately
+        } catch (err) {
+            if (err.name !== "AbortError") {
+                console.error("[app2] poll error:", err);
+                await new Promise(r => setTimeout(r, 5000));
+            }
+        }
+        poll();
+    }
+    poll();
+}
+
+function stopLongPoll() {
+    pollActive = false;
+    if (pollController) { pollController.abort(); pollController = null; }
+}
+
+// Pause poll when tab hidden
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopLongPoll();
+    else if (tenantId) startLongPoll();
+});
+
+window.addEventListener("popstate", () => {
+    const params = new URLSearchParams(window.location.search);
+    const topic = params.get("topic") || "/";
+    if (topic !== selectedTopic) {
+        selectedTopic = topic;
+        updateView();
+    }
+});
+
+// ── Add entry ─────────────────────────────────────────────────────────────────
+let bsSelectedType = ".";
+let _bsEditEntry = null;
+
+const BS_TYPE_COLORS = { ".": "#888", "!": "#4CAF50", "!-": "#f44336", "?": "#FF9800", "??": "#2196F3" };
+function updateBsColor(type) {
+    document.getElementById("bottom-sheet").style.setProperty("--bs-color", BS_TYPE_COLORS[type] || "#888");
+}
+
+function updateTypeDisplay() {
+    const spans = document.querySelectorAll(".type-chip span, .bs-type-chip span, .scope-chip span");
+    spans.forEach(s => { s.style.display = typeDisplayMode === "icon" ? "none" : ""; });
+    updateView();
+}
+
+function openBottomSheet(editEntry = null) {
+    _bsEditEntry = editEntry;
+    if (!editEntry && REQUIRE_TOPIC_FOR_ENTRY && selectedTopic === "/") {
+        showToast("Wähle zuerst ein Thema.", "info"); return;
+    }
+    const heading = document.querySelector("#bottom-sheet h3");
+    if (heading) heading.textContent = editEntry ? "Eintrag bearbeiten" : "Neuer Eintrag";
+    if (editEntry) {
+        const type = getTypeFromMessage(editEntry.message);
+        bsSelectedType = type || ".";
+        const rawText = editEntry.message.replace(/[.!?@>\-]+$/, "").trim();
+        document.getElementById("bs-textarea").value = rawText;
+    } else {
+        bsSelectedType = ".";
+        document.getElementById("bs-textarea").value = "";
+    }
+    document.querySelectorAll(".bs-type-chip").forEach(c => {
+        c.classList.toggle("active", c.dataset.type === bsSelectedType);
+    });
+    updateBsColor(bsSelectedType);
+    document.getElementById("bottom-sheet-overlay").classList.add("open");
+    document.getElementById("bs-textarea").focus();
+}
+function closeBottomSheet() {
+    _bsEditEntry = null;
+    document.getElementById("bottom-sheet-overlay").classList.remove("open");
+}
+
+async function submitEntry() {
+    const text = document.getElementById("bs-textarea").value.trim();
+    if (text.length < 3) { showToast("Zu kurz (mind. 3 Zeichen).", "error"); return; }
+    const message = matchType(text, bsSelectedType);
+    const isEdit  = !!_bsEditEntry;
+    const nodeId   = isEdit ? _bsEditEntry.nodeId  : generateNodeId();
+    const topic    = isEdit ? _bsEditEntry.topic   : selectedTopic;
+    const fullPath = topic === "/" ? "/" + nodeId : topic + "/" + nodeId;
+    const body = new URLSearchParams({ entry: `${fullPath} | ${message}` });
+    try {
+        const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (res.ok) {
+            const json = await res.json();
+            pushAction(isEdit ? "editEntry" : "addEntry", fullPath);
+            addEntry(topic, nodeId, message, isEdit ? (_bsEditEntry.votes || 0) : 0, json.timestamp || "");
+            updateView();
+            showToast(isEdit ? "Eintrag aktualisiert!" : "Eintrag hinzugefügt!", "success");
+            closeBottomSheet();
+        } else {
+            showToast("Eintrag konnte nicht gespeichert werden.", "error", 3000, { label: "submitEntry", status: res.status, url: res.url });
+        }
+    } catch (err) {
+        console.error("[app2] submitEntry:", err);
+        showToast("Verbindung unterbrochen. Bitte erneut versuchen.", "error", 3000, { label: "submitEntry", err });
+    }
+}
+
+// wire FAB and sheet buttons
+document.getElementById("fab").addEventListener("click", () => openBottomSheet());
+document.getElementById("bs-cancel").addEventListener("click", closeBottomSheet);
+document.getElementById("bs-close").addEventListener("click", closeBottomSheet);
+document.getElementById("bs-submit").addEventListener("click", submitEntry);
+document.getElementById("bottom-sheet-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("bottom-sheet-overlay")) closeBottomSheet();
+});
+
+// type chips in sheet
+document.getElementById("bs-type-chips").addEventListener("click", e => {
+    const chip = e.target.closest(".bs-type-chip");
+    if (!chip) return;
+    bsSelectedType = chip.dataset.type;
+    document.querySelectorAll(".bs-type-chip").forEach(c => c.classList.toggle("active", c === chip));
+    updateBsColor(bsSelectedType);
+});
+
+// ── Search ────────────────────────────────────────────────────────────────────
+document.getElementById("nav-search-icon").addEventListener("click", () => {
+    const bar = document.getElementById("nav-search-bar");
+    bar.classList.toggle("open");
+    if (bar.classList.contains("open")) document.getElementById("search-input").focus();
+    else { document.getElementById("search-input").value = ""; updateView(); }
+});
+
+document.getElementById("search-input").addEventListener("input", () => {
+    const val = document.getElementById("search-input").value.trim();
+    if (val) pushAction("search", '"' + val + '"');
+    updateView();
+});
+
+document.getElementById("nav-search-bar").addEventListener("click", e => {
+    const chip = e.target.closest(".scope-chip");
+    if (!chip) return;
+    searchScope = chip.dataset.scope;
+    pushAction("searchScope", searchScope);
+    document.querySelectorAll(".scope-chip").forEach(c => c.classList.toggle("active", c === chip));
+    updateView();
+});
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function openSettings() {
+    const s = loadSettings();
+    document.getElementById("settings-tenant").value     = tenantId;
+document.getElementById("settings-type-display").value = typeDisplayMode;
+    document.getElementById("settings-overlay").classList.add("open");
+    fetch("version.json").then(r => r.ok ? r.json() : null).then(v => {
+        const el = document.getElementById("settings-version");
+        el.textContent = v ? `${v.branch} · ${v.sha.slice(0,7)} · ${v.time}` : "";
+    }).catch(() => {});
+}
+function closeSettings() {
+    document.getElementById("settings-overlay").classList.remove("open");
+}
+function applySettings() {
+    const newTenant = document.getElementById("settings-tenant").value.trim().replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 30);
+    if (newTenant && newTenant !== tenantId) {
+        pushAction("changeTenant", "[tid]");
+        tenantId = newTenant;
+        saveSettings({ tenantId });
+        stopLongPoll();
+        data = {}; votesData = {}; topicMap = {}; latestTimestamp = null; selectedTopic = "/";
+        updateView();
+        loadInitialData().then(() => startLongPoll());
+        // update URL
+        const url = new URL(window.location.href);
+        url.searchParams.set("tid", tenantId);
+        history.pushState({}, "", url);
+    }
+const newDisplayMode = document.getElementById("settings-type-display").value;
+    if (newDisplayMode !== typeDisplayMode) {
+        typeDisplayMode = newDisplayMode;
+        saveSettings({ typeDisplayMode: newDisplayMode });
+        updateTypeDisplay();
+    }
+    closeSettings();
+}
+
+document.getElementById("nav-settings-icon").addEventListener("click", openSettings);
+document.getElementById("settings-close").addEventListener("click", closeSettings);
+document.getElementById("settings-apply").addEventListener("click", applySettings);
+document.getElementById("settings-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("settings-overlay")) closeSettings();
+});
+document.getElementById("settings-bug-report").addEventListener("click", () => {
+    closeSettings();
+    openIssueReport(null);
+});
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+(function init() {
+    const params = new URLSearchParams(window.location.search);
+    const initSettings = loadSettings();
+    tenantId = params.get("tid") || params.get("tenantId") || initSettings.tenantId || "";
+    sid = initSettings.sid || "www";
+    const topicParam = params.get("topic");
+    if (topicParam) selectedTopic = topicParam;
+    document.getElementById("settings-tenant").value = tenantId;
+    typeDisplayMode = initSettings.typeDisplayMode || "text";
+    updateTypeDisplay();
+    if (tenantId) {
+        loadInitialData().then(() => startLongPoll());
+    }
+})();
+</script>
+</body>
+</html>

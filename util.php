@@ -4,8 +4,6 @@
     $debug= $config['debug'] ?? $debug ?? false; // Enable debug mode
 
     $configFile = 'infopedia.cfg';
-    $type = $_GET['type'] ?? $type ?? "none";
-
     $session_id = ($_GET['sid'] ?? $_POST['sid'] ?? '') ; // session id from GET or POST (==systemid)
     // random session id if not provided
     if (empty($session_id)) {
@@ -14,41 +12,46 @@
 
     $tenant_id = ($_GET['tid'] ?? $_POST['tid'] ?? '') ; // tenant_id id from GET or POST (==tenantid)
     // check tenant id is alphanumeric only + not longer than 30 chars
-    if (!empty($tenant_id) && !preg_match('/^[a-zA-Z0-9_-]+$/', $tenant_id)
+    if ($tenant_id !== ''
             && $tenant_id !== 'default'
             && $tenant_id !== 'none'
             && $tenant_id !== 'all'
-            && strlen($tenant_id) <= 30
+            && (!preg_match('/^[a-zA-Z0-9_-]+$/', $tenant_id) || strlen($tenant_id) > 30)
             ) {
-        die("Invalid tenant ID.");
+        http_response_code(400);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => ['code' => 'INVALID_TID', 'message' => 'Tenant ID must be 1–30 alphanumeric/-/_ characters.']]);
+        exit;
     }
 
-    $last_timestamp = ($_GET['ts'] ?? $_POST['ts'] ?? '') ; // last timestamp from GET or POST
+    $since = ($_GET['since'] ?? $_GET['ts'] ?? $_POST['since'] ?? $_POST['ts'] ?? '') ; // since timestamp from GET or POST ('ts' kept as fallback alias)
     // convert timestamp to int  YYYYY/MM/DD HH:MM:SS or YYYY-MM-DD HH:MM:SS or YYYYMMDDHHMMSS or DD-MM-YYYY HH:MM:SS
     // 1767351121 == 2025-02-01 12:12:01
-    $last_timestamp_int = 0;
-    if (!empty($last_timestamp)) {
-        $last_timestamp_orginal = $last_timestamp;
-        if (is_numeric($last_timestamp)) {
-            $last_timestamp_int = (int)$last_timestamp;
-            $last_timestamp = date("Y-m-d H:i:s", $last_timestamp_int);
+    $since_int = 0;
+    if (!empty($since)) {
+        $since_original = $since;
+        if (is_numeric($since)) {
+            $since_int = (int)$since;
+            $since = date("Y-m-d H:i:s", $since_int);
         } else {
             // try to parse various formats YYYY/MM/DD HH:MM:SS or YYYY-MM-DD HH:MM:SS or YYYYMMDDHHMMSS
-            $tmp = $last_timestamp;
+            $tmp = $since;
             // handle YYYY-MM-DD HH:MM:SS or YYYY/MM/DD HH:MM:SS
             $tmp = preg_replace('/(\d{4})[-\/](\d{2})[-\/](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/', '$1-$2-$3 $4:$5:$6', $tmp);
             // handle DD-MM-YYYY HH:MM:SS
             $tmp = preg_replace('/(\d{2})[-\/](\d{2})[-\/](\d{4})[ T](\d{2}):(\d{2}):(\d{2})/', '$3-$2-$1 $4:$5:$6', $tmp);
             // handle YYYYMMDDHHMMSS
             $tmp = preg_replace('/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/', '$1-$2-$3 $4:$5:$6', $tmp);
-            $last_timestamp_int = strtotime($tmp);
-            $last_timestamp = $tmp;
+            $since_int = strtotime($tmp);
+            $since = $tmp;
         }
-        if ($last_timestamp === false) {
-            log_error("Invalid timestamp format (" . $last_timestamp_orginal . ")");
+        if ($since === false) {
+            log_error("Invalid timestamp format (" . $since_original . ")");
             die("Invalid timestamp format.");
         }
     }
+
+    $refresh = isset($_GET['refresh']) || isset($_GET['force_update']) || isset($_POST['refresh']);
 
 
     // Set the default timezone to Central European Time (CET)
