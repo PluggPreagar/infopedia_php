@@ -324,6 +324,10 @@ let activeTypes = new Set([".", "!", "!-", "?", "??"]); // visible types
 // ── Version ────────────────────────────────────────────────────────────────────
 const APP_VERSION = "0.3.0";
 
+// ── Server config (fetched from config.php) ────────────────────────────────────
+let serverConfig = {};
+fetch('config.php').then(r => r.ok ? r.json() : {}).then(c => { serverConfig = c; }).catch(() => {});
+
 // set true to block entry creation when no topic is selected (root "/")
 const REQUIRE_TOPIC_FOR_ENTRY = false;
 let typeDisplayMode = "text"; // "text" | "icon+text" | "icon"
@@ -643,8 +647,8 @@ function addVotesData(dataLoaded) {
 // ── Settings ──────────────────────────────────────────────────────────────────
 function loadSettings() {
     const defaults = {
-        issueGithubUrl: 'https://github.com/PluggPreagar/infopedia_php/issues/new',
-        issueMailto:    'bugs@fayf.info',
+        issueGithubUrl: serverConfig.issueGithubUrl || 'https://github.com/PluggPreagar/infopedia_php/issues/new',
+        issueMailto:    serverConfig.issueMailto    || 'bugs@fayf.info',
     };
     try { return { ...defaults, ...JSON.parse(localStorage.getItem("fayf_settings") || "{}") }; } catch { return defaults; }
 }
