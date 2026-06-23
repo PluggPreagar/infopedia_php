@@ -146,7 +146,19 @@ Removes the `<pre>` wrapper. The JS renderer populates `innerHTML` on load.
 
 ## JS Renderer
 
-Inline `<script>` in `html_head()`. Runs once on `DOMContentLoaded`.
+Standalone file: `md-renderer.js`. Loaded via `<script src="md-renderer.js">` in `html_head()`.
+Exposes one function: `renderMd(text)` — pure, no side effects, no DOM dependency.
+Caller is responsible for setting `innerHTML` after calling it.
+
+`issues.php` wires it up with a small inline `<script>` on `DOMContentLoaded`:
+```js
+document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('md-body');
+    if (el) el.innerHTML = renderMd(el.dataset.raw);
+});
+```
+
+Keeping the wiring inline means `md-renderer.js` stays a pure transform function — reusable from any page or context without coupling to the DOM structure of `issues.php`.
 
 ### Supported syntax
 
@@ -177,7 +189,7 @@ Applied within all block elements (headings, list items, table cells, paragraphs
 1. Split input into lines.
 2. Pass through a state machine: detect fenced code blocks (verbatim pass-through), tables (collect rows until non-table line), lists (collect `- ` lines), headings, blank lines (flush current paragraph), fallback paragraph.
 3. Apply inline transforms to each rendered text segment.
-4. Set `document.getElementById('md-body').innerHTML = result`.
+4. Return the rendered HTML string.
 
 ### Security
 
@@ -189,7 +201,8 @@ All non-code text content is passed through a minimal escape (`&`, `<`, `>`) bef
 
 | File | Change |
 |---|---|
-| `issues.php` | `parse_titel()`, `render_overview()` glob, `append_verlauf()` header, `render_detail()` output, `html_head()` JS renderer |
+| `md-renderer.js` | New file — pure `renderMd(text)` function |
+| `issues.php` | `parse_titel()`, `render_overview()` glob, `append_verlauf()` header, `render_detail()` output, `html_head()` loads `md-renderer.js` + inline wiring |
 | `app2.html` | `buildReportText()`, `buildFullReport()` |
 | `issue.php` | No change |
 | `data/issues/*/` | Existing `.txt` files unaffected (old format, not renamed) |
