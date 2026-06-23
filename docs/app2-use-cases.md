@@ -114,7 +114,7 @@ DEPRECATED: use UC2 (navigate into a topic) + UC4 (add entry) instead for a clea
 - **AC12.2** — The URL reflects the active tenant.
 - **AC12.3** — The settings panel shows the deployed version (branch, commit SHA, timestamp) if `version.json` is available on the server.
 
-### UC13: Report a bug
+### UC13: Report an issue
 **Trigger:** User taps "Melden" on an error toast
 
 - **AC13.1** — An issue panel opens, pre-filled with the last user actions and current app state.
@@ -123,8 +123,8 @@ DEPRECATED: use UC2 (navigate into a topic) + UC4 (add entry) instead for a clea
 - **AC13.4** — Submission options: copy to clipboard, open GitHub issue, send via email.
 - **AC13.5** — Nothing is sent without explicit user confirmation.
 
-#### UC13a: Report a bug on manual request
-**Trigger:** User taps "Bug Melden" in Settings
+#### UC13a: Report an issue on manual request
+**Trigger:** User taps "Issue melden" in Settings
 
 - **AC13a** - like UC13 -> AC13a.1, AC13a.2, AC13a.3, AC13a.4, AC13a.5
 
