@@ -195,7 +195,6 @@ function render_detail(string $base, array $states, string $id): void {
   <?php endforeach ?>
 </div>
 <?php endif ?>
-<button id="edit-btn" style="margin-bottom:0.5rem">Bearbeiten</button>
 <textarea id="edit-area" hidden rows="20"
   style="width:100%;box-sizing:border-box;font-family:monospace;font-size:0.85rem;margin-bottom:0.5rem;"></textarea>
 <div id="edit-bar" hidden style="margin-bottom:0.5rem;display:flex;gap:0.5rem;align-items:center;">
@@ -204,6 +203,7 @@ function render_detail(string $base, array $states, string $id): void {
   <span id="edit-err" style="color:#c00;font-size:0.85rem;"></span>
 </div>
 <div id="md-body" data-raw="<?= htmlspecialchars($body) ?>"></div>
+<button id="edit-btn" style="margin-bottom:0.5rem">Bearbeiten</button>
 <script>
 function initEdit(filename, fullRaw) {
     const mdBody    = document.getElementById('md-body');
