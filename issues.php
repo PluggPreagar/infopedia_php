@@ -91,6 +91,7 @@ form { display:inline; }
 button { cursor:pointer; padding:0.3rem 0.7rem; border:1px solid #ccc; border-radius:4px; background:#fff; font-size:0.85rem; margin:0.2rem 0; }
 button:hover { background:#f0f0f0; }
 .actions { margin:1rem 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+[hidden] { display:none !important; }
 </style>
 <script src="md-renderer.js"></script>
 <script>
