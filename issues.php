@@ -30,7 +30,10 @@ function find_issue(string $base, array $states, string $id): ?array {
 }
 
 function parse_titel(string $path): string {
-    $fh   = fopen($path, 'r');
+    $fh = fopen($path, 'r');
+    if ($fh === false) {
+        return '(kein Titel)';
+    }
     $line = fgets($fh);
     fclose($fh);
     if ($line !== false && preg_match('/^Titel:\s*(.+)/u', rtrim($line), $m)) {
