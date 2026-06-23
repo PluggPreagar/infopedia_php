@@ -95,7 +95,7 @@ function html_foot(): void { ?>
 </body></html>
 <?php }
 
-// ── Views (stubs — implemented in subsequent tasks) ───────────────────────────
+// ── Views ───────────────────────────────────────────────────────────────────
 
 function render_overview(string $base): void {
     $cols = ['new' => [], 'ready' => []];
@@ -157,10 +157,11 @@ function render_detail(string $base, array $states, string $id): void {
     ];
     $buttons = $transitions[$current] ?? [];
 
-    html_head('Issue: ' . parse_titel($issue['path'])); ?>
+    $titel = parse_titel($issue['path']);
+    html_head('Issue: ' . $titel); ?>
 <p><a href="issues.php">← Übersicht</a></p>
 <h1>
-  <?= htmlspecialchars(parse_titel($issue['path'])) ?>
+  <?= htmlspecialchars($titel) ?>
   <span class="badge badge-<?= htmlspecialchars($current) ?>"><?= htmlspecialchars($current) ?></span>
 </h1>
 <?php if (!empty($buttons)): ?>
@@ -191,4 +192,5 @@ function handle_transpose(string $base, array $states, string $id, string $set):
     append_verlauf($issue['path'], $set);
     rename($issue['path'], "$newDir/$id");
     header('Location: issues.php');
+    exit;
 }
