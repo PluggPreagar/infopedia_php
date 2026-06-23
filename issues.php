@@ -79,7 +79,7 @@ pre { background: #f8f8f8; padding: 1rem; overflow-x: auto; font-size: 0.82rem; 
 #md-body ul { margin:0.5rem 0; padding-left:1.5rem; }
 #md-body p { margin:0.5rem 0; line-height:1.5; }
 #md-body h2 { border-bottom:1px solid #eee; padding-bottom:0.2rem; }
-.badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:3px; font-size:0.8rem; font-weight:600; }
+.badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:3px; font-size:0.8rem; font-weight:600; margin: 0rem 0rem 0rem 1rem }
 .badge-new        { background:#dbeafe; color:#1d4ed8; }
 .badge-ready      { background:#d1fae5; color:#065f46; }
 .badge-blocked    { background:#fee2e2; color:#991b1b; }
@@ -203,7 +203,7 @@ function render_detail(string $base, array $states, string $id): void {
   <span id="edit-err" style="color:#c00;font-size:0.85rem;"></span>
 </div>
 <div id="md-body" data-raw="<?= htmlspecialchars($body) ?>"></div>
-<button id="edit-btn" style="margin-bottom:0.5rem">Bearbeiten</button>
+<button id="edit-btn" style="margin:1rem 0 0 0">Bearbeiten</button>
 <script>
 function initEdit(filename, fullRaw) {
     const mdBody    = document.getElementById('md-body');
