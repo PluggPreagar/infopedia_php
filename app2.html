@@ -290,6 +290,8 @@
 <div id="issue-overlay">
   <div id="issue-panel">
     <h3>Problem melden</h3>
+    <p style="margin:0;font-size:0.85rem;color:#666">Titel <span style="color:#c00">*</span></p>
+    <input type="text" id="issue-titel" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:0.9rem;padding:0.35rem 0.5rem;border:1px solid #ccc;border-radius:4px" placeholder="Kurzer Titel des Problems">
     <p style="margin:0;font-size:0.85rem;color:#666">Was ist passiert? (optional)</p>
     <textarea id="issue-user-msg" rows="3" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:0.9rem" placeholder="Beschreibe kurz, was du gemacht hast..."></textarea>
     <p style="margin:0;font-size:0.85rem;color:#666">Technische Details (automatisch — bitte prüfen und ggf. anpassen):</p>
@@ -357,7 +359,6 @@ function sanitiseForReport(text) {
 // ── Issue report builder (CA17) ────────────────────────────────────────────────
 function buildReportText(errorCtx) {
     const lines = [];
-    lines.push("=== Fehlerbericht ===");
     lines.push("Zeit:    " + new Date().toISOString());
     lines.push("Version: " + APP_VERSION);
     lines.push("");
@@ -389,6 +390,8 @@ function openIssueReport(errorCtx) {
     if (document.getElementById("issue-overlay").classList.contains("open")) return;
     document.getElementById("issue-details").value = buildReportText(errorCtx);
     document.getElementById("issue-user-msg").value = "";
+    document.getElementById("issue-titel").value = "";
+    document.getElementById("issue-send").disabled = true;
     document.getElementById("issue-overlay").classList.add("open");
 }
 
@@ -400,12 +403,19 @@ document.getElementById("issue-close").addEventListener("click", closeIssueRepor
 document.getElementById("issue-overlay").addEventListener("click", e => {
     if (e.target === document.getElementById("issue-overlay")) closeIssueReport();
 });
+document.getElementById("issue-titel").addEventListener("input", () => {
+    document.getElementById("issue-send").disabled =
+        document.getElementById("issue-titel").value.trim() === "";
+});
 
 // ── Issue report submission (CA17) ────────────────────────────────────────────
 function buildFullReport() {
+    const titel   = document.getElementById("issue-titel").value.trim();
     const userMsg = document.getElementById("issue-user-msg").value.trim();
     const details = document.getElementById("issue-details").value;
-    return (userMsg ? "Nutzerbeschreibung:\n" + userMsg + "\n\n" : "") + details;
+    return "Titel: " + titel + "\n"
+        + details
+        + (userMsg ? "\n\n--- Nutzerbeschreibung ---\n" + userMsg : "");
 }
 
 function submitReportClipboard() {
