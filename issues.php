@@ -134,9 +134,47 @@ function render_overview(string $base): void {
 }
 
 function render_detail(string $base, array $states, string $id): void {
-    html_head('Issue');
-    echo '<h1>Issue Detail</h1><p><em>TODO: detail</em></p>';
-    html_foot();
+    $issue = find_issue($base, $states, $id);
+    if (!$issue) {
+        http_response_code(404);
+        html_head('404');
+        echo '<h1>Issue nicht gefunden</h1><p><a href="issues.php">← Übersicht</a></p>';
+        html_foot();
+        return;
+    }
+
+    $content = htmlspecialchars(file_get_contents($issue['path']));
+    $current = $issue['state'];
+
+    $transitions = [
+        'new'        => ['ready', 'blocked', 'canceled'],
+        'ready'      => ['inProgress', 'blocked', 'canceled'],
+        'blocked'    => ['ready', 'canceled'],
+        'inProgress' => ['inReview', 'blocked'],
+        'inReview'   => ['closed', 'inProgress'],
+        'canceled'   => [],
+        'closed'     => [],
+    ];
+    $buttons = $transitions[$current] ?? [];
+
+    html_head('Issue: ' . parse_titel($issue['path'])); ?>
+<p><a href="issues.php">← Übersicht</a></p>
+<h1>
+  <?= htmlspecialchars(parse_titel($issue['path'])) ?>
+  <span class="badge badge-<?= htmlspecialchars($current) ?>"><?= htmlspecialchars($current) ?></span>
+</h1>
+<?php if (!empty($buttons)): ?>
+<div class="actions">
+  <span style="font-size:0.85rem;color:#666">Übergang:</span>
+  <?php foreach ($buttons as $next): ?>
+  <form method="POST" action="issues.php?id=<?= urlencode($id) ?>&amp;set=<?= urlencode($next) ?>">
+    <button type="submit"><?= htmlspecialchars($next) ?></button>
+  </form>
+  <?php endforeach ?>
+</div>
+<?php endif ?>
+<pre><?= $content ?></pre>
+<?php html_foot();
 }
 
 function handle_transpose(string $base, array $states, string $id, string $set): void {
