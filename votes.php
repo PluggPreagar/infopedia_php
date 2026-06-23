@@ -20,11 +20,6 @@ $throttle_key    = ($config['throttle_key'] ?? 'sid') === 'ip'
     ? ($_SERVER['REMOTE_ADDR'] ?? 'unknown')
     : $session_id;
 
-// Validate tid early — applies to both GET and POST.
-if (!empty($tenant_id) && !preg_match('/^[a-zA-Z0-9_-]{1,30}$/', $tenant_id)) {
-    respond_error('INVALID_TID', 'Tenant ID must be alphanumeric (max 30 chars).', 400);
-}
-
 // Local CSV for this tenant (or global default).
 if ($tenant_id !== '') {
     $cacheFile = 'data/votes_' . $tenant_id . '.cache';
@@ -38,18 +33,11 @@ if ($tenant_id !== '') {
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     $format = $_GET['format'] ?? 'json';
-    $validFormats = ['json', 'csv', 'txt.0.2', 'txt.0.3'];
-    if (!in_array($format, $validFormats, true)) {
-        respond_error('INVALID_FORMAT', 'format must be one of: ' . implode(', ', $validFormats), 400);
-    }
+    validate_format($format);
 
     // refresh flag bypasses the disk cache (throttled).
     if ($refresh) {
-        if (!checkThrottle('data', $throttle_key, $throttle_max, $throttle_window)) {
-            $retry = throttleRetryAfter('data', $throttle_key, $throttle_window);
-            header("Retry-After: $retry");
-            respond_error('THROTTLED', "Too many requests. Retry after $retry seconds.", 429);
-        }
+        require_throttle('data', $throttle_key, $throttle_max, $throttle_window);
     }
 
     // Load from local CSV.
@@ -97,22 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
     }
 
-    set_content_type($format);
     log_return('votes GET ' . $format . ' ' . strlen($csv) . ' bytes');
-
-    switch ($format) {
-        case 'json':
-            respond_json(csv_to_json($csv));
-        case 'csv':
-            echo $csv;
-            exit;
-        case 'txt.0.2':
-            echo csv_to_txt02($csv);
-            exit;
-        case 'txt.0.3':
-            echo csv_to_txt03($csv);
-            exit;
-    }
+    respond_csv_as_format($csv, $format);
 }
 
 // ── POST ──────────────────────────────────────────────────────────────────────
@@ -120,11 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Throttle all writes.
-    if (!checkThrottle('data', $throttle_key, $throttle_max, $throttle_window)) {
-        $retry = throttleRetryAfter('data', $throttle_key, $throttle_window);
-        header("Retry-After: $retry");
-        respond_error('THROTTLED', "Too many requests. Retry after $retry seconds.", 429);
-    }
+    require_throttle('data', $throttle_key, $throttle_max, $throttle_window);
 
     $raw_entry = $_POST['entry'] ?? '';
     if ($raw_entry === '') {
@@ -163,14 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         mkdir('data', 0775, true);
     }
 
-    // CSV-quote the entry if it contains commas, quotes, or newlines.
-    $entry_csv = $entry;
-    if (strpos($entry_csv, ',') !== false
-        || strpos($entry_csv, '"') !== false
-        || strpos($entry_csv, "\n") !== false) {
-        $entry_csv = '"' . str_replace('"', '""', $entry_csv) . '"';
-    }
-    $line = $timestamp . ',' . $entry_csv . "\n";
+    $line = $timestamp . ',' . csv_quote($entry) . "\n";
 
     if (!file_exists($localCsv)) {
         if (file_put_contents($localCsv, "Timestamp,entry\n") === false) {

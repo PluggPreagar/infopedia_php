@@ -93,3 +93,20 @@ function throttleRetryAfter(string $dir, string $key, int $window, int $now = 0)
     $window_start = (int)$m[1];
     return max(0, $window_start + $window - $now);
 }
+
+/**
+ * Enforce throttle: respond with 429 and exit if the key is over limit.
+ * Requires util_http.php (respond_error) to be loaded before calling.
+ *
+ * @param string $dir    Directory for throttle state files (trailing slash optional).
+ * @param string $key    Logical identifier (session id, IP, …).
+ * @param int    $max    Requests allowed per window; 0 = disabled.
+ * @param int    $window Window length in seconds.
+ */
+function require_throttle(string $dir, string $key, int $max, int $window): void {
+    if (!checkThrottle($dir, $key, $max, $window)) {
+        $retry = throttleRetryAfter($dir, $key, $window);
+        header('Retry-After: ' . $retry);
+        respond_error('THROTTLED', "Too many requests. Retry after {$retry} seconds.", 429);
+    }
+}

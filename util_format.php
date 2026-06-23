@@ -7,6 +7,51 @@
 
 require_once __DIR__ . '/util_entry.php';
 
+// ─── csv_quote ───────────────────────────────────────────────────────────────
+
+/**
+ * RFC 4180 quote a CSV field value if it contains commas, quotes, or newlines.
+ */
+function csv_quote(string $value): string {
+    if (strpbrk($value, ',"' . "\n\r") !== false) {
+        return '"' . str_replace('"', '""', $value) . '"';
+    }
+    return $value;
+}
+
+// ─── csv_as_format ───────────────────────────────────────────────────────────
+
+/**
+ * Convert sorted CSV to the requested output format string.
+ * Returns the formatted content; caller is responsible for Content-Type and output.
+ */
+function csv_as_format(string $csv, string $format): string {
+    return match ($format) {
+        'json'    => json_encode(
+                         csv_to_json($csv),
+                         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
+                     ),
+        'txt.0.2' => csv_to_txt02($csv),
+        'txt.0.3' => csv_to_txt03($csv),
+        default   => $csv,
+    };
+}
+
+// ─── respond_csv_as_format ───────────────────────────────────────────────────
+
+/**
+ * Set Content-Type, write body, and exit.
+ * Requires util_http.php (set_content_type, respond_json) to be loaded first.
+ */
+function respond_csv_as_format(string $csv, string $format): never {
+    if ($format === 'json') {
+        respond_json(csv_to_json($csv));
+    }
+    set_content_type($format);
+    echo csv_as_format($csv, $format);
+    exit;
+}
+
 // ─── _parse_csv_rows ─────────────────────────────────────────────────────────
 
 /**

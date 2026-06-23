@@ -31,3 +31,11 @@
     function respond_error(string $code, string $message, int $status): never {
         respond_json(['error' => ['code' => $code, 'message' => $message]], $status);
     }
+
+    // Validate the ?format= query parameter. Exits with 400 if not one of the four known values.
+    function validate_format(string $format): void {
+        static $valid = ['json', 'csv', 'txt.0.2', 'txt.0.3'];
+        if (!in_array($format, $valid, true)) {
+            respond_error('INVALID_FORMAT', 'format must be one of: ' . implode(', ', $valid) . '.', 400);
+        }
+    }

@@ -15,11 +15,7 @@ $throttle_key    = $throttle_key_type === 'ip'
     ? ($_SERVER['REMOTE_ADDR'] ?? 'unknown')
     : $session_id;
 
-if (!checkThrottle('data', $throttle_key, $throttle_max, $throttle_window)) {
-    $retry = throttleRetryAfter('data', $throttle_key, $throttle_window);
-    header("Retry-After: $retry");
-    respond_error('THROTTLED', "Too many requests. Retry after $retry seconds.", 429);
-}
+require_throttle('data', $throttle_key, $throttle_max, $throttle_window);
 
 $dump = $_POST['dump'] ?? $_GET['dump'] ?? $_POST['log'] ?? '';
 if ($dump === '') {
