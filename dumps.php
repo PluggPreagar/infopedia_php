@@ -21,6 +21,9 @@ $dump = $_POST['dump'] ?? $_GET['dump'] ?? $_POST['log'] ?? '';
 if ($dump === '') {
     respond_error('INVALID_ENTRY', 'dump body must not be empty', 400);
 }
+if (strlen($dump) > 65536) {
+    respond_error('INVALID_ENTRY', 'dump body too large (max 64 KB)', 400);
+}
 
 $dump_file = $config['dumpFile'] ?? 'data/dumps.log';
 $timestamp = date('Y-m-d H:i:s');

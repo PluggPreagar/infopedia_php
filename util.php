@@ -5,7 +5,11 @@
 
     $configFile = 'infopedia.cfg';
     $session_id = ($_GET['sid'] ?? $_POST['sid'] ?? '') ; // session id from GET or POST (==systemid)
-    // random session id if not provided
+    // Whitelist: alphanumeric + underscore + hyphen, max 32 chars.
+    // Silently regenerate if the client sends something outside that range.
+    if ($session_id !== '' && !preg_match('/^[a-zA-Z0-9_-]{1,32}$/', $session_id)) {
+        $session_id = '';
+    }
     if (empty($session_id)) {
         $session_id = bin2hex(random_bytes(4)); // Generate a random session ID
     }
@@ -90,8 +94,8 @@
             $logMessage .= " " . $session_id . (isset($tenant_id) ? "@".$tenant_id : "") . " ; ";
             $logMessage .= " " . $_SERVER['SCRIPT_NAME'] . " ; ";
         }
-        // quote message to avoid log injection, replace newlines with spaces
-        $message = str_replace(["\n", "\r"], ' ', $message);
+        // quote message to avoid log injection: strip newlines, escape the column delimiter
+        $message = str_replace(["\n", "\r", " ; "], [' ', ' ', ' : '], $message);
         // shorten log message to 500 chars
         if (strlen($message) > 500) {
             $message = substr($message, 0, 500) . "...(truncated)";
