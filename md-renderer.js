@@ -11,11 +11,12 @@ function renderMd(text) {
     }
 
     function safeUrl(url) {
-        return /^javascript:/i.test(url.trim()) ? '#' : url;
+        if (/^javascript:/i.test(url.trim())) return '#';
+        return url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
     }
 
     function inline(raw) {
-        const pat = /!\[([^\]]*)\]\(([^)]*)\)|\[([^\]]*)\]\(([^)]*)\)|\*\*([^*]+)\*\*|`([^`]+)`/g;
+        const pat = /!\[([^\]]*)\]\(((?:[^()]*|\([^()]*\))*)\)|\[([^\]]*)\]\(((?:[^()]*|\([^()]*\))*)\)|\*\*([^*]+)\*\*|`([^`]+)`/g;
         let result = '', last = 0, m;
         while ((m = pat.exec(raw)) !== null) {
             result += esc(raw.slice(last, m.index));
