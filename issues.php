@@ -36,7 +36,7 @@ function parse_titel(string $path): string {
     }
     $line = fgets($fh);
     fclose($fh);
-    if ($line !== false && preg_match('/^Titel:\s*(.+)/u', rtrim($line), $m)) {
+    if ($line !== false && preg_match('/^#\s+(.+)/u', rtrim($line), $m)) {
         return $m[1];
     }
     return '(kein Titel)';
@@ -51,11 +51,11 @@ function filename_to_display(string $id): string {
 
 function append_verlauf(string $path, string $state): void {
     $content = file_get_contents($path);
-    $entry   = '[' . date('Y-m-d H:i:s') . '] → ' . $state;
-    if (str_contains($content, "\n--- Verlauf ---")) {
+    $entry   = '- [' . date('Y-m-d H:i:s') . '] → ' . $state;
+    if (str_contains($content, "\n## Verlauf")) {
         file_put_contents($path, rtrim($content) . "\n" . $entry);
     } else {
-        file_put_contents($path, rtrim($content) . "\n\n--- Verlauf ---\n" . $entry);
+        file_put_contents($path, rtrim($content) . "\n\n## Verlauf\n" . $entry);
     }
 }
 
@@ -74,6 +74,11 @@ table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
 th, td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid #eee; }
 th { font-weight: 600; background: #f5f5f5; }
 pre { background: #f8f8f8; padding: 1rem; overflow-x: auto; font-size: 0.82rem; white-space: pre-wrap; word-break: break-word; }
+#md-body code { background:#f0f0f0; padding:0.1em 0.3em; border-radius:2px; font-size:0.88em; font-family:monospace; }
+#md-body img { max-width:100%; height:auto; }
+#md-body ul { margin:0.5rem 0; padding-left:1.5rem; }
+#md-body p { margin:0.5rem 0; line-height:1.5; }
+#md-body h2 { border-bottom:1px solid #eee; padding-bottom:0.2rem; }
 .badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:3px; font-size:0.8rem; font-weight:600; }
 .badge-new        { background:#dbeafe; color:#1d4ed8; }
 .badge-ready      { background:#d1fae5; color:#065f46; }
@@ -87,6 +92,13 @@ button { cursor:pointer; padding:0.3rem 0.7rem; border:1px solid #ccc; border-ra
 button:hover { background:#f0f0f0; }
 .actions { margin:1rem 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
 </style>
+<script src="md-renderer.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('md-body');
+    if (el) el.innerHTML = renderMd(el.dataset.raw);
+});
+</script>
 </head>
 <body>
 <?php }
@@ -101,7 +113,7 @@ function render_overview(string $base): void {
     $cols = ['new' => [], 'ready' => []];
     foreach (array_keys($cols) as $state) {
         $dir   = "$base/$state";
-        $files = is_dir($dir) ? (glob("$dir/*.txt") ?: []) : [];
+        $files = is_dir($dir) ? (glob("$dir/*.md") ?: []) : [];
         rsort($files);
         foreach ($files as $f) {
             $id           = basename($f);
@@ -143,7 +155,9 @@ function render_detail(string $base, array $states, string $id): void {
         return;
     }
 
-    $content = htmlspecialchars(file_get_contents($issue['path']));
+    $raw  = file_get_contents($issue['path']);
+    // Skip line 1 (# Title) — already shown in the PHP <h1> above
+    $body = ltrim(substr($raw, (strpos($raw, "\n") ?: 0) + 1));
     $current = $issue['state'];
 
     $transitions = [
@@ -174,7 +188,7 @@ function render_detail(string $base, array $states, string $id): void {
   <?php endforeach ?>
 </div>
 <?php endif ?>
-<pre><?= $content ?></pre>
+<div id="md-body" data-raw="<?= htmlspecialchars($body) ?>"></div>
 <?php html_foot();
 }
 
