@@ -47,42 +47,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Aggregate votes — the key difference from entries.php.
     $csv = aggregateVotes($csv, $session_id);
 
-    // Long-poll: if ?since= given and no new rows exist, wait up to 50 s.
-    if (!empty($since) && file_exists($localCsv)) {
-        $deadline = time() + 50;
-        while (time() < $deadline) {
-            $newCsv = sortCsvData(readCache($localCsv));
-            $newCsv = aggregateVotes($newCsv, $session_id);
-            // Any line with a timestamp strictly after $since qualifies.
-            $lines = explode("\n", $newCsv);
-            array_shift($lines); // skip header
-            $found = false;
-            foreach ($lines as $line) {
-                if (trim($line) === '') continue;
-                $ts = substr($line, 0, 19);
-                if ($ts > $since) { $found = true; break; }
-            }
-            if ($found) {
-                $csv = $newCsv;
-                break;
-            }
-            sleep(2);
-            clearstatcache();
+    // Long-poll: if ?since= given and no new data yet, wait for any change.
+    //    Cross-watching entries releases the votes connection when entries update,
+    //    keeping both client polls in sync.
+    $poll_timeout   = (int)($config['poll_timeout'] ?? 25);
+    $entries_source = $tenant_id !== '' ? 'data/entries_' . $tenant_id . '.csv' : 'data/entries.csv';
+    if ($since !== '' && $since_int > 0 && !_votes_has_since($csv, $since)) {
+        if (long_poll([$localCsv, $entries_source], $since_int, $poll_timeout)) {
+            $csv = sortCsvData(@file_get_contents($localCsv) ?: "Timestamp,entry\n");
+            $csv = aggregateVotes($csv, $session_id);
         }
-        // If still no new data, return 204.
-        $lines = explode("\n", $csv);
-        array_shift($lines);
-        $hasData = false;
-        foreach ($lines as $line) {
-            if (trim($line) === '') continue;
-            $ts = substr($line, 0, 19);
-            if ($ts > $since) { $hasData = true; break; }
-        }
-        if (!$hasData) {
-            http_response_code(204);
-            log_return('votes GET 204 no new data since ' . $since);
-            exit;
-        }
+    }
+    if ($since !== '' && !_votes_has_since($csv, $since)) {
+        http_response_code(204);
+        log_return('votes GET 204 no new data since ' . $since);
+        exit;
     }
 
     log_return('votes GET ' . $format . ' ' . strlen($csv) . ' bytes');
@@ -158,3 +137,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ── Fallback ──────────────────────────────────────────────────────────────────
 
 respond_error('METHOD_NOT_ALLOWED', 'Only GET and POST accepted.', 405);
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+/** Return true if $csv contains any row with outer timestamp > $since. */
+function _votes_has_since(string $csv, string $since): bool {
+    $lines = explode("\n", $csv);
+    array_shift($lines);
+    foreach ($lines as $line) {
+        if ($line !== '' && substr($line, 0, 19) > $since) {
+            return true;
+        }
+    }
+    return false;
+}

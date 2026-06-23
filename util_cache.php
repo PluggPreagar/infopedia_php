@@ -40,3 +40,36 @@ function writeCache(string $file, string $data): void {
 function touchOutdated(string $file): void {
     touch($file);
 }
+
+/**
+ * Hold the connection until any of $watch_files has been modified since
+ * $since_int, or until $timeout seconds have elapsed.
+ *
+ * Non-existent files are silently ignored. Returns false immediately when no
+ * watchable files exist, timeout is 0, or since_int is 0.
+ *
+ * @param string[] $watch_files Paths to watch.
+ * @param int      $since_int   Unix timestamp of the client's last known state.
+ * @param int      $timeout     Maximum seconds to hold.
+ * @return bool    true = at least one file changed; false = timeout (no change).
+ */
+function long_poll(array $watch_files, int $since_int, int $timeout): bool {
+    if ($timeout <= 0 || $since_int <= 0) {
+        return false;
+    }
+    $watch_files = array_values(array_filter($watch_files, 'file_exists'));
+    if (empty($watch_files)) {
+        return false;
+    }
+    $stop_at = time() + $timeout;
+    while (time() < $stop_at) {
+        clearstatcache();
+        foreach ($watch_files as $f) {
+            if (filemtime($f) > $since_int) {
+                return true;
+            }
+        }
+        sleep(2);
+    }
+    return false;
+}
