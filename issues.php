@@ -178,5 +178,17 @@ function render_detail(string $base, array $states, string $id): void {
 }
 
 function handle_transpose(string $base, array $states, string $id, string $set): void {
-    echo 'TODO: transpose';
+    $issue = find_issue($base, $states, $id);
+    if (!$issue) {
+        http_response_code(404);
+        echo 'Issue nicht gefunden';
+        return;
+    }
+    $newDir = "$base/$set";
+    if (!is_dir($newDir)) {
+        mkdir($newDir, 0755, true);
+    }
+    append_verlauf($issue['path'], $set);
+    rename($issue['path'], "$newDir/$id");
+    header('Location: issues.php');
 }
