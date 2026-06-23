@@ -186,8 +186,8 @@ $r = post('issue.php', "sid=$sid&tid=$tid", 'report=Test+Fehlerbericht+%3A%29');
 ok($r['status'] === 201, 'POST report → 201');
 ok(($r['json']['status'] ?? '') === 'ok', 'body status = ok');
 
-// Verify file was written to data/issues/
-$files = glob('data/issues/*.txt');
+// Verify file was written to data/issues/new/
+$files = glob('data/issues/new/*.md');
 ok(count($files) > 0, 'issue file created in data/issues/');
 if (count($files) > 0) {
     $content = file_get_contents($files[0]);
@@ -203,7 +203,52 @@ $r = get('issue.php', "sid=$sid&tid=$tid");
 ok($r['status'] === 405, 'GET → 405');
 
 // cleanup
-foreach (glob('data/issues/*.txt') as $f) unlink($f);
+foreach (glob('data/issues/new/*.md') as $f) unlink($f);
+
+// ─── issue.php — edit ────────────────────────────────────────────────────────
+
+section('issue.php — edit existing issue');
+
+$testDir  = 'data/issues/new';
+if (!is_dir($testDir)) mkdir($testDir, 0755, true);
+$testFile = $testDir . '/test_edit_e2e.md';
+file_put_contents($testFile, "# Original Title\nOriginal body.");
+
+// Edit with valid filename → 200, content updated
+$editBody = http_build_query([
+    'report'   => "# Updated Title\nUpdated body.",
+    'filename' => 'new/test_edit_e2e.md',
+]);
+$r = post('issue.php', '', $editBody);
+ok($r['status'] === 200,                           'POST edit with filename → 200');
+ok(($r['json']['status'] ?? '') === 'ok',          'body status = ok');
+ok(
+    file_get_contents($testFile) === "# Updated Title\nUpdated body.",
+    'file content updated on disk'
+);
+
+// Non-existent filename → 404
+$r = post('issue.php', '', http_build_query(['report' => 'x', 'filename' => 'new/nonexistent.md']));
+ok($r['status'] === 404, 'non-existent filename → 404');
+
+// Path traversal → 404
+$r = post('issue.php', '', http_build_query(['report' => 'x', 'filename' => '../../../etc/passwd']));
+ok($r['status'] === 404, 'path traversal → 404');
+
+// Creation path still works (no filename)
+$r = post('issue.php', '', http_build_query(['report' => 'Creation still works']));
+ok($r['status'] === 201, 'creation path (no filename) still returns 201');
+
+// cleanup
+if (file_exists($testFile)) unlink($testFile);
+foreach (glob('data/issues/new/*.md') as $f) {
+    if (str_contains($f, uniqid('', false))) unlink($f);
+}
+// clean up the creation test file
+foreach (glob('data/issues/new/????-??-??_*.md') as $f) {
+    $content = file_get_contents($f);
+    if (str_contains($content, 'Creation still works')) unlink($f);
+}
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────
 
