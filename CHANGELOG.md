@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0] — 2026-06-23
+
+### Added
+- **`issues.php`**: standalone developer issue tracker — folder-per-state storage (`data/issues/{new,ready,blocked,inProgress,inReview,canceled,closed}/`), overview (new + ready), detail view with state badge, state-transition buttons (POST), Verlauf log appended on each transition
+- **`md-renderer.js`**: pure JS `renderMd(text)` function — no DOM dependency, no libraries; supports `#`/`##` headings, `**bold**`, `` `inline code` ``, fenced code blocks, `- lists`, `![alt](src)` images, `[text](url)` links, GFM tables; blocks `javascript:` and `data:` URLs
+- **Markdown bug reports**: `app2.html` Bug Melden dialog now emits `.md` files — `# Title` on line 1, `## Section` headings, fenced code block for state snapshot, `**bold:**` labels for error details; `issues.php` renders them via `md-renderer.js`
+- **Titel field** in Bug Melden dialog — required, send button disabled until filled
+- **`issue.php`** POST endpoint — saves bug reports to `data/issues/new/` as timestamped files
+- **`deploy.php`** (was `upgrade.php`) — self-update endpoint, pulls ZIP from GitHub and overwrites matching files; persists commit SHA/time to `version.json`; supports exclude pattern list in `[upgrade]` cfg section
+- **`.gitignore`** — excludes `.ai/` directory
+
+### Fixed
+- `entries.php`: long-poll now returns `204` on cache-hit with no new entries since `?since=`; `poll_timeout` configurable via `infopedia.cfg`
+- `entries.php`: path traversal guard, cfg leak guard, mkdir race fix
+- `app2.html`: 64 KB payload cap on bug reports; fixed duplicate test function name
+
+### Refactored
+- `app2.html`: removed configurable report URLs from settings; fixed preset targets (GitHub Issues + bugs@fayf.info)
+
 ## [0.2.0] — 2026-06-19
 
 ### Added
