@@ -1022,8 +1022,14 @@ async function startLongPoll() {
             pollController = new AbortController();
             const res = await fetch(buildEntriesUrl(latestTimestamp ? { since: latestTimestamp } : {}), { signal: pollController.signal });
             if (res.status === 200) {
+                const tsBefore = latestTimestamp;
                 addData(await safeJson(res, "poll"));
                 updateView();
+                // 200 with no new data means backend didn't long-poll (e.g. empty tenant, no file yet)
+                // — back off to avoid a tight loop
+                if (latestTimestamp === tsBefore) {
+                    await new Promise(r => setTimeout(r, 5000));
+                }
             }
             // 204 = nothing new → backend already held 50 s, re-poll immediately
         } catch (err) {
