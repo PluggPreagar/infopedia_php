@@ -25,6 +25,9 @@
         exit;
     }
 
+    // Set the default timezone to Central European Time (CET) early, before parsing timestamps
+    date_default_timezone_set('Europe/Berlin');
+
     $since = ($_GET['since'] ?? $_GET['ts'] ?? $_POST['since'] ?? $_POST['ts'] ?? '') ; // since timestamp from GET or POST ('ts' kept as fallback alias)
     // convert timestamp to int  YYYYY/MM/DD HH:MM:SS or YYYY-MM-DD HH:MM:SS or YYYYMMDDHHMMSS or DD-MM-YYYY HH:MM:SS
     // 1767351121 == 2025-02-01 12:12:01
@@ -53,10 +56,6 @@
     }
 
     $refresh = isset($_GET['refresh']) || isset($_GET['force_update']) || isset($_POST['refresh']);
-
-
-    // Set the default timezone to Central European Time (CET)
-    date_default_timezone_set('Europe/Berlin');
 
     if (file_exists($configFile)) {
         $configGeneral = parse_ini_file($configFile, true); // Enable section parsing
@@ -148,5 +147,14 @@
         $log_message .= json_encode($_POST) ;
     }
     log_to_file( $log_message ?? "no message" );
+
+// ─── Notify channel ──────────────────────────────────────────────────────────
+
+function append_notify(string $tid, array $event): void {
+    $suffix = $tid !== '' ? '_' . $tid : '';
+    $file   = 'data/notify' . $suffix . '.jsonl';
+    $event['ts'] = date('Y-m-d H:i:s');
+    file_put_contents($file, json_encode($event) . "\n", FILE_APPEND | LOCK_EX);
+}
 
 ?>

@@ -47,17 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Aggregate votes — the key difference from entries.php.
     $csv = aggregateVotes($csv, $session_id);
 
-    // Long-poll: if ?since= given and no new data yet, wait for any change.
-    //    Cross-watching entries releases the votes connection when entries update,
-    //    keeping both client polls in sync.
-    $poll_timeout = (int)($config['poll_timeout'] ?? 25);
-    $now          = time();
-    if ($since !== '' && $since_int > 0 && !_votes_has_since($csv, $since)) {
-        if (long_poll($tenant_id, $now, $poll_timeout)) {
-            $csv = sortCsvData(@file_get_contents($localCsv) ?: "Timestamp,entry\n");
-            $csv = aggregateVotes($csv, $session_id);
-        }
-    }
     if ($since !== '' && !_votes_has_since($csv, $since)) {
         http_response_code(204);
         log_return('votes GET 204 no new data since ' . $since);
@@ -131,6 +120,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($cacheOutdatedFile !== null) {
         touchOutdated($cacheOutdatedFile);
     }
+
+    // Notify subscribers that votes data changed.
+    append_notify($tenant_id, ['type' => 'votes']);
 
     log_return('votes POST saved ' . strlen($line) . ' bytes to ' . $localCsv);
 
