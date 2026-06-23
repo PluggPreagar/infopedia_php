@@ -359,29 +359,28 @@ function sanitiseForReport(text) {
 // ── Issue report builder (CA17) ────────────────────────────────────────────────
 function buildReportText(errorCtx) {
     const lines = [];
-    lines.push("Zeit:    " + new Date().toISOString());
-    lines.push("Version: " + APP_VERSION);
+    lines.push("Zeit: " + new Date().toISOString() + " | Version: " + APP_VERSION);
     lines.push("");
-    lines.push("--- Letzte Aktionen ---");
+    lines.push("## Letzte Aktionen");
     if (actionTrail.length === 0) {
-        lines.push("(keine)");
+        lines.push("*(keine)*");
     } else {
         actionTrail.slice().reverse().forEach(a => {
-            lines.push(a.ts.slice(11, 19) + "  " + a.action + (a.detail ? ": " + a.detail : ""));
+            lines.push("- " + a.ts.slice(11, 19) + "  " + a.action + (a.detail ? ": " + a.detail : ""));
         });
     }
     lines.push("");
-    lines.push("--- Zustand ---");
+    lines.push("## Zustand");
+    lines.push("```");
     lines.push(buildStateSnapshot());
+    lines.push("```");
     if (errorCtx) {
         lines.push("");
-        lines.push("--- Fehlerdetails ---");
-        lines.push(
-            (errorCtx.label  ? "Fehler: "  + errorCtx.label + "\n" : "") +
-            (errorCtx.status ? "Status: "  + errorCtx.status + "\n" : "") +
-            (errorCtx.url    ? "URL:    "  + errorCtx.url + "\n" : "") +
-            (errorCtx.err    ? "Detail: "  + String(errorCtx.err) : "")
-        );
+        lines.push("## Fehlerdetails");
+        if (errorCtx.label)  lines.push("**Fehler:** " + errorCtx.label);
+        if (errorCtx.status) lines.push("**Status:** " + errorCtx.status);
+        if (errorCtx.url)    lines.push("**URL:** `" + errorCtx.url + "`");
+        if (errorCtx.err)    lines.push("**Detail:** " + String(errorCtx.err));
     }
     return sanitiseForReport(lines.join("\n"));
 }
@@ -413,9 +412,8 @@ function buildFullReport() {
     const titel   = document.getElementById("issue-titel").value.trim();
     const userMsg = document.getElementById("issue-user-msg").value.trim();
     const details = document.getElementById("issue-details").value;
-    return "Titel: " + titel + "\n"
-        + details
-        + (userMsg ? "\n\n--- Nutzerbeschreibung ---\n" + userMsg : "");
+    const desc    = userMsg ? "\n\n## Beschreibung\n" + userMsg : "";
+    return "# " + titel + "\n\n" + details + desc;
 }
 
 function submitReportClipboard() {
