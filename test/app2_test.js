@@ -121,7 +121,7 @@ function testGetSignedCount() {
 }
 testGetSignedCount();
 
-// UC13 — bug report
+// UC13 — issue report
 function testSanitiseForReport() {
     suite('sanitiseForReport');
     const _sid0 = sid, _tid0 = tenantId;
@@ -161,7 +161,7 @@ function testBuildReportTextBasic() {
 }
 testBuildReportTextBasic();
 
-// UC13 — bug report
+// UC13 — issue report
 function testBuildFullReport() {
     suite('buildFullReport');
     document.getElementById('issue-user-msg').value = 'Something went wrong';
@@ -223,7 +223,7 @@ function testDebounceKey() {
 }
 testDebounceKey();
 
-// UC13 — action trail for bug reports
+// UC13 — action trail for issue reports
 function testPushAction() {
     suite('pushAction');
     actionTrail = [];
