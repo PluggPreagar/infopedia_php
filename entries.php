@@ -90,8 +90,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         touchOutdated($outdated_file);
     }
 
-    // Notify subscribers that entries data changed.
-    append_notify($tenant_id, ['type' => 'entries']);
+    // Build incr payload matching the /entries JSON response format.
+    $_pn  = parseEntry($entry);
+    $_pnd = [
+        'timestamp' => $_pn['display_ts'] ?? $timestamp,
+        'message'   => $_pn['content'],
+        'attrs'     => $_pn['attrs'],
+    ];
+    if (!empty($_pn['votes'])) { $_pnd['votes'] = $_pn['votes']; }
+    append_incr($tenant_id, ['type' => 'entries', 'data' => [$_pn['path'] => $_pnd]]);
+    unset($_pn, $_pnd);
 
     // 8. Respond.
     log_return('POST /entries ok');

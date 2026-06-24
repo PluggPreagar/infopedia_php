@@ -150,11 +150,40 @@
 
 // ─── Notify channel ──────────────────────────────────────────────────────────
 
-function append_notify(string $tid, array $event): void {
+function append_incr(string $tid, array $event): void {
     $suffix = $tid !== '' ? '_' . $tid : '';
-    $file   = 'data/notify' . $suffix . '.jsonl';
-    $event['ts'] = date('Y-m-d H:i:s');
-    file_put_contents($file, json_encode($event) . "\n", FILE_APPEND | LOCK_EX);
+    $file_a = 'data/notify' . $suffix . '_a.jsonl';
+    $file_b = 'data/notify' . $suffix . '_b.jsonl';
+
+    $ts = time();
+
+    // Lock _a exclusively, count same-ts lines to assign msgid, then write.
+    $fp = fopen($file_a, 'a+');
+    if ($fp === false) return;
+    flock($fp, LOCK_EX);
+    fseek($fp, 0);
+    $existing = stream_get_contents($fp);
+    $count    = 0;
+    foreach (explode("\n", $existing) as $line) {
+        if ($line === '') continue;
+        $decoded = json_decode($line, true);
+        if (is_array($decoded) && ($decoded['ts'] ?? 0) === $ts) {
+            $count++;
+        }
+    }
+    $event['ts']    = $ts;
+    $event['msgid'] = $count + 1;
+    $json = json_encode($event, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+    fwrite($fp, $json);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+
+    // Mirror to _b (fixed lock order: always _a before _b).
+    file_put_contents($file_b, $json, FILE_APPEND | LOCK_EX);
+}
+
+function append_notify(string $tid, array $event): void {
+    append_incr($tid, $event);
 }
 
 ?>

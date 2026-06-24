@@ -121,8 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         touchOutdated($cacheOutdatedFile);
     }
 
-    // Notify subscribers that votes data changed.
-    append_notify($tenant_id, ['type' => 'votes']);
+    // DESIGN-GAP: payload written for future incr vote delivery; frontend re-fetches /votes.
+    append_incr($tenant_id, ['type' => 'votes', 'data' => $entry]);
 
     log_return('votes POST saved ' . strlen($line) . ' bytes to ' . $localCsv);
 
