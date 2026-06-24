@@ -264,14 +264,6 @@ section('entries.php — long-poll');
 post('entries.php', "sid=$sid&tid=$tid", 'entry=/longpoll/test | Node for poll.');
 sleep(2);
 
-// Lower poll_timeout to 2 for timing test.
-$orig_cfg = file_get_contents('infopedia.cfg');
-register_shutdown_function(function() use ($orig_cfg) {
-    file_put_contents('infopedia.cfg', $orig_cfg);
-});
-$patched  = preg_replace('/^poll_timeout\s*=.*/m', 'poll_timeout = 2', $orig_cfg);
-file_put_contents('infopedia.cfg', $patched);
-
 // GET without ?since — must return 200 immediately (under 1s).
 $t0 = microtime(true);
 $r  = get('entries.php', "tid=$tid");
@@ -279,12 +271,12 @@ $elapsed = microtime(true) - $t0;
 ok($r['status'] === 200,    'GET without since → 200');
 ok($elapsed < 1.0,          'GET without since → fast (no hold)', round($elapsed, 2) . 's');
 
-// GET with ?since far in future — must hold ≥ 2s then return 204.
+// GET with ?since far in future — must return 204 immediately (no hold).
 $t0 = microtime(true);
 $r  = get('entries.php', "tid=$tid&since=2099-01-01+00:00:00");
 $elapsed = microtime(true) - $t0;
-ok($r['status'] === 204,    'GET since future → 204 after hold');
-ok($elapsed >= 2.0,         'GET since future → held ≥ 2s', round($elapsed, 2) . 's');
+ok($r['status'] === 204,    'GET since future → 204');
+ok($elapsed < 1.0,          'GET since future → immediate (no hold)', round($elapsed, 2) . 's');
 
 // GET with ?since=<very old> — data exists → 200 immediately.
 $t0 = microtime(true);
@@ -293,11 +285,79 @@ $elapsed = microtime(true) - $t0;
 ok($r['status'] === 200,    'GET since past → 200 with data');
 ok($elapsed < 1.0,          'GET since past → fast (data exists)', round($elapsed, 2) . 's');
 
-// Restore original cfg.
-file_put_contents('infopedia.cfg', $orig_cfg);
-
 // Cleanup long-poll test data.
 foreach (['data/entries_e2e.csv', 'data/entries_e2e.cache'] as $f) {
+    if (file_exists($f)) unlink($f);
+}
+
+// ─── notify.php ──────────────────────────────────────────────────────────────
+section('notify.php');
+
+// GET without tid → 400
+$r = get('notify.php', '');
+ok($r['status'] === 400,                                  'GET notify without tid → 400');
+ok(($r['json']['error']['code'] ?? '') === 'INVALID_TID', 'INVALID_TID code');
+
+// Patch poll_timeout to 2 for timing tests
+$orig_cfg2 = file_get_contents('infopedia.cfg');
+register_shutdown_function(function() use ($orig_cfg2) {
+    file_put_contents('infopedia.cfg', $orig_cfg2);
+});
+$patched2 = preg_replace('/^poll_timeout\s*=.*/m', 'poll_timeout = 2', $orig_cfg2);
+file_put_contents('infopedia.cfg', $patched2);
+
+// GET with no cursor (no incr files) → 204 after hold
+$t0 = microtime(true);
+$r  = get('notify.php', 'tid=notify_e2e');
+$elapsed = microtime(true) - $t0;
+ok($r['status'] === 204,  'GET notify no cursor no data → 204 after hold');
+ok($elapsed >= 2.0,       'GET notify → held ≥ 2s', round($elapsed, 2) . 's');
+
+// STALE_CURSOR: ts older than re_read_timespan → 400 immediately
+$stale_ts = time() - 9999;
+$r = get('notify.php', 'tid=notify_e2e&ts=' . $stale_ts);
+ok($r['status'] === 400,                                       'stale ts → 400');
+ok(($r['json']['error']['code'] ?? '') === 'STALE_CURSOR',     'STALE_CURSOR code');
+
+// Write a message event directly to incr file _a (and _b)
+$ts_msg    = time();
+$msg_line  = json_encode(['ts' => $ts_msg, 'msgid' => 1, 'type' => 'message', 'text' => 'test-notice']);
+file_put_contents('data/notify_notify_e2e_a.jsonl', $msg_line . "\n", FILE_APPEND | LOCK_EX);
+file_put_contents('data/notify_notify_e2e_b.jsonl', $msg_line . "\n", FILE_APPEND | LOCK_EX);
+sleep(1);
+$r = get('notify.php', 'tid=notify_e2e&ts=' . ($ts_msg - 1));
+ok($r['status'] === 200,                                   'GET notify with message → 200');
+ok(isset($r['json']['ts']),                                'response has ts key');
+ok(isset($r['json']['msgid']),                             'response has msgid key');
+$msgs = $r['json']['message'] ?? [];
+ok(count($msgs) > 0,                                       'message array non-empty');
+ok(($msgs[0]['text'] ?? '') === 'test-notice',             'message text correct');
+
+// Write an entries event directly to both incr files
+$ts_entries = time();
+$path       = '/test/notify';
+$entry_data = [$path => ['timestamp' => date('Y-m-d H:i:s'), 'message' => 'hello.', 'attrs' => []]];
+$entry_line = json_encode(['ts' => $ts_entries, 'msgid' => 2, 'type' => 'entries', 'data' => $entry_data]);
+file_put_contents('data/notify_notify_e2e_a.jsonl', $entry_line . "\n", FILE_APPEND | LOCK_EX);
+file_put_contents('data/notify_notify_e2e_b.jsonl', $entry_line . "\n", FILE_APPEND | LOCK_EX);
+sleep(1);
+$r = get('notify.php', 'tid=notify_e2e&ts=' . ($ts_entries - 1));
+ok($r['status'] === 200,                                    'notify returns entries on incr write');
+ok(isset($r['json']['entries'][$path]),                     'entries key contains path');
+ok(($r['json']['entries'][$path]['message'] ?? '') === 'hello.', 'entry message correct');
+
+// Cursor in response: ts and msgid match the last message in batch
+ok(is_int($r['json']['ts'] ?? null),    'response ts is int');
+ok(is_int($r['json']['msgid'] ?? null), 'response msgid is int');
+
+// Restore cfg
+file_put_contents('infopedia.cfg', $orig_cfg2);
+
+// Cleanup
+foreach ([
+    'data/notify_notify_e2e_a.jsonl',
+    'data/notify_notify_e2e_b.jsonl',
+] as $f) {
     if (file_exists($f)) unlink($f);
 }
 
