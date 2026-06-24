@@ -45,10 +45,12 @@ function e2e_route(string $path): ?string {
         '/entries'    => 'entries.php',
         '/votes'      => 'votes.php',
         '/dumps'      => 'dumps.php',
+        '/notify'     => 'notify.php',
         '/health'     => 'health.php',
         '/stats'      => 'statistic.php',
         '/issue'      => 'issue.php',
         'issue.php'   => 'issue.php',
         'entries.php' => 'entries.php',
+        'notify.php'  => 'notify.php',
     ][$path] ?? null;
 }
