@@ -318,6 +318,7 @@ let votesData = {};     // { "/topic/nodeId": { votes: N, signed: N } }
 let topicMap = {};      // { "/topic": "DisplayName" }
 let selectedTopic = "/";
 let latestTimestamp = null;
+let notifyCursor = null; // {ts: int, msgid: int} — updated on every 200 response
 let searchScope = "below";   // "here" | "below" | "global"
 let activeTypes = new Set([".", "!", "!-", "?", "??"]); // visible types
 
@@ -1008,42 +1009,45 @@ async function loadInitialData() {
     runtimeCheck("loadInitialData-end");
 }
 
+async function loadVotes() {
+    const res = await fetch(buildVotesUrl());
+    if (res.ok) addVotesData(await res.json());
+}
+
 async function startNotifyPoll() {
     pollActive = true;
     const gen = ++pollGeneration;
     async function poll() {
         if (gen !== pollGeneration) return;
         if (!pollActive || document.hidden) { setTimeout(poll, 2000); return; }
-        runtimeCheck("poll");
         try {
             pollController = new AbortController();
+            const params = { sid, tid: tenantId };
+            if (notifyCursor) {
+                params.ts    = notifyCursor.ts;
+                params.msgid = notifyCursor.msgid;
+            }
             const res = await fetch(
-                'notify?' + new URLSearchParams({
-                    sid, tid: tenantId,
-                    ...(latestTimestamp ? { since: latestTimestamp } : {})
-                }),
+                'notify?' + new URLSearchParams(params),
                 { signal: pollController.signal }
             );
             if (res.status === 200) {
-                const events = await res.json();
-                for (const ev of events) {
-                    if (ev.type === 'entries') {
-                        const r = await fetch(buildEntriesUrl(latestTimestamp ? { since: latestTimestamp } : {}));
-                        if (r.ok) { addData(await safeJson(r, 'notify-entries')); updateView(); }
-                    } else if (ev.type === 'votes') {
-                        const r = await fetch(buildVotesUrl());
-                        if (r.ok) { addVotesData(await safeJson(r, 'notify-votes')); updateView(); }
-                    } else if (ev.type === 'message') {
-                        showToast(ev.text, 'info');
-                    }
+                const body = await res.json();
+                notifyCursor = { ts: body.ts, msgid: body.msgid };
+                if (body.entries)  { addData(body.entries); updateView(); }
+                if (body.votes)    { await loadVotes(); updateView(); }
+                if (body.message)  { for (const m of body.message) showToast(m.text, 'info'); }
+            } else if (res.status === 400) {
+                const err = await res.json().catch(() => ({}));
+                if ((err?.error?.code) === 'STALE_CURSOR') {
+                    notifyCursor = null;
+                    await loadInitialData();
+                    updateView();
                 }
             }
-            // 204 → backend already held poll_timeout seconds, reconnect immediately
+            // 204: backend already held poll_timeout — reconnect immediately
         } catch (err) {
-            if (err.name !== 'AbortError') {
-                console.error('[app2] notify poll error:', err);
-                await new Promise(r => setTimeout(r, 5000));
-            }
+            if (err.name !== 'AbortError') await new Promise(r => setTimeout(r, 5000));
         }
         poll();
     }
@@ -1202,7 +1206,7 @@ function applySettings() {
         tenantId = newTenant;
         saveSettings({ tenantId });
         stopLongPoll();
-        data = {}; votesData = {}; topicMap = {}; latestTimestamp = null; selectedTopic = "/";
+        data = {}; votesData = {}; topicMap = {}; latestTimestamp = null; notifyCursor = null; selectedTopic = "/";
         updateView();
         loadInitialData().then(() => startNotifyPoll());
         // update URL
