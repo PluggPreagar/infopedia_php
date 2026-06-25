@@ -4,304 +4,218 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>fayf — Fact Farming</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="icon" type="image/x-icon"       href="favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="apple-touch-icon"               href="apple-touch-icon.png">
+  <link rel="stylesheet" href="design-tokens.css">
+  <link rel="stylesheet" href="components.css">
   <style>
-    /* ── Reset + base ───────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; font-family: Arial, sans-serif; color: #333; background: #f5f5f5; }
     body { display: flex; flex-direction: column; }
-    a { text-decoration: none; color: inherit; }
 
-    /* ── Nav ────────────────────────────────────────── */
-    nav {
-      display: flex; align-items: center; gap: 0.5rem;
-      background: #333; color: #fff;
-      padding: 0.5rem 1rem; position: sticky; top: 0; z-index: 100;
-    }
-    nav a { color: #fff; }
-    #nav-back { margin-right: auto; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw; }
-    #nav-topic {
-        flex: 1;
-        text-align: center;
-        font-size: 0.8rem;
-        color: #777;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 0 0.5rem;
-        pointer-events: none;
-    }
-    #nav-search-icon { cursor: pointer; padding: 0.3rem; }
+    /* ── Nav overrides for dark background ─────────────── */
+    .nav .btn-icon { color: #fff; }
+    .nav .btn-icon:hover { background: rgba(255,255,255,0.15); }
+
+    /* ── Nav search bar ─────────────────────────────── */
     #nav-search-bar { display: none; flex: 1; }
-    #nav-search-bar.open { display: flex; align-items: center; gap: 0.4rem; }
-    #search-input { flex: 1; padding: 0.3rem 0.6rem; border-radius: 4px; border: none; font-size: 0.9rem; }
+    #nav-search-bar.open { display: flex; align-items: center; gap: var(--space-1); }
+    #search-input {
+      flex: 1; padding: var(--space-1) var(--space-2);
+      border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.4);
+      font-size: var(--text-sm); background: rgba(255,255,255,0.15); color: #fff;
+    }
+    #search-input::placeholder { color: rgba(255,255,255,0.6); }
     .scope-chip {
-      padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; cursor: pointer;
-      background: #555; color: #fff; border: none;
+      padding: var(--space-1) var(--space-2); border-radius: var(--radius-full);
+      font-size: var(--text-xs); cursor: pointer;
+      background: rgba(255,255,255,0.15); color: #fff;
+      border: 1px solid rgba(255,255,255,0.3); white-space: nowrap;
     }
-    .scope-chip.active { background: #4CAF50; }
-    .scope-chip i { margin-right: 0.2rem; }
-    .scope-chip span { display: inline; }
-    #nav-settings-icon { cursor: pointer; padding: 0.3rem; }
-
-    /* ── Chip filter bar ────────────────────────────── */
-    #chip-bar {
-      display: flex; flex-wrap: wrap; gap: 0.4rem;
-      padding: 0.5rem 1rem; background: #fff;
-      border-bottom: 1px solid #e0e0e0; position: sticky; top: 3rem; z-index: 90;
-    }
-    .type-chip {
-      padding: 0.25rem 0.75rem; border-radius: 14px; font-size: 0.8rem;
-      border: 2px solid transparent; cursor: pointer; background: #eee; color: #555;
-    }
-    .type-chip.active { color: #fff; border-color: transparent; }
-    .type-chip i, .bs-type-chip i { margin-right: 0.2rem; }
-    .type-chip span, .bs-type-chip span { display: inline; }
-    .type-chip[data-type="."].active   { background: #888; }
-    .type-chip[data-type="!"].active   { background: #4CAF50; }
-    .type-chip[data-type="!-"].active  { background: #f44336; }
-    .type-chip[data-type="?"].active   { background: #FF9800; }
-    .type-chip[data-type="??"].active  { background: #2196F3; }
+    .scope-chip.active { background: rgba(255,255,255,0.4); }
 
     /* ── Card list ──────────────────────────────────── */
-    #card-list { flex: 1; padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; max-width: 800px; width: 100%; margin: 0 auto; }
+    #card-list {
+      flex: 1; padding: var(--space-3) var(--space-4);
+      display: flex; flex-direction: column; gap: var(--space-2);
+      max-width: 800px; width: 100%; margin: 0 auto;
+    }
 
-    /* ── Card ───────────────────────────────────────── */
-    .card {
-      background: #fff; border-radius: 8px;
-      border: 1px solid #e0e0e0; padding: 0.75rem 1rem;
-      cursor: pointer; transition: box-shadow 0.15s;
-    }
-    .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
-    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
-    .type-badge {
-      padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.72rem;
-      font-weight: bold; color: #fff; white-space: nowrap; flex-shrink: 0;
-    }
-    .type-badge.meinung   { background: #888; }
-    .type-badge.fakt      { background: #4CAF50; }
-    .type-badge.bewiesen  { background: #2e7d32; }
-    .type-badge.fake      { background: #f44336; }
-    .type-badge.widerlegung { background: #b71c1c; }
-    .type-badge.unklar    { background: #FF9800; }
-    .type-badge.gegenfrage { background: #2196F3; }
-    .card-text { font-size: 0.95rem; line-height: 1.4; flex: 1; }
-    .card-footer { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; }
-    .vote-score { font-weight: bold; font-size: 0.9rem; min-width: 2rem; text-align: center; }
-    .vote-score.pos { color: #4CAF50; }
-    .vote-score.neg { color: #f44336; }
-    .vote-score.zero { color: #aaa; }
-    .vote-btn {
-      background: none; border: 1px solid #ccc; border-radius: 4px;
-      padding: 0.15rem 0.5rem; cursor: pointer; font-size: 0.8rem; color: #666;
-    }
-    .vote-btn:hover { border-color: #4CAF50; color: #4CAF50; }
-    .sign-count { font-size: 0.8rem; color: #888; margin-left: auto; }
-    .sign-count.verified { color: #2e7d32; font-weight: bold; }
+    /* ── Card internals ─────────────────────────────── */
+    .card-text { font-size: var(--text-base); line-height: 1.4; flex: 1; }
+    .drill-arrow { color: var(--color-neutral-400); margin-left: var(--space-1); flex-shrink: 0; }
+    .sign-count { font-size: var(--text-sm); color: var(--color-neutral-400); margin-left: auto; }
+    .sign-count.verified { color: var(--color-semantic-500); font-weight: var(--font-weight-bold); }
     .sign-btn {
-      background: none; border: 1px solid #ccc; border-radius: 4px;
-      padding: 0.15rem 0.5rem; cursor: pointer; font-size: 0.75rem; color: #666;
+      background: none; border: 1px solid var(--color-neutral-200);
+      border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2);
+      cursor: pointer; font-size: var(--text-xs); color: var(--color-neutral-600);
     }
-    .sign-btn:hover { border-color: #2e7d32; color: #2e7d32; }
-    .drill-arrow { color: #ccc; font-size: 0.8rem; margin-left: 0.25rem; }
-    .ts-label { font-size: 0.75rem; color: #bbb; }
+    .sign-btn:hover { border-color: var(--color-interactive-400); color: var(--color-interactive-700); }
+    .ts-label { font-size: var(--text-xs); color: var(--color-neutral-300); }
 
-    /* ── FAB ────────────────────────────────────────── */
-    #fab {
-      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 200;
-      width: 3.2rem; height: 3.2rem; border-radius: 50%;
-      background: #4CAF50; color: #fff; border: none;
-      font-size: 1.5rem; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-      display: flex; align-items: center; justify-content: center;
-    }
-    #fab:hover { background: #45a049; }
-
-    /* ── Bottom sheet (add entry) ───────────────────── */
+    /* ── Bottom sheet overlay ───────────────────── */
     #bottom-sheet-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 300;
+      display: none; position: fixed; inset: 0;
+      background: var(--color-surface-overlay); z-index: var(--z-overlay);
     }
     #bottom-sheet-overlay.open { display: flex; align-items: flex-end; }
     #bottom-sheet {
-      background: #fff; width: 100%; border-radius: 12px 12px 0 0;
-      padding: 1.25rem 1rem 2rem; display: flex; flex-direction: column; gap: 0.75rem;
-      --bs-color: #888;
+      background: var(--color-surface-card); width: 100%;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      padding: var(--space-6) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+      display: flex; flex-direction: column; gap: var(--space-3);
+      --bs-color: var(--color-neutral-600);
     }
-    #bottom-sheet h3 { font-size: 1rem; color: #333; margin: 0; }
+    #bottom-sheet h3 {
+      font-size: var(--text-base); font-weight: var(--font-weight-bold);
+      color: var(--color-neutral-900); margin: 0;
+    }
     #bs-header { display: flex; align-items: center; justify-content: space-between; }
-    #bs-close { background: none; border: none; font-size: 1.25rem; color: #999; cursor: pointer; padding: 0.1rem 0.3rem; line-height: 1; }
-    #bs-type-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-    .bs-type-chip {
-      padding: 0.3rem 0.8rem; border-radius: 14px; font-size: 0.82rem;
-      border: 2px solid #ccc; cursor: pointer; background: #fff; color: #555;
-    }
-    .bs-type-chip.active { color: #fff; border-color: transparent; }
-    .bs-type-chip[data-type="."].active  { background: #888; }
-    .bs-type-chip[data-type="!"].active  { background: #4CAF50; }
-    .bs-type-chip[data-type="!-"].active { background: #f44336; }
-    .bs-type-chip[data-type="?"].active  { background: #FF9800; }
-    .bs-type-chip[data-type="??"].active { background: #2196F3; }
-    #bs-textarea {
-      width: 100%; min-height: 5rem; padding: 0.6rem;
-      border: 2px solid var(--bs-color); border-radius: 6px; font-size: 1rem;
-      resize: vertical; font-family: inherit; transition: border-color 0.15s;
-    }
-    #bs-submit {
-      padding: 0.7rem; background: var(--bs-color); color: #fff;
-      border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
-      transition: filter 0.15s;
-    }
-    #bs-submit:hover { filter: brightness(0.88); }
-    #bs-cancel {
-      padding: 0.5rem; background: none; border: none;
-      color: #888; font-size: 0.9rem; cursor: pointer; text-align: center;
-    }
+    #bs-type-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    #bs-textarea { border-color: var(--bs-color) !important; }
+    #bs-submit { background: var(--bs-color) !important; }
 
-    /* ── Toast ──────────────────────────────────────── */
-    #toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 500; }
-
-    /* ── Settings overlay (reuse from app.html pattern) */
-    #settings-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 400;
-      align-items: center; justify-content: center;
+    /* ── Toast ──────────────────────────────────── */
+    #toast-container {
+      position: fixed; top: var(--space-4); right: var(--space-4);
+      z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--space-2);
     }
-    #settings-overlay.open { display: flex; }
-    #settings-panel {
-      background: #fff; border-radius: 8px; padding: 1.5rem;
-      width: min(400px, 90vw); display: flex; flex-direction: column; gap: 1rem;
+    .app-toast {
+      background: var(--color-neutral-900); color: #fff;
+      padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);
+      box-shadow: var(--shadow-2); font-size: var(--text-sm);
+      display: flex; align-items: center; gap: var(--space-2); max-width: 320px;
     }
-    #settings-panel h2 { font-size: 1.1rem; }
-    #settings-tenant { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 4px; }
-    .settings-btn {
-      padding: 0.5rem 1rem; border-radius: 4px; border: none; cursor: pointer; font-size: 0.9rem;
-    }
-    .settings-btn.primary { background: #4CAF50; color: #fff; }
-    .settings-btn.secondary { background: #eee; color: #333; }
-
-    /* ── Swipe feedback ─────────────────────────────── */
-    .card.swiping-right { border-left: 4px solid #4CAF50; }
-    .card.swiping-left  { border-left: 4px solid #f44336; }
-
-    /* ── Responsive ─────────────────────────────────── */
-    @media (max-width: 600px) {
-      nav { padding: 0.4rem 0.6rem; }
-      #card-list { padding: 0.5rem; }
-    }
-
-    /* ── Issue report overlay (CA17) ───────────────────── */
-    #issue-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 450;
-      align-items: center; justify-content: center;
-    }
-    #issue-overlay.open { display: flex; }
-    #issue-panel {
-      background: #fff; border-radius: 8px; padding: 1.5rem;
-      width: min(540px, 95vw); display: flex; flex-direction: column; gap: 0.75rem;
-      max-height: 90vh; overflow-y: auto;
-    }
-    #issue-panel h3 { font-size: 1.05rem; margin: 0; }
-    #issue-panel textarea { resize: vertical; }
+    .app-toast.success { background: var(--color-semantic-500); }
+    .app-toast.error   { background: var(--color-error); }
     .toast-report-btn {
-      display: inline-block;
-      margin-left: 0.75rem;
-      padding: 0.15rem 0.5rem;
-      background: rgba(255,255,255,0.2);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.5);
-      border-radius: 3px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      vertical-align: middle;
+      padding: var(--space-1) var(--space-2); background: rgba(255,255,255,0.2);
+      color: #fff; border: 1px solid rgba(255,255,255,0.5); border-radius: var(--radius-sm);
+      font-size: var(--text-xs); cursor: pointer; white-space: nowrap; flex-shrink: 0;
     }
     .toast-report-btn:hover { background: rgba(255,255,255,0.35); }
+
+    /* ── Issue panel size override ──────────────── */
+    #issue-panel { max-height: 90vh; overflow-y: auto; max-width: min(540px, 95vw); }
+
+    @media (max-width: 600px) {
+      #card-list { padding: var(--space-2); }
+    }
   </style>
 </head>
 <body>
 
-<nav>
-  <a id="nav-back" href="infopage.html"><i class="fas fa-arrow-left"></i> fayf.info</a>
-  <span id="nav-topic"></span>
+<!-- SVG sprite -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></symbol>
+  <symbol id="icon-arrow-right" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z"/></symbol>
+  <symbol id="icon-settings" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></symbol>
+  <symbol id="icon-issue" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"/></symbol>
+</svg>
+
+<nav class="nav">
+  <a id="nav-back" class="nav-back" href="infopage.html">
+    <svg class="icon icon-md" style="fill:none;stroke:currentColor;stroke-width:1.5"><use href="#icon-arrow-left"/></svg>
+    fayf.info
+  </a>
+  <span id="nav-topic" class="nav-title"></span>
   <div id="nav-search-bar">
-    <input id="search-input" type="text" placeholder="Suchen…">
-    <button class="scope-chip" data-scope="global"><i class="fas fa-globe"></i><span>Global</span></button>
-    <button class="scope-chip" data-scope="here"><i class="fas fa-crosshairs"></i><span>Hier</span></button>
-    <button class="scope-chip active" data-scope="below"><i class="fas fa-layer-group"></i><span>Darunter</span></button>
+    <input id="search-input" type="text" placeholder="Suchen…" aria-label="Suche">
+    <button class="scope-chip" data-scope="global">Global</button>
+    <button class="scope-chip" data-scope="here">Hier</button>
+    <button class="scope-chip active" data-scope="below">Darunter</button>
   </div>
-  <i class="fas fa-search" id="nav-search-icon"></i>
-  <i class="fas fa-cog" id="nav-settings-icon"></i>
+  <button class="btn-icon" id="nav-search-icon" aria-label="Suche">
+    <svg class="icon icon-md" style="fill:none;stroke:currentColor;stroke-width:1.5"><use href="#icon-search"/></svg>
+  </button>
+  <button class="btn-icon" id="nav-settings-icon" aria-label="Einstellungen">
+    <svg class="icon icon-md" style="fill:none;stroke:currentColor;stroke-width:1.5"><use href="#icon-settings"/></svg>
+  </button>
 </nav>
 
-<div id="chip-bar">
-  <button class="type-chip active" data-type="."><i class="fas fa-comment"></i><span>Meinung</span></button>
-  <button class="type-chip active" data-type="!"><i class="fas fa-circle-check"></i><span>Fakt</span></button>
-  <button class="type-chip active" data-type="!-"><i class="fas fa-circle-xmark"></i><span>Fake</span></button>
-  <button class="type-chip active" data-type="?"><i class="fas fa-circle-question"></i><span>Unklar</span></button>
-  <button class="type-chip active" data-type="??"><i class="fas fa-right-left"></i><span>Frage</span></button>
+<div id="chip-bar" class="chip-bar">
+  <button class="chip active" data-type=".">Meinung</button>
+  <button class="chip active" data-type="!">Fakt</button>
+  <button class="chip active" data-type="!-">Fake</button>
+  <button class="chip active" data-type="?">Unklar</button>
+  <button class="chip active" data-type="??">Frage</button>
 </div>
 
 <div id="card-list"></div>
 
-<button id="fab"><i class="fas fa-plus"></i></button>
+<button id="fab" class="fab" aria-label="Eintrag hinzufügen">
+  <svg class="icon icon-lg" style="fill:none;stroke:currentColor;stroke-width:1.5"><use href="#icon-plus"/></svg>
+</button>
 
 <div id="bottom-sheet-overlay">
   <div id="bottom-sheet">
     <div id="bs-header">
       <h3>Neuer Eintrag</h3>
-      <button id="bs-close" aria-label="Schließen">✕</button>
+      <button id="bs-close" class="btn-icon" aria-label="Schließen">
+        <svg class="icon icon-md" style="fill:none;stroke:currentColor;stroke-width:1.5"><use href="#icon-close"/></svg>
+      </button>
     </div>
     <div id="bs-type-chips">
-      <button class="bs-type-chip active" data-type="."><i class="fas fa-comment"></i><span>Meinung</span></button>
-      <button class="bs-type-chip" data-type="!"><i class="fas fa-circle-check"></i><span>Fakt</span></button>
-      <button class="bs-type-chip" data-type="!-"><i class="fas fa-circle-xmark"></i><span>Fake</span></button>
-      <button class="bs-type-chip" data-type="?"><i class="fas fa-circle-question"></i><span>Unklar</span></button>
-      <button class="bs-type-chip" data-type="??"><i class="fas fa-right-left"></i><span>Gegenfrage</span></button>
+      <button class="chip active" data-type=".">Meinung</button>
+      <button class="chip" data-type="!">Fakt</button>
+      <button class="chip" data-type="!-">Fake</button>
+      <button class="chip" data-type="?">Unklar</button>
+      <button class="chip" data-type="??">Gegenfrage</button>
     </div>
-    <textarea id="bs-textarea" placeholder="Dein Beitrag…"></textarea>
-    <button id="bs-submit">Hinzufügen</button>
-    <button id="bs-cancel">Abbrechen</button>
+    <textarea id="bs-textarea" class="textarea" placeholder="Dein Beitrag…"></textarea>
+    <button id="bs-submit" class="btn btn-primary">Hinzufügen</button>
+    <button id="bs-cancel" class="btn btn-ghost">Abbrechen</button>
   </div>
 </div>
 
-<div id="settings-overlay">
-  <div id="settings-panel">
-    <h2>Einstellungen</h2>
-    <label>Tenant ID
-      <input id="settings-tenant" type="text" placeholder="demo">
+<div id="settings-overlay" class="overlay-backdrop">
+  <div id="settings-panel" class="panel">
+    <div class="panel-header"><span>Einstellungen</span></div>
+    <label class="form-label">Tenant ID
+      <input id="settings-tenant" class="input" type="text" placeholder="demo">
     </label>
-    <label style="font-size:0.9rem;display:flex;align-items:center;gap:0.5rem">
+    <label class="form-label" style="display:flex;align-items:center;gap:var(--space-2)">
       Typen-Anzeige:
-      <select id="settings-type-display" style="padding:0.3rem;border-radius:4px;border:1px solid #ccc;">
+      <select id="settings-type-display" class="input" style="width:auto;min-height:unset;padding:var(--space-1) var(--space-2)">
         <option value="text">Text</option>
         <option value="icon+text">Icon + Text</option>
         <option value="icon">Nur Icon</option>
       </select>
     </label>
-    <div style="display:flex;gap:0.5rem">
-      <button class="settings-btn primary" id="settings-apply">Übernehmen</button>
-      <button class="settings-btn secondary" id="settings-close">Schließen</button>
-      <button class="settings-btn secondary" id="settings-bug-report">Issue melden</button>
+    <div class="panel-actions" style="flex-wrap:wrap;gap:var(--space-2)">
+      <button class="btn btn-primary" id="settings-apply">Übernehmen</button>
+      <button class="btn btn-secondary" id="settings-close">Schließen</button>
+      <button class="btn btn-ghost" id="settings-bug-report">
+        <svg class="icon icon-sm" style="fill:none;stroke:currentColor;stroke-width:1.5"><use href="#icon-issue"/></svg>
+        Issue melden
+      </button>
     </div>
-    <div style="margin-top:0.75rem;font-size:0.8rem;color:#999">
-      <a href="wrapper.php?test=app2.html" target="_blank" style="color:#999">Tests ausführen</a>
+    <div style="margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-neutral-400)">
+      <a href="wrapper.php?test=app2.html" target="_blank" style="color:var(--color-neutral-400)">Tests ausführen</a>
     </div>
-    <div id="settings-version" style="margin-top:0.5rem;font-size:0.75rem;color:#bbb"></div>
+    <div id="settings-version" style="margin-top:var(--space-2);font-size:var(--text-xs);color:var(--color-neutral-300)"></div>
   </div>
 </div>
 
-<div id="issue-overlay">
-  <div id="issue-panel">
-    <h3>Problem melden</h3>
-    <p style="margin:0;font-size:0.85rem;color:#666">Titel <span style="color:#c00">*</span></p>
-    <input type="text" id="issue-titel" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:0.9rem;padding:0.35rem 0.5rem;border:1px solid #ccc;border-radius:4px" placeholder="Kurzer Titel des Problems">
-    <p style="margin:0;font-size:0.85rem;color:#666">Was ist passiert? (optional)</p>
-    <textarea id="issue-user-msg" rows="3" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:0.9rem" placeholder="Beschreibe kurz, was du gemacht hast..."></textarea>
-    <p style="margin:0;font-size:0.85rem;color:#666">Technische Details (automatisch — bitte prüfen und ggf. anpassen):</p>
-    <textarea id="issue-details" rows="10" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:0.78rem"></textarea>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-      <button id="issue-send">📤 Senden</button>
-      <button id="issue-copy">📋 Kopieren</button>
-      <button id="issue-mail">✉️ E-Mail</button>
-      <button id="issue-github">🐛 GitHub</button>
-      <button id="issue-close" style="margin-left:auto">Schließen</button>
+<div id="issue-overlay" class="overlay-backdrop">
+  <div id="issue-panel" class="panel">
+    <div class="panel-header"><span>Problem melden</span></div>
+    <label class="form-label">Titel <span style="color:var(--color-error)">*</span></label>
+    <input type="text" id="issue-titel" class="input" placeholder="Kurzer Titel des Problems">
+    <label class="form-label">Was ist passiert? (optional)</label>
+    <textarea id="issue-user-msg" class="textarea" rows="3" placeholder="Beschreibe kurz, was du gemacht hast..."></textarea>
+    <label class="form-label">Technische Details (automatisch — bitte prüfen und ggf. anpassen):</label>
+    <textarea id="issue-details" class="textarea" rows="10" style="font-family:monospace;font-size:var(--text-xs)"></textarea>
+    <div class="panel-actions" style="flex-wrap:wrap;justify-content:flex-start;gap:var(--space-2)">
+      <button id="issue-send" class="btn btn-primary">Senden</button>
+      <button id="issue-copy" class="btn btn-secondary">Kopieren</button>
+      <button id="issue-mail" class="btn btn-secondary">E-Mail</button>
+      <button id="issue-github" class="btn btn-secondary">GitHub</button>
+      <button id="issue-close" class="btn btn-ghost" style="margin-left:auto">Schließen</button>
     </div>
   </div>
 </div>
@@ -508,11 +422,7 @@ function formatTimestamp(ts) {
 function showToast(message, type = "info", duration = 3000, errorCtx = null) {
     const container = document.getElementById("toast-container");
     const el = document.createElement("div");
-    el.style.cssText = `
-        background:${type === "success" ? "#4CAF50" : type === "error" ? "#f44336" : "#333"};
-        color:#fff;padding:0.75rem 1rem;margin-bottom:0.4rem;border-radius:6px;
-        box-shadow:0 2px 6px rgba(0,0,0,0.25);font-size:0.9rem;display:flex;align-items:center;
-    `;
+    el.className = "app-toast " + type;
     const span = document.createElement("span");
     span.textContent = message;
     el.appendChild(span);
@@ -712,14 +622,9 @@ function buildCard(entry) {
     card.dataset.fullKey = key;
     card.innerHTML = `
         <div class="card-header">
-            <span class="type-badge ${typeDef.cssClass}">${(() => {
-                const icon = typeDef.iconClass ? `<i class="fas ${typeDef.iconClass}"></i>` : '';
-                if (typeDisplayMode === 'icon') return icon;
-                if (typeDisplayMode === 'icon+text') return icon + (icon ? ' ' : '') + typeDef.label;
-                return typeDef.label;
-            })()}</span>
+            <span class="badge badge-${typeDef.cssClass}">${typeDef.label}</span>
             <span class="card-text">${cleanMsg}</span>
-            ${hasDrillIn ? '<i class="fas fa-chevron-right drill-arrow"></i>' : ""}
+            ${hasDrillIn ? '<svg class="icon icon-sm drill-arrow" style="fill:none;stroke:currentColor;stroke-width:1.5"><use href="#icon-arrow-right"/></svg>' : ""}
         </div>
         <div class="card-footer">
             <button class="vote-btn upvote-btn" data-key="${escapeHtml(key)}">▲</button>
@@ -845,14 +750,15 @@ function getFilteredEntries() {
 function updateView() {
     runtimeCheck("updateView");
     const navBack = document.getElementById("nav-back");
+    const _arrowIcon = '<svg class="icon icon-md" style="fill:none;stroke:currentColor;stroke-width:1.5"><use href="#icon-arrow-left"/></svg>';
     if (selectedTopic === "/") {
-        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> fayf.info`;
+        navBack.innerHTML = `${_arrowIcon} fayf.info`;
         navBack.href = "infopage.html";
         navBack.onclick = null;
     } else {
         const parts = selectedTopic.split("/").filter(Boolean);
         const parentTopic = parts.length > 1 ? "/" + parts.slice(0, -1).join("/") : "/";
-        navBack.innerHTML = `<i class="fas fa-arrow-left"></i> ${escapeHtml(topicMap[parentTopic] || "zurück")}`;
+        navBack.innerHTML = `${_arrowIcon} ${escapeHtml(topicMap[parentTopic] || "zurück")}`;
         navBack.href = "#";
         navBack.onclick = e => { e.preventDefault(); navigateTo(parentTopic); };
     }
@@ -901,7 +807,7 @@ async function signEntry(topic, nodeId) {
 
 // ── Event wiring ──────────────────────────────────────────────────────────────
 document.getElementById("chip-bar").addEventListener("click", e => {
-    const chip = e.target.closest(".type-chip");
+    const chip = e.target.closest(".chip");
     if (!chip) return;
     const type = chip.dataset.type;
     if (activeTypes.has(type)) { activeTypes.delete(type); chip.classList.remove("active"); }
@@ -1084,7 +990,7 @@ function updateBsColor(type) {
 }
 
 function updateTypeDisplay() {
-    const spans = document.querySelectorAll(".type-chip span, .bs-type-chip span, .scope-chip span");
+    const spans = document.querySelectorAll("#chip-bar .chip span, #bs-type-chips .chip span, .scope-chip span");
     spans.forEach(s => { s.style.display = typeDisplayMode === "icon" ? "none" : ""; });
     updateView();
 }
@@ -1105,7 +1011,7 @@ function openBottomSheet(editEntry = null) {
         bsSelectedType = ".";
         document.getElementById("bs-textarea").value = "";
     }
-    document.querySelectorAll(".bs-type-chip").forEach(c => {
+    document.querySelectorAll("#bs-type-chips .chip").forEach(c => {
         c.classList.toggle("active", c.dataset.type === bsSelectedType);
     });
     updateBsColor(bsSelectedType);
@@ -1155,10 +1061,10 @@ document.getElementById("bottom-sheet-overlay").addEventListener("click", e => {
 
 // type chips in sheet
 document.getElementById("bs-type-chips").addEventListener("click", e => {
-    const chip = e.target.closest(".bs-type-chip");
+    const chip = e.target.closest(".chip");
     if (!chip) return;
     bsSelectedType = chip.dataset.type;
-    document.querySelectorAll(".bs-type-chip").forEach(c => c.classList.toggle("active", c === chip));
+    document.querySelectorAll("#bs-type-chips .chip").forEach(c => c.classList.toggle("active", c === chip));
     updateBsColor(bsSelectedType);
 });
 
