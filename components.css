@@ -1,0 +1,458 @@
+/* InfoPedia Component Classes
+ * Requires: design-tokens.css loaded before this file
+ * Rules: CG-DS1 (color), CG-DS2 (spacing), CG-DS3 (type), CG-DS4 (focus), CG-DS5 (touch)
+ */
+
+/* ── Base reset scoped to design system ──────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  color: var(--color-neutral-900);
+  background: var(--color-surface-page);
+  margin: 0;
+}
+
+a { text-decoration: none; color: inherit; }
+
+/* ── Navigation ──────────────────────────────────────────────────────────── */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-interactive-700);
+  color: #fff;
+  padding: var(--space-2) var(--space-4);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
+  box-shadow: var(--shadow-0);
+  min-height: 44px;
+}
+
+.nav-back {
+  margin-right: auto;
+  font-size: var(--text-sm);
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50vw;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 var(--space-2);
+  pointer-events: none;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+/* ── Chip bar ─────────────────────────────────────────────────────────────── */
+.chip-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-card);
+  border-bottom: 1px solid var(--color-neutral-200);
+  position: sticky;
+  top: 44px;
+  z-index: var(--z-chip-bar);
+}
+
+/* ── Chips ───────────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-neutral-200);
+  background: var(--color-surface-page);
+  color: var(--color-neutral-600);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              background  var(--duration-fast) var(--ease-out),
+              color        var(--duration-fast) var(--ease-out);
+  min-height: 44px;
+  user-select: none;
+}
+
+.chip.active {
+  border-color: transparent;
+  color: #fff;
+}
+
+/* Type-chip active colors follow CA18 — same colors as badges */
+.chip[data-type="."].active  { background: var(--color-neutral-600); }
+.chip[data-type="!"].active  { background: var(--color-semantic-500); }
+.chip[data-type="!-"].active { background: var(--color-error); }
+.chip[data-type="?"].active  { background: #FF9800; }   /* CG-DS1 exception */
+.chip[data-type="??"].active { background: #2196F3; }   /* CG-DS1 exception */
+
+.chip-scope {
+  background: var(--color-interactive-50);
+  border-color: var(--color-interactive-400);
+  color: var(--color-interactive-700);
+}
+
+.chip-scope.active {
+  background: var(--color-interactive-600);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--color-surface-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-4);
+  cursor: pointer;
+  transition: box-shadow var(--duration-normal) var(--ease-out),
+              transform  var(--duration-normal) var(--ease-out);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;   /* hand off to card-swipe.js */
+}
+
+.card:hover {
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.card-body {
+  font-size: var(--text-base);
+  color: var(--color-neutral-900);
+  line-height: 1.5;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* Swipe state classes — applied by card-swipe.js during drag */
+.card.swiping-right {
+  border-left: 4px solid var(--color-semantic-500);
+  background: var(--color-semantic-50);
+}
+.card.swiping-left {
+  border-right: 4px solid var(--color-error);
+  background: #FEE2E2;
+}
+.card.swiping-up {
+  border-top: 4px solid var(--color-interactive-600);
+  background: var(--color-interactive-50);
+}
+.card.swiping-down {
+  border-bottom: 4px solid var(--color-neutral-400);
+  background: var(--color-surface-page);
+}
+
+/* Tray icon scale-up when ACTIVATE threshold is crossed */
+.card.swipe-activate .card-swipe-tray-icon {
+  transform: scale(1.2);
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-bold);
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.1;
+}
+
+.badge-fakt       { background: var(--color-semantic-500); }
+.badge-fake       { background: var(--color-error); }
+.badge-meinung    { background: var(--color-neutral-600); }
+.badge-unklar     { background: #FF9800; }   /* CG-DS1 documented exception */
+.badge-gegenfrage { background: #2196F3; }   /* CG-DS1 documented exception */
+
+/* ── Vote ────────────────────────────────────────────────────────────────── */
+.vote-score {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  min-width: 2rem;
+  text-align: center;
+}
+
+.vote-score.pos  { color: var(--color-semantic-500); }
+.vote-score.neg  { color: var(--color-error); }
+.vote-score.zero { color: var(--color-neutral-400); }
+
+.vote-btn {
+  background: none;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--color-neutral-600);
+  transition: border-color var(--duration-fast) var(--ease-out),
+              color         var(--duration-fast) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vote-btn:hover {
+  border-color: var(--color-interactive-400);
+  color: var(--color-interactive-700);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  border: none;
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+              filter     var(--duration-fast) var(--ease-out),
+              transform  var(--duration-instant) var(--ease-spring);
+  user-select: none;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--color-interactive-600);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--color-interactive-700); }
+
+.btn-secondary {
+  background: var(--color-neutral-200);
+  color: var(--color-neutral-900);
+}
+.btn-secondary:hover { filter: brightness(0.93); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-neutral-600);
+}
+.btn-ghost:hover { background: var(--color-neutral-200); }
+
+.btn-icon {
+  background: transparent;
+  color: var(--color-neutral-600);
+  border-radius: var(--radius-full);
+  padding: var(--space-2);
+  width: 44px;
+  height: 44px;
+}
+.btn-icon:hover { background: var(--color-neutral-200); }
+
+.btn-danger {
+  background: var(--color-error);
+  color: #fff;
+}
+.btn-danger:hover { filter: brightness(0.88); }
+
+/* ── FAB ─────────────────────────────────────────────────────────────────── */
+.fab {
+  position: fixed;
+  bottom: var(--space-16);
+  right: var(--space-4);
+  z-index: var(--z-fab);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--color-interactive-600);
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-2);
+  transition: box-shadow  var(--duration-fast) var(--ease-spring),
+              transform   var(--duration-fast) var(--ease-spring);
+}
+
+.fab:hover  { box-shadow: var(--shadow-3); transform: scale(1.05); }
+.fab:active { transform: scale(0.95); transition-duration: var(--duration-instant); }
+
+/* ── Forms ───────────────────────────────────────────────────────────────── */
+.form-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-neutral-900);
+  margin-bottom: var(--space-1);
+}
+
+.input,
+.textarea {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  color: var(--color-neutral-900);
+  background: var(--color-surface-card);
+  transition: border-color var(--duration-fast) var(--ease-out);
+  min-height: 44px;
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--color-interactive-400);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: calc(var(--space-16) * 3);
+  line-height: 1.5;
+}
+
+/* ── Overlays ────────────────────────────────────────────────────────────── */
+.overlay-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--color-surface-overlay);
+  z-index: var(--z-overlay);
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay-backdrop.open { display: flex; }
+
+.panel {
+  background: var(--color-surface-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  padding: var(--space-6);
+  width: min(400px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-neutral-900);
+}
+
+.panel-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+/* .dialog is the composed pattern: .overlay-backdrop > .panel */
+
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-sheet);
+  background: var(--color-surface-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-3);
+  padding: var(--space-6) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transform: translateY(100%);
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.bottom-sheet.open {
+  transform: translateY(0);
+}
+
+/* ── Toasts ──────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: var(--z-toast);
+  background: var(--color-surface-card);
+  box-shadow: var(--shadow-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  max-width: 320px;
+  font-size: var(--text-sm);
+  border-left: 4px solid var(--color-neutral-200);
+  animation: toast-in var(--duration-slow) var(--ease-out);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(2rem); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.toast.toast-success { border-left-color: var(--color-semantic-500); }
+.toast.toast-error   { border-left-color: var(--color-error); }
+.toast.toast-info    { border-left-color: var(--color-interactive-600); }
+
+/* ── Icons ───────────────────────────────────────────────────────────────── */
+.icon {
+  display: inline-block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.icon-sm { width: 16px; height: 16px; }
+.icon-md { width: 20px; height: 20px; }
+.icon-lg { width: 24px; height: 24px; }
