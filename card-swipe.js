@@ -53,7 +53,7 @@ function initCardSwipe(root, opts) {
         if (!card || drags.has(card)) return;
         drags.set(card, { x0: e.clientX, y0: e.clientY, dir: null, state: 'CLOSED' });
         card.setPointerCapture(e.pointerId);
-    }, { passive: true });
+    }, { passive: false });
 
     root.addEventListener('pointermove', function (e) {
         const card = e.target.closest('.card');
