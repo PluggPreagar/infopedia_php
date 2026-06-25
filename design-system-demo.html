@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InfoPedia Design System Demo</title>
+  <link rel="stylesheet" href="design-tokens.css">
+  <link rel="stylesheet" href="components.css">
+  <style>
+    .demo-section { max-width: 800px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
+    .demo-label   { font-size: var(--text-xs); color: var(--color-neutral-400); margin-bottom: var(--space-2); text-transform: uppercase; letter-spacing: 0.08em; }
+    .demo-row     { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-6); }
+    .swatch       { width: 48px; height: 48px; border-radius: var(--radius-md); box-shadow: var(--shadow-1); }
+  </style>
+</head>
+<body>
+
+<!-- SVG Sprite — paste full icons.svg content here -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+
+  <symbol id="icon-arrow-left" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+  </symbol>
+
+  <symbol id="icon-arrow-right" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+  </symbol>
+
+  <symbol id="icon-arrow-up" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+  </symbol>
+
+  <symbol id="icon-arrow-down" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" />
+  </symbol>
+
+  <symbol id="icon-thumb-up" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 .75-.75 2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23H5.909M14.25 8.75h2.25M5.909 18.5c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 0 1-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 9.953 4.167 9.5 5 9.5h1.053c.472 0 .745.556.5.96a8.958 8.958 0 0 0-1.302 4.665c0 1.194.232 2.333.654 3.375z" />
+  </symbol>
+
+  <symbol id="icon-thumb-down" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M7.498 15.25H4.372c-1.026 0-1.945-.694-2.054-1.715a12.137 12.137 0 0 1-.068-1.285c0-2.848.992-5.464 2.649-7.521C5.353 4.228 5.952 3.98 6.57 3.98h4.461c.483 0 .964.078 1.423.23l3.114 1.04a4.501 4.501 0 0 0 1.423.23h2.909m-18.5 13.5H4.5m12.75 0h.875c.621 0 1.125-.504 1.125-1.125v-6.75c0-.621-.504-1.125-1.125-1.125H16.5m-9.75 6.75c-.083-.205-.173-.405-.27-.602-.197-.4.078-.898.523-.898h.908c.889 0 1.713.518 1.972 1.368a12 12 0 0 0 .521 3.507c0 1.553-.295 3.036-.831 4.398-.268.698-1.048 1.152-1.88 1.152H7.053c-.472 0-.745-.556-.5-.96a8.958 8.958 0 0 1 1.302-4.665 9 9 0 0 0 .893-5.293" />
+  </symbol>
+
+  <symbol id="icon-classify" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3z" />
+    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
+  </symbol>
+
+  <symbol id="icon-search" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
+  </symbol>
+
+  <symbol id="icon-settings" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
+    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+  </symbol>
+
+  <symbol id="icon-plus" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </symbol>
+
+  <symbol id="icon-edit" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+  </symbol>
+
+  <symbol id="icon-close" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+  </symbol>
+
+  <symbol id="icon-check" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+  </symbol>
+
+  <symbol id="icon-back" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+  </symbol>
+
+  <symbol id="icon-issue" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5" />
+  </symbol>
+
+</svg>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="#" class="nav-back">
+    <svg class="icon icon-md"><use href="#icon-back"></use></svg>
+    &nbsp;Back
+  </a>
+  <span class="nav-title">Design System Demo</span>
+  <div class="nav-actions">
+    <button class="btn-icon">
+      <svg class="icon icon-md"><use href="#icon-search"></use></svg>
+    </button>
+    <button class="btn-icon">
+      <svg class="icon icon-md"><use href="#icon-settings"></use></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- Chip bar -->
+<div class="chip-bar">
+  <button class="chip active" data-type="!">
+    <svg class="icon icon-sm"><use href="#icon-check"></use></svg> Fakt
+  </button>
+  <button class="chip" data-type="!-">Fake</button>
+  <button class="chip" data-type="?">Unklar</button>
+  <button class="chip" data-type="??">Gegenfrage</button>
+  <button class="chip chip-scope active">Global</button>
+</div>
+
+<div class="demo-section">
+
+  <!-- Colors -->
+  <div class="demo-label">Color — Interactive</div>
+  <div class="demo-row">
+    <div class="swatch" style="background:var(--color-interactive-50)"></div>
+    <div class="swatch" style="background:var(--color-interactive-100)"></div>
+    <div class="swatch" style="background:var(--color-interactive-400)"></div>
+    <div class="swatch" style="background:var(--color-interactive-600)"></div>
+    <div class="swatch" style="background:var(--color-interactive-700)"></div>
+    <div class="swatch" style="background:var(--color-interactive-accent)"></div>
+  </div>
+
+  <div class="demo-label">Color — Semantic + Error</div>
+  <div class="demo-row">
+    <div class="swatch" style="background:var(--color-semantic-50)"></div>
+    <div class="swatch" style="background:var(--color-semantic-500)"></div>
+    <div class="swatch" style="background:var(--color-semantic-700)"></div>
+    <div class="swatch" style="background:var(--color-error)"></div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="demo-label">Buttons</div>
+  <div class="demo-row">
+    <button class="btn btn-primary">Primary</button>
+    <button class="btn btn-secondary">Secondary</button>
+    <button class="btn btn-ghost">Ghost</button>
+    <button class="btn btn-danger">Danger</button>
+    <button class="btn btn-icon">
+      <svg class="icon icon-md"><use href="#icon-plus"></use></svg>
+    </button>
+  </div>
+
+  <!-- Badges -->
+  <div class="demo-label">Badges</div>
+  <div class="demo-row">
+    <span class="badge badge-fakt">Fakt</span>
+    <span class="badge badge-fake">Fake</span>
+    <span class="badge badge-meinung">Meinung</span>
+    <span class="badge badge-unklar">Unklar</span>
+    <span class="badge badge-gegenfrage">Gegenfrage</span>
+  </div>
+
+  <!-- Icons -->
+  <div class="demo-label">Icons (all 15)</div>
+  <div class="demo-row">
+    <svg class="icon icon-lg"><use href="#icon-arrow-left"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-arrow-right"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-arrow-up"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-arrow-down"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-thumb-up"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-thumb-down"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-classify"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-search"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-settings"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-plus"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-edit"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-close"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-check"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-back"></use></svg>
+    <svg class="icon icon-lg"><use href="#icon-issue"></use></svg>
+  </div>
+
+  <!-- Card -->
+  <div class="demo-label">Card (swipeable — drag left/right/up/down)</div>
+  <div id="card-list" style="display:flex;flex-direction:column;gap:var(--space-3)">
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-fakt">Fakt</span>
+        <span style="font-size:var(--text-xs);color:var(--color-neutral-400)">2026-06-25</span>
+      </div>
+      <div class="card-body">CO₂ concentration in the atmosphere exceeded 420 ppm in 2023.</div>
+      <div class="card-footer">
+        <button class="vote-btn"><svg class="icon icon-sm"><use href="#icon-thumb-up"></use></svg></button>
+        <span class="vote-score pos">+12</span>
+        <button class="vote-btn"><svg class="icon icon-sm"><use href="#icon-thumb-down"></use></svg></button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-fake">Fake</span>
+      </div>
+      <div class="card-body">The moon landing was filmed in a Hollywood studio.</div>
+      <div class="card-footer">
+        <button class="vote-btn"><svg class="icon icon-sm"><use href="#icon-thumb-up"></use></svg></button>
+        <span class="vote-score neg">-8</span>
+        <button class="vote-btn"><svg class="icon icon-sm"><use href="#icon-thumb-down"></use></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div class="demo-label" style="margin-top:var(--space-6)">Form</div>
+  <label class="form-label">Entry text</label>
+  <input class="input" type="text" placeholder="Type something…">
+  <label class="form-label" style="margin-top:var(--space-4)">Description</label>
+  <textarea class="textarea" placeholder="More detail…"></textarea>
+
+  <!-- Toast -->
+  <div class="demo-label" style="margin-top:var(--space-4)">Toasts</div>
+  <div class="demo-row" style="flex-direction:column;align-items:flex-start">
+    <div class="toast toast-success" style="position:static;animation:none">Eintrag erfolgreich gespeichert.</div>
+    <div class="toast toast-error"   style="position:static;animation:none">Fehler beim Speichern. Bitte erneut versuchen.</div>
+    <div class="toast toast-info"    style="position:static;animation:none">Neue Einträge verfügbar.</div>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" aria-label="Add entry">
+  <svg class="icon icon-lg"><use href="#icon-plus"></use></svg>
+</button>
+
+<script src="card-swipe.js"></script>
+<script>
+  initCardSwipe(document.getElementById('card-list'));
+  document.getElementById('card-list').addEventListener('cardswipe:action', function (e) {
+    console.log('swipe action:', e.detail.direction, 'on', e.target);
+  });
+</script>
+</body>
+</html>
