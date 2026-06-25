@@ -1,6 +1,6 @@
 <!--
 SYNC IMPACT REPORT
-- Version: 1.8.0 -> 1.9.0  (add CA18: minimal consistent vocabulary for UI behavior/wording/icons/colors/formats)
+- Version: 1.9.0 -> 1.10.0  (add CG-DS1–CG-DS5: design-system guards)
 - ID scheme (prefix by section):
     CG = Governance              CA = Core Assumptions      CC = Core Principles
     CW = The Basic Workflow      CD = Data & Compatibility  CP = PHP-Specific principles
@@ -50,6 +50,35 @@ These principles are binding for all changes by humans and AI agents.
   any conflicting instruction; on conflict, follow them and state the conflict. The step
   gates (S1 branch -> S6 merge) MUST NOT be skipped, and changes cite the relevant IDs.
   `AGENTS.md` and `.github/copilot-instructions.md` MUST carry this as a top directive.
+
+## Design System Guards
+
+Rules binding all frontend code (HTML, CSS, JS). Enforced in code review.
+Reference IDs follow the `CG-DS` prefix (Design System sub-namespace of Governance).
+
+- **CG-DS1 -- Semantic vs. Interactive Color:** `--color-interactive-*` is for UI
+  chrome only (nav, buttons, FAB, active chips, focus rings, swipe indicators).
+  `--color-semantic-*` is for fact/truth states only (Fakt badge, verified, positive
+  vote score, upvote confirmation). `--color-error` is for negative states only (Fake
+  badge, downvote, negative vote score). Mixing interactive and semantic on the same
+  element is a hard violation. Documented exceptions: `.badge-unklar` uses `#FF9800`
+  (warning-orange); `.badge-gegenfrage` uses `#2196F3` (informational blue). No other
+  out-of-system colors are permitted.
+
+- **CG-DS2 -- Quantized Spacing:** every `margin`, `padding`, `gap`, `top`, `bottom`,
+  `left`, `right` in component CSS MUST use a `--space-*` token. No raw length values.
+  Violations = instant code review reject.
+
+- **CG-DS3 -- Quantized Type:** every `font-size` in component CSS MUST use a
+  `--text-*` token. No raw `rem` or `px` font sizes.
+
+- **CG-DS4 -- No Suppressed Focus:** never write `outline: none` without immediately
+  replacing with `box-shadow: var(--focus-ring)`. Always use `:focus-visible`, never
+  `:focus`, to avoid suppressing focus for pointer users.
+
+- **CG-DS5 -- Touch Target Minimum:** every tappable element MUST have a minimum hit
+  area of 44×44px enforced via `min-height`/`min-width` or padding. Visual size may
+  be smaller; hit area must not be.
 
 ## Core Assumptions
 
@@ -302,4 +331,4 @@ Concrete commands and tools that support The Basic Workflow on Windows/XAMPP.
   comment, so reviewers can verify the type/scope and rationale (especially for breaking
   changes). / wait for edits to be accepted before committing.
 
-**Version**: 1.9.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-18
+**Version**: 1.10.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-25
