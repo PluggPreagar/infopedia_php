@@ -14,7 +14,7 @@
   --color-interactive-400:    #FBBF24;
   --color-interactive-600:    #D97706;   /* buttons — 4.8:1 on white ✓ AA  */
   --color-interactive-700:    #B45309;   /* nav bg  — 7.2:1 on white ✓ AAA */
-  --color-interactive-accent: #F59E0B;   /* decoration only                 */
+  --color-interactive-accent: #F59E0B;   /* decoration only — NEVER as text background (2.6:1) */
 
   /* ── Semantic (green) ────────────────────────────────────────────────────
    * CG-DS1: fact/truth states only — Fakt badge, verified, positive scores
