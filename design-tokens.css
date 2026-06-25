@@ -5,16 +5,16 @@
  */
 
 :root {
-  /* ── Interactive (amber) ─────────────────────────────────────────────────
+  /* ── Interactive (indigo) ───────────────────────────────────────────────
    * CG-DS1: UI chrome only — nav, buttons, FAB, chips, focus, swipe indicators
-   * --color-interactive-accent is decoration only, never a text background (2.6:1)
+   * --color-interactive-accent is decoration only, never a text background (4.4:1)
    * ──────────────────────────────────────────────────────────────────────── */
-  --color-interactive-50:     #FFFBEB;
-  --color-interactive-100:    #FEF3C7;
-  --color-interactive-400:    #FBBF24;
-  --color-interactive-600:    #D97706;   /* buttons — 4.8:1 on white ✓ AA  */
-  --color-interactive-700:    #B45309;   /* nav bg  — 7.2:1 on white ✓ AAA */
-  --color-interactive-accent: #F59E0B;   /* decoration only — NEVER as text background (2.6:1) */
+  --color-interactive-50:     #EEF2FF;
+  --color-interactive-100:    #E0E7FF;
+  --color-interactive-400:    #818CF8;
+  --color-interactive-600:    #4F46E5;   /* buttons — 6.2:1 on white ✓ AA  */
+  --color-interactive-700:    #4338CA;   /* nav bg  — 7.8:1 on white ✓ AAA */
+  --color-interactive-accent: #6366F1;   /* decoration only — NEVER as text background (4.4:1) */
 
   /* ── Semantic (green) ────────────────────────────────────────────────────
    * CG-DS1: fact/truth states only — Fakt badge, verified, positive scores
@@ -36,7 +36,7 @@
 
   /* ── State ───────────────────────────────────────────────────────────── */
   --color-error: #DC2626;   /* 5.1:1 on white ✓ AA */
-  --color-focus: #F59E0B;
+  --color-focus: #4F46E5;
 
   /* ── Typography ──────────────────────────────────────────────────────── */
   --font-family:        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
