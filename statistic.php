@@ -173,72 +173,107 @@ function ms_fmt(?float $ms): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Infopedia Statistics</title>
-<link rel="stylesheet" href="styles_statistic.css">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="stylesheet" href="design-tokens.css">
+<link rel="stylesheet" href="components.css">
 <style>
-.stat-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
-.stat-box{background:#fff;border:1px solid #85ac6a;border-radius:6px;padding:10px 18px;flex:1;min-width:100px;text-align:center}
-.stat-box .val{font-size:1.9em;font-weight:bold;color:#3e6b29;line-height:1.1}
-.stat-box .lbl{font-size:0.75em;color:#666;margin-top:2px}
-.stat-box.err .val{color:#c00}
-.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-.meta{font-size:0.8em;color:#888;margin-bottom:18px}
-.btn{padding:4px 11px;border:1px solid #85ac6a;border-radius:4px;text-decoration:none;
-     color:#3e6b29;font-size:0.85em;background:#fff;white-space:nowrap}
-.btn.on{background:#d4e8c4;color:#2d4a1a;border-color:#4a7535;font-weight:600}
-.btn.danger{border-color:#c00;color:#c00}
-.btn.danger.on{background:#ffe8e8;color:#900;border-color:#c00;font-weight:600}
-.section{background:#fff;border:1px solid #b8d4a4;border-radius:6px;padding:14px 16px;margin-bottom:18px}
-.section.err-section{border-color:#c00;background:#fff8f8}
-.section h2{margin:0 0 10px;font-size:1em;text-transform:uppercase;letter-spacing:.04em;
-            border-bottom:1px solid #b8d4a4;padding-bottom:5px;color:#3e6b29}
-.err-section h2{color:#c00;border-color:#e8a0a0}
-.pbar{display:inline-block;height:8px;background:#6a9a52;border-radius:2px;
-      vertical-align:middle;margin-left:6px;min-width:2px}
-.err-txt{color:#c00}
-.warn-txt{color:#a60}
-.dim{color:#aaa}
-.mono{font-family:monospace;font-size:0.85em}
-.clip{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-      display:inline-block;vertical-align:bottom}
-.filters{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
-.filters label{font-size:0.8em;color:#888;min-width:50px}
-.rx-input{font:0.85em monospace;padding:3px 8px;border:1px solid #85ac6a;border-radius:4px;
-          width:260px;outline:none}
-.rx-input:focus{border-color:#4a7535}
-.rx-input.invalid{border-color:#c00;background:#fff8f8}
-.rx-count{font-size:0.8em;color:#888;margin-left:4px}
-.bc-row{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:0.78em}
-.bc-lbl{flex-shrink:0;min-width:72px;text-align:right;color:#666}
-.bc-track{flex:1;height:9px;background:#eef4ec;border-radius:2px}
-.bc-bar{height:9px;background:#6a9a52;border-radius:2px}
-.bc-val{flex-shrink:0;min-width:24px;color:#888}
-.vchart{display:flex;align-items:flex-end;gap:1px;height:60px}
-.vc-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
-.vc-bar{width:100%;background:#6a9a52;border-radius:2px 2px 0 0}
+body { font-family: var(--font-family); font-size: var(--text-sm);
+       background: var(--color-surface-page); color: var(--color-neutral-900); }
+.page { max-width: 1100px; margin: 0 auto; padding: var(--space-6) var(--space-4); }
+
+table { width:100%; border-collapse:collapse; margin-top:var(--space-4);
+        background:var(--color-surface-card); box-shadow:var(--shadow-1); font-size:var(--text-xs); }
+table th, table td { border:1px solid var(--color-neutral-200); padding:var(--space-1) var(--space-2); text-align:left; }
+table th { background:var(--color-interactive-50); color:var(--color-interactive-700);
+           text-transform:uppercase; font-weight:var(--font-weight-bold); letter-spacing:.04em; }
+table tr:nth-child(even) { background:var(--color-surface-page); }
+table tr:hover { background:var(--color-interactive-50); }
+table td:last-child { color:var(--color-neutral-600); }
+
+.stat-strip { display:flex; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-4); }
+.stat-box { background:var(--color-surface-card); border:1px solid var(--color-interactive-100);
+            border-radius:var(--radius-md); padding:var(--space-3) var(--space-4);
+            flex:1; min-width:100px; text-align:center; }
+.stat-box .val { font-size:1.9em; font-weight:var(--font-weight-bold);
+                 color:var(--color-interactive-700); line-height:1.1; }
+.stat-box .lbl { font-size:var(--text-xs); color:var(--color-neutral-600); margin-top:var(--space-1); }
+.stat-box.err .val { color:var(--color-error); }
+
+.controls { display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap; margin-bottom:var(--space-3); }
+.meta { font-size:var(--text-xs); color:var(--color-neutral-400); margin-bottom:var(--space-4); }
+
+.ctrl-btn { padding:4px 11px; border:1px solid var(--color-interactive-400); border-radius:var(--radius-sm);
+            text-decoration:none; color:var(--color-interactive-700); font-size:var(--text-sm);
+            background:var(--color-surface-card); white-space:nowrap; }
+.ctrl-btn.on { background:var(--color-interactive-100); color:var(--color-interactive-700);
+               border-color:var(--color-interactive-600); font-weight:var(--font-weight-bold); }
+.ctrl-btn.danger { border-color:var(--color-error); color:var(--color-error); }
+.ctrl-btn.danger.on { background:#fee2e2; color:#991b1b; border-color:var(--color-error);
+                      font-weight:var(--font-weight-bold); }
+
+.section { background:var(--color-surface-card); border:1px solid var(--color-interactive-100);
+           border-radius:var(--radius-md); padding:var(--space-4); margin-bottom:var(--space-4); }
+.section.err-section { border-color:var(--color-error); background:#fff8f8; }
+.section h2 { margin:0 0 var(--space-3); font-size:var(--text-sm); text-transform:uppercase;
+              letter-spacing:.04em; border-bottom:1px solid var(--color-interactive-100);
+              padding-bottom:var(--space-2); color:var(--color-interactive-700); }
+.err-section h2 { color:var(--color-error); border-color:#fca5a5; }
+
+.pbar { display:inline-block; height:8px; background:var(--color-interactive-600);
+        border-radius:2px; vertical-align:middle; margin-left:6px; min-width:2px; }
+.err-txt { color:var(--color-error); }
+.warn-txt { color:#92400e; }
+.dim { color:var(--color-neutral-400); }
+.mono { font-family:monospace; font-size:var(--text-xs); }
+.clip { max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        display:inline-block; vertical-align:bottom; }
+
+.filters { display:flex; gap:var(--space-1); flex-wrap:wrap; align-items:center; margin-bottom:var(--space-2); }
+.filters label { font-size:var(--text-xs); color:var(--color-neutral-600); min-width:50px; }
+.rx-input { font:var(--text-sm) monospace; padding:3px 8px;
+            border:1px solid var(--color-interactive-400); border-radius:var(--radius-sm);
+            width:260px; outline:none; }
+.rx-input:focus { border-color:var(--color-interactive-600); }
+.rx-input.invalid { border-color:var(--color-error); background:#fff8f8; }
+.rx-count { font-size:var(--text-xs); color:var(--color-neutral-400); margin-left:4px; }
+
+.bc-row { display:flex; align-items:center; gap:6px; margin:3px 0; font-size:var(--text-xs); }
+.bc-lbl { flex-shrink:0; min-width:72px; text-align:right; color:var(--color-neutral-600); }
+.bc-track { flex:1; height:9px; background:var(--color-interactive-50); border-radius:2px; }
+.bc-bar { height:9px; background:var(--color-interactive-600); border-radius:2px; }
+.bc-val { flex-shrink:0; min-width:24px; color:var(--color-neutral-400); }
+
+.vchart { display:flex; align-items:flex-end; gap:1px; height:60px; }
+.vc-col { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; }
+.vc-bar { width:100%; background:var(--color-interactive-600); border-radius:2px 2px 0 0; }
 </style>
 </head>
 <body>
-<h1>Infopedia Statistics</h1>
+<nav class="nav">
+  <a class="nav-back" href="infopage.html">← Home</a>
+  <span class="nav-title">Statistics</span>
+</nav>
+<div class="page">
 
 <?php if (!is_file($logFile)): ?>
 <p class="err-txt">Log file not found: <code><?= h($logFile) ?></code></p>
 <?php else: ?>
 
 <div class="controls">
-  <a class="btn <?= $exclude_e2e ? 'on' : '' ?>"
+  <a class="ctrl-btn <?= $exclude_e2e ? 'on' : '' ?>"
      href="<?= $exclude_e2e ? qs([], ['exclude_e2e']) : qs(['exclude_e2e' => '1']) ?>">
     <?= $exclude_e2e ? '&#10003; E2E excluded' : 'Exclude E2E' ?>
   </a>
-  <a class="btn" href="<?= qs() ?>">&#8635; Refresh</a>
-  <span style="font-size:0.8em;color:#888;margin-left:6px">Auto-refresh:</span>
+  <a class="ctrl-btn" href="<?= qs() ?>">&#8635; Refresh</a>
+  <span style="font-size:var(--text-xs);color:var(--color-neutral-400);margin-left:6px">Auto-refresh:</span>
   <?php foreach ($ar_options as $n): ?>
-  <a class="btn <?= $ar === $n ? 'on' : '' ?>"
+  <a class="ctrl-btn <?= $ar === $n ? 'on' : '' ?>"
      href="<?= $n ? qs(['ar' => $n]) : qs([], ['ar']) ?>">
     <?= $n ? $n . 's' : 'off' ?>
   </a>
   <?php endforeach ?>
   <?php if ($ar > 0): ?>
-  <span id="ar-countdown" style="font-size:0.8em;color:#888;min-width:34px;display:inline-block"></span>
+  <span id="ar-countdown" style="font-size:var(--text-xs);color:var(--color-neutral-400);min-width:34px;display:inline-block"></span>
   <?php endif ?>
 </div>
 
@@ -293,7 +328,7 @@ function ms_fmt(?float $ms): string {
   <?php endif ?>
 
   <?php if ($recent_warnings): ?>
-  <p style="margin:12px 0 4px"><strong>Warnings</strong></p>
+  <p style="margin:var(--space-3) 0 var(--space-1)"><strong>Warnings</strong></p>
   <table>
     <tr><th>Timestamp</th><th>Type</th><th>URI</th><th>Warning</th></tr>
     <?php foreach ($recent_warnings as $w): ?>
@@ -347,7 +382,7 @@ function ms_fmt(?float $ms): string {
 
 <!-- Charts -->
 <?php if ($total > 0): ?>
-<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px">
+<div style="display:flex;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-4)">
 
   <!-- A: by hour of day -->
   <div class="section" style="flex:1 1 240px">
@@ -363,7 +398,7 @@ function ms_fmt(?float $ms): string {
       </div>
       <?php endfor ?>
     </div>
-    <div style="display:flex;gap:1px;font-size:0.6em;color:#aaa;margin-top:2px">
+    <div style="display:flex;gap:1px;font-size:0.6em;color:var(--color-neutral-400);margin-top:2px">
       <?php for ($h = 0; $h < 24; $h++): ?>
       <div style="flex:1;text-align:center"><?= ($h % 6 === 0) ? sprintf('%02d', $h) : '' ?></div>
       <?php endfor ?>
@@ -374,7 +409,7 @@ function ms_fmt(?float $ms): string {
   <div class="section" style="flex:1 1 200px">
     <h2>Response Time Dist.</h2>
     <?php if (array_sum($rt_buckets) > 0): ?>
-    <div style="margin-top:10px">
+    <div style="margin-top:var(--space-3)">
       <?php foreach ($rt_buckets as $label => $count):
           $pct = $count > 0 ? max(2, (int)round($count / $rt_max * 100)) : 0;
       ?>
@@ -386,7 +421,7 @@ function ms_fmt(?float $ms): string {
       <?php endforeach ?>
     </div>
     <?php else: ?>
-    <p class="dim" style="margin-top:10px">No timing data.</p>
+    <p class="dim" style="margin-top:var(--space-3)">No timing data.</p>
     <?php endif ?>
   </div>
 
@@ -394,8 +429,8 @@ function ms_fmt(?float $ms): string {
 
 <!-- C: requests over time -->
 <?php if (count($timeline) > 1): ?>
-<div class="section" style="margin-bottom:18px">
-  <h2>Requests Over Time <span style="font-weight:400;font-size:0.8em;color:#888">(<?= h($tl_label) ?>)</span></h2>
+<div class="section" style="margin-bottom:var(--space-4)">
+  <h2>Requests Over Time <span style="font-weight:400;font-size:0.8em;color:var(--color-neutral-400)">(<?= h($tl_label) ?>)</span></h2>
   <?php
       $n   = count($timeline);
       $svw = 580; $svh = 72; $pl = 28; $pt = 8; $pr = 10; $pb = 14;
@@ -418,19 +453,19 @@ function ms_fmt(?float $ms): string {
   <svg viewBox="0 0 <?= $svw ?> <?= $svh ?>" style="width:100%;height:<?= $svh ?>px;display:block"
        xmlns="http://www.w3.org/2000/svg">
     <line x1="<?= $pl ?>" y1="<?= $pt ?>" x2="<?= $svw-$pr ?>" y2="<?= $pt ?>"
-          stroke="#e8f2e3" stroke-width="1"/>
+          stroke="#E5E7EB" stroke-width="1"/>
     <line x1="<?= $pl ?>" y1="<?= $pt+$ph/2 ?>" x2="<?= $svw-$pr ?>" y2="<?= $pt+$ph/2 ?>"
-          stroke="#e8f2e3" stroke-width="1"/>
-    <polygon points="<?= $area ?>" fill="#d4e8c4" opacity="0.65"/>
-    <polyline points="<?= $pts_str ?>" fill="none" stroke="#4a7535" stroke-width="1.5" stroke-linejoin="round"/>
+          stroke="#E5E7EB" stroke-width="1"/>
+    <polygon points="<?= $area ?>" fill="#E0E7FF" opacity="0.65"/>
+    <polyline points="<?= $pts_str ?>" fill="none" stroke="#4F46E5" stroke-width="1.5" stroke-linejoin="round"/>
     <line x1="<?= $pl ?>" y1="<?= $pt ?>" x2="<?= $pl ?>" y2="<?= $base ?>"
-          stroke="#b8d4a4" stroke-width="1"/>
+          stroke="#C7D2FE" stroke-width="1"/>
     <line x1="<?= $pl ?>" y1="<?= $base ?>" x2="<?= $svw-$pr ?>" y2="<?= $base ?>"
-          stroke="#b8d4a4" stroke-width="1"/>
-    <text x="<?= $pl-2 ?>" y="<?= $pt+3 ?>" font-size="8" fill="#aaa" text-anchor="end"><?= $tl_max ?></text>
+          stroke="#C7D2FE" stroke-width="1"/>
+    <text x="<?= $pl-2 ?>" y="<?= $pt+3 ?>" font-size="8" fill="#9CA3AF" text-anchor="end"><?= $tl_max ?></text>
     <?php if ($fl): ?>
-    <text x="<?= $pl ?>" y="<?= $base+11 ?>" font-size="8" fill="#aaa"><?= h($fl) ?></text>
-    <text x="<?= $svw-$pr ?>" y="<?= $base+11 ?>" font-size="8" fill="#aaa" text-anchor="end"><?= h($ll) ?></text>
+    <text x="<?= $pl ?>" y="<?= $base+11 ?>" font-size="8" fill="#9CA3AF"><?= h($fl) ?></text>
+    <text x="<?= $svw-$pr ?>" y="<?= $base+11 ?>" font-size="8" fill="#9CA3AF" text-anchor="end"><?= h($ll) ?></text>
     <?php endif ?>
   </svg>
 </div>
@@ -444,13 +479,13 @@ function ms_fmt(?float $ms): string {
 
   <div class="filters">
     <label>Type</label>
-    <a class="btn <?= !$filter_type && !$errors_only ? 'on' : '' ?>"
+    <a class="ctrl-btn <?= !$filter_type && !$errors_only ? 'on' : '' ?>"
        href="<?= qs([], ['type', 'errors_only']) ?>">all</a>
     <?php foreach ($all_types as $t): ?>
-    <a class="btn <?= $filter_type === $t && !$errors_only ? 'on' : '' ?>"
+    <a class="ctrl-btn <?= $filter_type === $t && !$errors_only ? 'on' : '' ?>"
        href="<?= qs(['type' => $t], ['errors_only']) ?>"><?= h($t) ?></a>
     <?php endforeach ?>
-    <a class="btn danger <?= $errors_only ? 'on' : '' ?>"
+    <a class="ctrl-btn danger <?= $errors_only ? 'on' : '' ?>"
        href="<?= $errors_only ? qs([], ['errors_only', 'type']) : qs(['errors_only' => '1'], ['type']) ?>">
       errors only</a>
   </div>
@@ -458,10 +493,10 @@ function ms_fmt(?float $ms): string {
   <?php if ($all_tenants): ?>
   <div class="filters">
     <label>Tenant</label>
-    <a class="btn <?= $filter_tenant === '' ? 'on' : '' ?>"
+    <a class="ctrl-btn <?= $filter_tenant === '' ? 'on' : '' ?>"
        href="<?= qs([], ['tenant']) ?>">all</a>
     <?php foreach ($all_tenants as $t): ?>
-    <a class="btn <?= $filter_tenant === $t ? 'on' : '' ?>"
+    <a class="ctrl-btn <?= $filter_tenant === $t ? 'on' : '' ?>"
        href="<?= qs(['tenant' => $t]) ?>"><?= h($t) ?></a>
     <?php endforeach ?>
   </div>
@@ -470,7 +505,7 @@ function ms_fmt(?float $ms): string {
   <div class="filters">
     <label>Show</label>
     <?php foreach ([10, 50, 100, 200] as $n): ?>
-    <a class="btn <?= $lines_param === $n ? 'on' : '' ?>"
+    <a class="ctrl-btn <?= $lines_param === $n ? 'on' : '' ?>"
        href="<?= qs(['lines' => $n]) ?>"><?= $n ?></a>
     <?php endforeach ?>
   </div>
@@ -486,7 +521,7 @@ function ms_fmt(?float $ms): string {
   <?php if (empty($viewer_rows)): ?>
   <p class="dim">No entries match the current filter.</p>
   <?php else: ?>
-  <p class="meta" style="margin:0 0 6px">
+  <p class="meta" style="margin:0 0 var(--space-2)">
     <?= count($viewer_rows) ?> of <?= count($viewer_pool) ?>
     <?= $errors_only ? 'errors' : 'requests' ?>
     <?= ($filter_type || $filter_tenant) ? '(filtered)' : '' ?>
@@ -528,6 +563,7 @@ function ms_fmt(?float $ms): string {
 
 <?php endif ?>
 
+</div>
 <script>
 (function () {
     var secs = <?= (int)$ar ?>;
