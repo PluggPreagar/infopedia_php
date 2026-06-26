@@ -361,6 +361,69 @@ foreach ([
     if (file_exists($f)) unlink($f);
 }
 
+// ─── data.php ────────────────────────────────────────────────────────────────
+section('data.php');
+
+// Patch poll_timeout to 0 so data.php tests don't long-poll
+$orig_cfg3 = file_get_contents('infopedia.cfg');
+register_shutdown_function(function() use ($orig_cfg3) {
+    file_put_contents('infopedia.cfg', $orig_cfg3);
+});
+$patched3 = preg_replace('/^(\[data\].*?)poll_timeout\s*=\s*\d+/ms', '$1poll_timeout = 0', $orig_cfg3);
+file_put_contents('infopedia.cfg', $patched3);
+
+// Ensure infopedia.log exists (E2E may create it via prior requests)
+if (!file_exists('infopedia.log')) file_put_contents('infopedia.log', '');
+
+// E1: no entity → 400 INVALID_ENTITY
+$r = get('/data');
+ok($r['status'] === 400, 'data: no entity → 400');
+ok(($r['json']['error']['code'] ?? '') === 'INVALID_ENTITY', 'data: error code INVALID_ENTITY');
+
+// E2: entity=stats → 200, full + increments + offset
+$r = get('/data', 'entity=stats');
+ok($r['status'] === 200, 'data: stats first load → 200');
+ok(isset($r['json']['offset']),           'data: stats has offset');
+ok(isset($r['json']['full']),             'data: stats has full section');
+ok(isset($r['json']['increments']),       'data: stats has increments section');
+ok(isset($r['json']['full']['sessions_uniq']), 'data: full has sessions_uniq');
+ok(isset($r['json']['increments']['requests']), 'data: increments has requests');
+ok(is_array($r['json']['increments']['rows'] ?? null), 'data: increments has rows array');
+
+// E3: stale offset → 400 STALE_OFFSET
+$r = get('/data', 'entity=stats&offset=999999999');
+ok($r['status'] === 400, 'data: stale offset → 400');
+ok(($r['json']['error']['code'] ?? '') === 'STALE_OFFSET', 'data: error code STALE_OFFSET');
+
+// E4: entity=ops, no cursor → 200 or 204
+$r = get('/data', 'entity=ops&tid=' . $tid);
+ok(in_array($r['status'], [200, 204], true), 'data: ops no cursor → 200 or 204');
+
+// E5: append an ops event, then poll → 200 with row
+// Write ops event directly to JSONL for deterministic E2E
+$ops_file_a = 'data/notify_ops_' . $tid . '_a.jsonl';
+$ops_file_b = 'data/notify_ops_' . $tid . '_b.jsonl';
+foreach ([$ops_file_a, $ops_file_b] as $of) { if (file_exists($of)) unlink($of); }
+
+$ts_e5 = time() - 5;
+$ev_json = json_encode(['ts'=>$ts_e5,'msgid'=>1,'type'=>'ops',
+                        'severity'=>'info','op'=>'deploy','text'=>'e2e test']) . "\n";
+file_put_contents($ops_file_a, $ev_json);
+file_put_contents($ops_file_b, $ev_json);
+
+// Cursor: 10 seconds before the event; ts=0 would trigger stale detection
+$cursor_ts = $ts_e5 - 10;
+$r = get('/data', 'entity=ops&tid=' . $tid . '&ts=' . $cursor_ts . '&msgid=0');
+ok($r['status'] === 200, 'data: ops with prior event → 200');
+ok(count($r['json']['increments']['rows'] ?? []) >= 1, 'data: ops rows non-empty');
+ok(($r['json']['increments']['rows'][0]['op'] ?? '') === 'deploy', 'data: ops row op=deploy');
+
+// Cleanup ops files
+foreach ([$ops_file_a, $ops_file_b] as $of) { if (file_exists($of)) unlink($of); }
+
+// Restore cfg
+file_put_contents('infopedia.cfg', $orig_cfg3);
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
 echo "\n";

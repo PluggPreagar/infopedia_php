@@ -46,6 +46,7 @@ function e2e_route(string $path): ?string {
         '/votes'      => 'votes.php',
         '/dumps'      => 'dumps.php',
         '/notify'     => 'notify.php',
+        '/data'       => 'data.php',
         '/health'     => 'health.php',
         '/stats'      => 'statistic.php',
         '/issue'      => 'issue.php',
