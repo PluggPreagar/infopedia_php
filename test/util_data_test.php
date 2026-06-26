@@ -147,4 +147,53 @@ assert_eq(42, $after['agg']['requests'] ?? null, 'lower-offset write skipped');
 unlink($cacheFile);
 unlink($logFile2);
 
+// ─── data_stats_respond ───────────────────────────────────────────────────────
+
+// Build a small fixture log file
+$fixLog  = tempnam(sys_get_temp_dir(), 'fxlog_');
+$fixCache = tempnam(sys_get_temp_dir(), 'fxcache_'); unlink($fixCache);
+$lines = [
+    '[2026-06-26 16:07:00] ;  entries ;  /entries_add ;  POST ;  s1@demo ;  entries.php ;  RETURN: ok in 0.0452 seconds',
+    '[2026-06-26 16:07:30] ;  votes ;  /votes_add ;  POST ;  s2@demo ;  votes.php ;  RETURN: ok in 0.0121 seconds',
+    '[2026-06-26 16:08:00] ;  entries ;  /entries ;  GET ;  s1@ ;  entries.php ;  ERROR: bad',
+];
+file_put_contents($fixLog, implode("\n", $lines) . "\n");
+
+// T17: first request (null offset) → full response, all counts
+$resp = data_stats_respond($fixLog, $fixCache, null, 50);
+assert_eq('stats',  $resp['entity']                          ?? null, 'entity=stats');
+assert_eq(2,        $resp['full']['sessions_uniq']           ?? null, 'sessions_uniq=2');
+assert_eq(1,        $resp['full']['tenants_uniq']            ?? null, 'tenants_uniq=1');
+assert_eq(2,        $resp['increments']['requests']          ?? null, 'requests=2 in increments');
+assert_eq(1,        $resp['increments']['errors']            ?? null, 'errors=1 in increments');
+assert_eq(2,        count($resp['increments']['rows'] ?? []), 'rows=2 RETURN lines');
+assert_eq(true,     isset($resp['offset']),                           'offset present');
+
+$saved_offset = $resp['offset'];
+
+// T18: warm cache — no new lines → cache not rewritten, rows empty
+$cache_mtime_before = filemtime($fixCache);
+usleep(100000); // 100ms
+$resp2 = data_stats_respond($fixLog, $fixCache, $saved_offset, 50);
+assert_eq(0, $resp2['increments']['requests'] ?? -1, 'no new lines → requests_delta=0');
+assert_eq(0, count($resp2['increments']['rows'] ?? [1]), 'no new lines → rows empty');
+$cache_mtime_after = filemtime($fixCache);
+assert_eq($cache_mtime_before, $cache_mtime_after, 'cache not rewritten when no new lines');
+
+// T19: stale offset → ['stale' => true]
+$resp3 = data_stats_respond($fixLog, $fixCache, 999999, 50);
+assert_eq(true, $resp3['stale'] ?? false, 'stale offset → stale=true');
+
+// T20: append new line, delta response has only new content
+file_put_contents($fixLog,
+    '[2026-06-26 17:00:00] ;  health ;  /health ;  GET ;  s3@demo ;  health.php ;  RETURN: ok in 0.001 seconds' . "\n",
+    FILE_APPEND);
+$resp4 = data_stats_respond($fixLog, $fixCache, $saved_offset, 50);
+assert_eq(1, $resp4['increments']['requests'] ?? null, 'delta: 1 new request');
+assert_eq(1, count($resp4['increments']['rows'] ?? []), 'delta: 1 new row');
+assert_eq('health', $resp4['increments']['rows'][0]['type'] ?? null, 'delta row type=health');
+
+unlink($fixLog);
+unlink($fixCache);
+
 test_summary();

@@ -168,3 +168,125 @@ function save_stats_cache(string $cacheFile, string $logFile,
     flock($fp, LOCK_UN);
     fclose($fp);
 }
+
+// ─── Stats respond ────────────────────────────────────────────────────────────
+
+function data_stats_respond(string $logFile, string $cacheFile,
+                            ?int $client_offset, int $log_viewer_max): array {
+    clearstatcache(true, $logFile);
+    $file_size = file_exists($logFile) ? filesize($logFile) : 0;
+
+    // Stale offset check
+    if ($client_offset !== null && $client_offset > $file_size) {
+        return ['stale' => true];
+    }
+
+    // Load or init aggregate
+    $cached      = load_stats_cache($cacheFile, $logFile);
+    $agg         = $cached ? $cached['agg'] : empty_stats_agg();
+    $from_offset = $cached ? $cached['offset'] : 0;
+
+    // Read new lines since from_offset
+    $new_lines = [];
+    if ($from_offset < $file_size) {
+        $fp = fopen($logFile, 'r');
+        if ($fp) {
+            fseek($fp, $from_offset);
+            while (($raw = fgets($fp)) !== false) {
+                $r = parse_log_line(trim($raw));
+                if ($r !== null) $new_lines[] = $r;
+            }
+            fclose($fp);
+        }
+    }
+
+    // Init timeline params on first ever build (no tl_min_ts yet)
+    if ($agg['tl_min_ts'] === null && !empty($new_lines)) {
+        $ts_vals = array_filter(array_map(
+            fn($r) => $r['level'] === 'RETURN' ? strtotime($r['timestamp']) : null,
+            $new_lines));
+        if ($ts_vals) {
+            $tl_min   = min($ts_vals);
+            $tl_range = max($ts_vals) - $tl_min;
+            if      ($tl_range < 7200)   { $tl_bucket = 300;   $tl_label = '5-min buckets'; }
+            elseif  ($tl_range < 86400)  { $tl_bucket = 900;   $tl_label = '15-min buckets'; }
+            elseif  ($tl_range < 604800) { $tl_bucket = 3600;  $tl_label = '1h buckets'; }
+            else                         { $tl_bucket = 86400; $tl_label = '1-day buckets'; }
+            $agg['tl_min_ts'] = $tl_min;
+            $agg['tl_bucket'] = $tl_bucket;
+            $agg['tl_label']  = $tl_label;
+        }
+    }
+
+    // Merge new lines
+    if (!empty($new_lines)) {
+        $agg = merge_stats_chunk($agg, $new_lines);
+        save_stats_cache($cacheFile, $logFile, $file_size, $agg);
+    }
+
+    // Compute increments (what changed this cycle)
+    $return_lines   = array_filter($new_lines, fn($r) => $r['level'] === 'RETURN');
+    $rows_truncated = false;
+    $rows           = array_values($return_lines);
+    if ($from_offset === 0 && count($rows) > $log_viewer_max) {
+        $rows = array_slice($rows, -$log_viewer_max);
+        $rows_truncated = true;
+    }
+
+    // Delta counts from new_lines only
+    $inc_requests = 0; $inc_errors = 0; $inc_warnings = 0;
+    $inc_by_hour  = []; $inc_rt = []; $inc_by_type = []; $inc_timeline = [];
+    foreach ($new_lines as $r) {
+        if ($r['level'] === 'ERROR')   { $inc_errors++; }
+        if ($r['level'] === 'WARNING') { $inc_warnings++; }
+        if ($r['level'] === 'RETURN') {
+            $inc_requests++;
+            $t = $r['type'];
+            $inc_by_type[$t] ??= ['get'=>0,'post'=>0];
+            $r['method'] === 'GET' ? $inc_by_type[$t]['get']++ : $inc_by_type[$t]['post']++;
+            if (preg_match('/ (\d{2}):\d{2}:\d{2}/', $r['timestamp'], $m))
+                $inc_by_hour[(int)$m[1]] = ($inc_by_hour[(int)$m[1]] ?? 0) + 1;
+            if ($r['ms'] !== null) {
+                $ms = $r['ms'];
+                $bk = $ms < 1 ? '<1ms' : ($ms < 10 ? '1-10ms' : ($ms < 100 ? '10-100ms' : ($ms < 1000 ? '100ms-1s' : '>1s')));
+                $inc_rt[$bk] = ($inc_rt[$bk] ?? 0) + 1;
+            }
+            if ($agg['tl_min_ts'] !== null && $agg['tl_bucket'] > 0) {
+                $ts = strtotime($r['timestamp']);
+                if ($ts !== false) {
+                    $idx = (int)floor(($ts - $agg['tl_min_ts']) / $agg['tl_bucket']);
+                    if ($idx >= 0) $inc_timeline[$idx] = ($inc_timeline[$idx] ?? 0) + 1;
+                }
+            }
+        }
+    }
+
+    return [
+        'entity' => 'stats',
+        'offset' => $file_size,
+        'full'   => [
+            'sessions_uniq'  => count(array_unique($agg['sessions'])),
+            'tenants_uniq'   => count(array_filter(array_unique($agg['tenants']))),
+            'avg_ms'         => $agg['times_count'] > 0
+                                    ? round($agg['times_sum'] / $agg['times_count'], 2)
+                                    : 0.0,
+            'max_ms'         => round($agg['max_ms'], 2),
+            'first_ts'       => $agg['first_ts'],
+            'last_ts'        => $agg['last_ts'],
+            'tl_min_ts'      => $agg['tl_min_ts'],
+            'tl_bucket'      => $agg['tl_bucket'],
+            'tl_label'       => $agg['tl_label'],
+            'rows_truncated' => $rows_truncated,
+        ],
+        'increments' => [
+            'requests' => $inc_requests,
+            'errors'   => $inc_errors,
+            'warnings' => $inc_warnings,
+            'by_hour'  => $inc_by_hour,
+            'rt'       => $inc_rt,
+            'by_type'  => $inc_by_type,
+            'timeline' => $inc_timeline,
+            'rows'     => $rows,
+        ],
+    ];
+}
