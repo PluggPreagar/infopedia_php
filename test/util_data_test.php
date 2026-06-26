@@ -234,7 +234,42 @@ assert_eq(2, count($resp_ops['increments']['rows'] ?? []), 'null cursor → 2 ro
 assert_eq(true, isset($resp_ops['ts']),    'ts cursor in response');
 assert_eq(true, isset($resp_ops['msgid']), 'msgid cursor in response');
 
+// T24b: stale cursor detection — cursor falls outside rotation window
+$stale_tid = 'stale_test_' . getmypid();
+$stale_fa  = "data/notify_ops_{$stale_tid}_a.jsonl";
+$stale_fb  = "data/notify_ops_{$stale_tid}_b.jsonl";
+foreach ([$stale_fa, $stale_fb] as $f) { if (file_exists($f)) unlink($f); }
+
+// Create a message with ts = current - 100 (100s ago)
+$now = time();
+$stale_ts_msg = $now - 100;
+$stale_msg = [
+    'type' => 'ops',
+    'ts' => $stale_ts_msg,
+    'msgid' => 1,
+    'severity' => 'info',
+    'op' => 'test',
+];
+file_put_contents($stale_fa, json_encode($stale_msg) . "\n");
+
+// Cursor = current - 3700 (3700s ago), rotation_secs = 3600 (1h)
+// Condition: oldest msg ts (stale_ts_msg) > cursor_ts + rotation_secs?
+// stale_ts_msg (now-100) > (now-3700) + 3600?
+// now-100 > now-100? NO → should NOT be stale yet
+
+$cursor_ts_not_stale = $now - 3700;
+$resp_not_stale = data_ops_respond($stale_fa, $stale_fb, $cursor_ts_not_stale, 0, 3600);
+assert_eq(false, $resp_not_stale['stale'] ?? false, 'cursor within window → not stale');
+
+// Cursor = current - 3800 (3800s ago), rotation_secs = 3600
+// Condition: oldest msg ts (stale_ts_msg) > cursor_ts + rotation_secs?
+// now-100 > (now-3800) + 3600?
+// now-100 > now-200? YES → STALE
+$cursor_ts_stale = $now - 3800;
+$resp_stale = data_ops_respond($stale_fa, $stale_fb, $cursor_ts_stale, 0, 3600);
+assert_eq(true, $resp_stale['stale'] ?? false, 'cursor outside window → stale=true');
+
 // Cleanup
-foreach ([$ops_fa, $ops_fb] as $f) { if (file_exists($f)) unlink($f); }
+foreach ([$ops_fa, $ops_fb, $stale_fa, $stale_fb] as $f) { if (file_exists($f)) unlink($f); }
 
 test_summary();

@@ -324,6 +324,15 @@ function data_ops_respond(string $fa, string $fb,
                           ?int $ts, ?int $msgid, int $rotation_secs): array {
     $use_ts    = $ts    ?? 0;
     $use_msgid = $msgid ?? 0;
+
+    // Stale detection: only when caller provided a cursor
+    if ($ts !== null) {
+        $all_msgs = data_ops_messages($fa, $fb, 0, 0);
+        if (!empty($all_msgs) && $all_msgs[0]['ts'] > $ts + $rotation_secs) {
+            return ['stale' => true];
+        }
+    }
+
     $msgs      = data_ops_messages($fa, $fb, $use_ts, $use_msgid);
 
     // Watermark for cursor in response
