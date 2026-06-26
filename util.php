@@ -25,6 +25,9 @@
         exit;
     }
 
+    // Set the default timezone to Central European Time (CET) early, before parsing timestamps
+    date_default_timezone_set('Europe/Berlin');
+
     $since = ($_GET['since'] ?? $_GET['ts'] ?? $_POST['since'] ?? $_POST['ts'] ?? '') ; // since timestamp from GET or POST ('ts' kept as fallback alias)
     // convert timestamp to int  YYYYY/MM/DD HH:MM:SS or YYYY-MM-DD HH:MM:SS or YYYYMMDDHHMMSS or DD-MM-YYYY HH:MM:SS
     // 1767351121 == 2025-02-01 12:12:01
@@ -53,10 +56,6 @@
     }
 
     $refresh = isset($_GET['refresh']) || isset($_GET['force_update']) || isset($_POST['refresh']);
-
-
-    // Set the default timezone to Central European Time (CET)
-    date_default_timezone_set('Europe/Berlin');
 
     if (file_exists($configFile)) {
         $configGeneral = parse_ini_file($configFile, true); // Enable section parsing
@@ -148,5 +147,43 @@
         $log_message .= json_encode($_POST) ;
     }
     log_to_file( $log_message ?? "no message" );
+
+// ─── Notify channel ──────────────────────────────────────────────────────────
+
+function append_incr(string $tid, array $event): void {
+    $suffix = $tid !== '' ? '_' . $tid : '';
+    $file_a = 'data/notify' . $suffix . '_a.jsonl';
+    $file_b = 'data/notify' . $suffix . '_b.jsonl';
+
+    $ts = time();
+
+    // Lock _a exclusively, count same-ts lines to assign msgid, then write.
+    $fp = fopen($file_a, 'a+');
+    if ($fp === false) return;
+    flock($fp, LOCK_EX);
+    fseek($fp, 0);
+    $existing = stream_get_contents($fp);
+    $count    = 0;
+    foreach (explode("\n", $existing) as $line) {
+        if ($line === '') continue;
+        $decoded = json_decode($line, true);
+        if (is_array($decoded) && ($decoded['ts'] ?? 0) === $ts) {
+            $count++;
+        }
+    }
+    $event['ts']    = $ts;
+    $event['msgid'] = $count + 1;
+    $json = json_encode($event, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+    fwrite($fp, $json);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+
+    // Mirror to _b (fixed lock order: always _a before _b).
+    file_put_contents($file_b, $json, FILE_APPEND | LOCK_EX);
+}
+
+function append_notify(string $tid, array $event): void {
+    append_incr($tid, $event);
+}
 
 ?>

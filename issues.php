@@ -59,38 +59,67 @@ function append_verlauf(string $path, string $state): void {
     }
 }
 
-function html_head(string $title): void { ?>
+function html_head(string $title): void {
+    $is_overview = ($title === 'Issues'); ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= htmlspecialchars($title) ?></title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="stylesheet" href="design-tokens.css">
+<link rel="stylesheet" href="components.css">
 <style>
-body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #111; }
-a { color: #0066cc; text-decoration: none; } a:hover { text-decoration: underline; }
-h1 { font-size: 1.3rem; margin: 0 0 1.5rem; }
-h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; }
-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
-th, td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid #eee; }
-th { font-weight: 600; background: #f5f5f5; }
-pre { background: #f8f8f8; padding: 1rem; overflow-x: auto; font-size: 0.82rem; white-space: pre-wrap; word-break: break-word; }
-#md-body code { background:#f0f0f0; padding:0.1em 0.3em; border-radius:2px; font-size:0.88em; font-family:monospace; }
-#md-body img { max-width:100%; height:auto; }
-#md-body ul { margin:0.5rem 0; padding-left:1.5rem; }
-#md-body p { margin:0.5rem 0; line-height:1.5; }
-#md-body h2 { border-bottom:1px solid #eee; padding-bottom:0.2rem; }
-.badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:3px; font-size:0.8rem; font-weight:600; }
-.badge-new        { background:#dbeafe; color:#1d4ed8; }
-.badge-ready      { background:#d1fae5; color:#065f46; }
-.badge-blocked    { background:#fee2e2; color:#991b1b; }
-.badge-inProgress { background:#fef9c3; color:#854d0e; }
-.badge-inReview   { background:#ede9fe; color:#5b21b6; }
-.badge-canceled   { background:#f3f4f6; color:#6b7280; }
-.badge-closed     { background:#e5e7eb; color:#374151; }
-form { display:inline; }
-button { cursor:pointer; padding:0.3rem 0.7rem; border:1px solid #ccc; border-radius:4px; background:#fff; font-size:0.85rem; margin:0.2rem 0; }
-button:hover { background:#f0f0f0; }
-.actions { margin:1rem 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+.page { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4); }
+
+a { color: var(--color-interactive-600); }
+a:hover { text-decoration: underline; color: var(--color-interactive-700); }
+
+h1 { font-size: var(--text-xl); margin: 0 0 var(--space-6); font-weight: var(--font-weight-bold); color: var(--color-neutral-900); }
+h2 { font-size: var(--text-base); font-weight: var(--font-weight-bold); color: var(--color-neutral-900); margin: var(--space-6) 0 var(--space-3); }
+
+table { width: 100%; border-collapse: collapse; margin-bottom: var(--space-6); }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--color-neutral-200); font-size: var(--text-sm); }
+th { font-weight: var(--font-weight-bold); background: var(--color-surface-page); }
+
+pre { background: var(--color-surface-page); padding: var(--space-4); overflow-x: auto;
+      font-size: var(--text-xs); white-space: pre-wrap; word-break: break-word;
+      border-radius: var(--radius-md); border: 1px solid var(--color-neutral-200); }
+
+#md-body code { background: var(--color-neutral-200); padding: 0.1em 0.3em;
+                border-radius: var(--radius-sm); font-size: 0.88em; font-family: monospace; }
+#md-body img  { max-width: 100%; height: auto; }
+#md-body ul   { margin: var(--space-2) 0; padding-left: var(--space-6); }
+#md-body p    { margin: var(--space-2) 0; line-height: 1.5; }
+#md-body h2   { border-bottom: 1px solid var(--color-neutral-200); padding-bottom: var(--space-1); }
+
+/* State badges — light-bg Kanban style, distinct from content-type badges */
+.state-badge {
+  display: inline-block; padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: var(--font-weight-bold);
+  margin-left: var(--space-3); vertical-align: middle;
+}
+.state-badge-new        { background: #dbeafe; color: #1d4ed8; }
+.state-badge-ready      { background: var(--color-semantic-50); color: var(--color-semantic-700); }
+.state-badge-blocked    { background: #fee2e2; color: var(--color-error); }
+.state-badge-inProgress { background: #fef9c3; color: #854d0e; }
+.state-badge-inReview   { background: var(--color-interactive-100); color: var(--color-interactive-700); }
+.state-badge-canceled   { background: var(--color-neutral-200); color: var(--color-neutral-600); }
+.state-badge-closed     { background: var(--color-neutral-200); color: var(--color-neutral-900); }
+
+.actions { margin: var(--space-4) 0; display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.actions-label { font-size: var(--text-sm); color: var(--color-neutral-600); }
+[hidden] { display: none !important; }
+
+#edit-area {
+  width: 100%; box-sizing: border-box; font-family: monospace;
+  font-size: var(--text-sm); margin-bottom: var(--space-2);
+  border: 1px solid var(--color-neutral-200); border-radius: var(--radius-md);
+  padding: var(--space-3); resize: vertical;
+}
+#edit-bar { margin-bottom: var(--space-2); display: flex; gap: var(--space-2); align-items: center; }
+#edit-err { color: var(--color-error); font-size: var(--text-sm); }
 </style>
 <script src="md-renderer.js"></script>
 <script>
@@ -101,9 +130,19 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </head>
 <body>
+<nav class="nav">
+  <?php if (!$is_overview): ?>
+  <a class="nav-back" href="issues.php">← Issues</a>
+  <?php else: ?>
+  <span class="nav-back">Issues</span>
+  <?php endif ?>
+  <span class="nav-title"><?= htmlspecialchars($title) ?></span>
+</nav>
+<div class="page">
 <?php }
 
 function html_foot(): void { ?>
+</div>
 </body></html>
 <?php }
 
@@ -125,17 +164,16 @@ function render_overview(string $base): void {
         }
     }
     html_head('Issues'); ?>
-<h1>Issues</h1>
 <?php foreach (['new' => 'Neu', 'ready' => 'Bereit'] as $state => $label): ?>
 <h2><?= $label ?></h2>
 <?php if (empty($cols[$state])): ?>
-  <p style="color:#888;font-size:0.9rem">Keine Issues.</p>
+  <p style="color:var(--color-neutral-400);font-size:var(--text-sm)">Keine Issues.</p>
 <?php else: ?>
 <table>
   <tr><th>Datum</th><th>Titel</th></tr>
   <?php foreach ($cols[$state] as $row): ?>
   <tr>
-    <td style="white-space:nowrap;color:#666;font-size:0.85rem"><?= htmlspecialchars($row['ts']) ?></td>
+    <td style="white-space:nowrap;color:var(--color-neutral-600)"><?= htmlspecialchars($row['ts']) ?></td>
     <td><a href="issues.php?id=<?= urlencode($row['id']) ?>"><?= htmlspecialchars($row['titel']) ?></a></td>
   </tr>
   <?php endforeach ?>
@@ -179,30 +217,28 @@ function render_detail(string $base, array $states, string $id): void {
 
     $titel = parse_titel($issue['path']);
     html_head('Issue: ' . $titel); ?>
-<p><a href="issues.php">← Übersicht</a></p>
 <h1>
   <?= htmlspecialchars($titel) ?>
-  <span class="badge badge-<?= htmlspecialchars($current) ?>"><?= htmlspecialchars($current) ?></span>
+  <span class="state-badge state-badge-<?= htmlspecialchars($current) ?>"><?= htmlspecialchars($current) ?></span>
 </h1>
 <?php if (!empty($buttons)): ?>
 <div class="actions">
-  <span style="font-size:0.85rem;color:#666">Übergang:</span>
+  <span class="actions-label">Übergang:</span>
   <?php foreach ($buttons as $next): ?>
   <form method="POST" action="issues.php?id=<?= urlencode($id) ?>&amp;set=<?= urlencode($next) ?>">
-    <button type="submit"><?= htmlspecialchars($next) ?></button>
+    <button type="submit" class="btn btn-secondary"><?= htmlspecialchars($next) ?></button>
   </form>
   <?php endforeach ?>
 </div>
 <?php endif ?>
-<button id="edit-btn" style="margin-bottom:0.5rem">Bearbeiten</button>
-<textarea id="edit-area" hidden rows="20"
-  style="width:100%;box-sizing:border-box;font-family:monospace;font-size:0.85rem;margin-bottom:0.5rem;"></textarea>
-<div id="edit-bar" hidden style="margin-bottom:0.5rem;display:flex;gap:0.5rem;align-items:center;">
-  <button id="save-btn">Speichern</button>
-  <button id="cancel-btn">Abbrechen</button>
-  <span id="edit-err" style="color:#c00;font-size:0.85rem;"></span>
+<textarea id="edit-area" hidden rows="20"></textarea>
+<div id="edit-bar" hidden>
+  <button id="save-btn" class="btn btn-primary">Speichern</button>
+  <button id="cancel-btn" class="btn btn-ghost">Abbrechen</button>
+  <span id="edit-err"></span>
 </div>
 <div id="md-body" data-raw="<?= htmlspecialchars($body) ?>"></div>
+<button id="edit-btn" class="btn btn-secondary" style="margin-top:var(--space-4)">Bearbeiten</button>
 <script>
 function initEdit(filename, fullRaw) {
     const mdBody    = document.getElementById('md-body');
