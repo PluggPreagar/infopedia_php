@@ -279,7 +279,13 @@ function pollStats(cursor) {
             } else if (res.status === 204) {
                 pollStats(cursor);
             } else {
-                // STALE_OFFSET or error → restart full
+                // STALE or error — reset accumulators before fresh start
+                state.requests = 0; state.errors = 0; state.warnings = 0;
+                state.by_hour = Array(24).fill(0);
+                state.rt = { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 };
+                state.by_type = {};
+                state.timeline = {};
+                state.rows = [];
                 setTimeout(function() { pollStats(); }, 1000);
             }
         })

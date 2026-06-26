@@ -237,13 +237,24 @@ function data_stats_respond(string $logFile, string $cacheFile,
     $inc_requests = 0; $inc_errors = 0; $inc_warnings = 0;
     $inc_by_hour  = []; $inc_rt = []; $inc_by_type = []; $inc_timeline = [];
     foreach ($new_lines as $r) {
-        if ($r['level'] === 'ERROR')   { $inc_errors++; }
+        if ($r['level'] === 'ERROR') {
+            $inc_errors++;
+            $t = $r['type'];
+            $inc_by_type[$t] ??= ['get'=>0,'post'=>0,'errors'=>0,'times_sum'=>0.0,'times_count'=>0,'max_ms'=>0.0];
+            $inc_by_type[$t]['errors']++;
+        }
         if ($r['level'] === 'WARNING') { $inc_warnings++; }
         if ($r['level'] === 'RETURN') {
             $inc_requests++;
             $t = $r['type'];
-            $inc_by_type[$t] ??= ['get'=>0,'post'=>0];
+            $inc_by_type[$t] ??= ['get'=>0,'post'=>0,'errors'=>0,'times_sum'=>0.0,'times_count'=>0,'max_ms'=>0.0];
             $r['method'] === 'GET' ? $inc_by_type[$t]['get']++ : $inc_by_type[$t]['post']++;
+            if ($r['ms'] !== null) {
+                $ms = $r['ms'];
+                $inc_by_type[$t]['times_sum']  += $ms;
+                $inc_by_type[$t]['times_count']++;
+                $inc_by_type[$t]['max_ms'] = max($inc_by_type[$t]['max_ms'], $ms);
+            }
             if (preg_match('/ (\d{2}):\d{2}:\d{2}/', $r['timestamp'], $m))
                 $inc_by_hour[(int)$m[1]] = ($inc_by_hour[(int)$m[1]] ?? 0) + 1;
             if ($r['ms'] !== null) {

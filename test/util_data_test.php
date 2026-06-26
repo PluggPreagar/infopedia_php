@@ -192,6 +192,13 @@ $resp4 = data_stats_respond($fixLog, $fixCache, $saved_offset, 50);
 assert_eq(1, $resp4['increments']['requests'] ?? null, 'delta: 1 new request');
 assert_eq(1, count($resp4['increments']['rows'] ?? []), 'delta: 1 new row');
 assert_eq('health', $resp4['increments']['rows'][0]['type'] ?? null, 'delta row type=health');
+// inc_by_type['health'] must carry timing+error fields (IMP-1 fix)
+$ht = $resp4['increments']['by_type']['health'] ?? null;
+assert_eq(1,   $ht['get']         ?? null, 'delta: health GET=1');
+assert_eq(1,   $ht['times_count'] ?? null, 'delta: health times_count=1');
+assert_eq(1.0, $ht['times_sum']   ?? null, 'delta: health times_sum=1.0ms');
+assert_eq(1.0, $ht['max_ms']      ?? null, 'delta: health max_ms=1.0ms');
+assert_eq(0,   $ht['errors']      ?? null, 'delta: health errors=0');
 
 unlink($fixLog);
 unlink($fixCache);
