@@ -194,16 +194,42 @@ Non-additive aggregations are correct because the cache holds full sets:
 - `avg_ms` = `($cache['times_sum'] + $new_sum) / ($cache['times_count'] + $new_count)`
 - `max_ms` = `max($cache['max_ms'], $new_max)`
 
-**Cache validity:** `cache.offset <= filesize($logFile)`. Invalid when offset
-exceeds filesize (log rotation) — cold-start re-read, cache rebuilt.
+**Cache validity:** `cache.log_file === $logFile && cache.offset <= filesize($logFile)`.
+`log_file` is stored in the cache from `$config['general']['logFile']` and
+validated on load — guards against a config-driven log path change between
+deployments (runtime config changes are not supported). Invalid on mismatch or
+when offset exceeds filesize (log rotation) — cold-start re-read, cache rebuilt.
 
 **Request flow:**
-1. Load cache via `readCache()` from `util_cache.php` — O(1)
+1. Load + validate cache — O(1) file read with LOCK_SH
 2. If valid: `fseek` to `cache.offset`, read only new bytes — O(new_lines)
 3. If invalid (or absent): read from byte 0 — O(full_log), one-time cold start
-4. Merge new lines into cached aggregate
-5. Save updated cache via `writeCache()` from `util_cache.php` — O(1)
+4. Merge new lines into `merge_stats_chunk($cache_agg, $new_lines)` — pure function
+5. **Only if new lines were found:** save updated cache with LOCK_EX (see below)
 6. Respond with merged full aggregate + `add_rows` (new lines only)
+
+**Cache write locking:** Two concurrent browser tabs must not corrupt the cache.
+Write uses `fopen` + `flock(LOCK_EX)`. The second instance waits for the lock;
+once acquired it re-reads the file — if the first instance already wrote a cache
+with `offset >= ours`, use it and skip the write. Otherwise write ours.
+
+```php
+function save_stats_cache(string $cacheFile, string $logFile,
+                          int $offset, array $agg): void {
+    $fp = fopen($cacheFile, 'c');
+    if (!flock($fp, LOCK_EX)) { fclose($fp); return; }
+    // Re-read: another instance may have written a newer cache while we waited.
+    $raw = file_get_contents($cacheFile);
+    $existing = $raw !== false ? json_decode($raw, true) : null;
+    if (is_array($existing) && ($existing['offset'] ?? -1) >= $offset) {
+        flock($fp, LOCK_UN); fclose($fp); return;  // use theirs
+    }
+    ftruncate($fp, 0); rewind($fp);
+    fwrite($fp, json_encode(['log_file' => $logFile,
+                             'offset'   => $offset,
+                             'agg'      => $agg]));
+    flock($fp, LOCK_UN); fclose($fp);
+}
 
 ### Response payload (always full — server merges internally)
 
@@ -267,11 +293,14 @@ Written via `append_ops(string $tid, array $event): void` in `util_data.php`
 
 ### Cursor
 
-`(ts, msgid)` — identical mechanics to `notify.php`. First request (no
-cursor): watermark current state, return all messages within `re_read_timespan`
-window (same config key as `notify.php`, default 75s) as full. With cursor:
+`(ts, msgid)` — same mechanics as `notify.php`. First request (no cursor):
+watermark, return all messages within the ops rotation window. With cursor:
 return only new messages since `(ts, msgid)`. Outside window → 400
 `STALE_CURSOR`.
+
+Ops has a **longer rotation window than notify** (`ops_rotation_hours = 3`,
+default 3 hours vs notify's 75s) so deploy and restart history stays visible
+for a full session. Configured separately from `re_read_timespan`.
 
 ### Ops event shape (JSONL line)
 
@@ -355,36 +384,45 @@ pollOps();
 
 ## Backend functions (`util_data.php`)
 
-| Function | Description |
-|----------|-------------|
-| `data_stats_respond(string $logFile, string $cacheFile, ?int $offset): array` | Load cache, fseek to offset, parse new lines, merge, save cache, return full aggregate + add_rows |
-| `data_ops_full(string $fa, string $fb): array` | All messages within rotation window |
-| `data_ops_delta(string $fa, string $fb, int $ts, int $msgid): array` | Messages since `(ts, msgid)` cursor |
-| `append_ops(string $tid, array $event): void` | Sets `type='ops'`, delegates to `append_incr()` |
-| `load_stats_cache(string $cacheFile, string $logFile): ?array` | `readCache()` + validity check; null on miss/invalid |
-| `save_stats_cache(string $cacheFile, int $offset, array $agg): void` | `writeCache()` with `{offset, agg}` envelope |
-| `stats_cache_valid(array $cache, string $logFile): bool` | `cache['offset'] <= filesize($logFile)` |
+Two-layer split for stats: thin I/O shell + pure mergeable core.
 
-`load_stats_cache` and `save_stats_cache` delegate to `readCache()` /
-`writeCache()` from `util_cache.php` (CA7 — reuse over reinvent).
+| Function | Layer | Description |
+|----------|-------|-------------|
+| `data_stats_respond(string $logFile, string $cacheFile, ?int $offset): array` | I/O shell | Load cache, fseek, call `merge_stats_chunk`, save cache only if new lines found, return payload |
+| `merge_stats_chunk(array $agg, array $new_lines): array` | Pure | Merge parsed log lines into aggregate; all non-additive fields handled correctly; unit-testable without filesystem |
+| `load_stats_cache(string $cacheFile, string $logFile): ?array` | I/O | LOCK_SH read + validity check (`log_file` match + offset ≤ filesize); null on miss/invalid |
+| `save_stats_cache(string $cacheFile, string $logFile, int $offset, array $agg): void` | I/O | LOCK_EX write; re-reads after lock acquired and skips write if existing cache is newer |
+| `stats_cache_valid(array $cache, string $logFile): bool` | Pure | `cache['log_file'] === $logFile && cache['offset'] <= filesize($logFile)` |
+| `data_ops_full(string $fa, string $fb): array` | I/O | All messages within ops rotation window |
+| `data_ops_delta(string $fa, string $fb, int $ts, int $msgid): array` | I/O | Messages since `(ts, msgid)` cursor |
+| `append_ops(string $tid, array $event): void` | I/O | Sets `type='ops'`, delegates to `append_incr()` |
+
+`load_stats_cache` uses LOCK_SH (shared read lock) to prevent reading a
+partial write. It does NOT delegate to `readCache()` from `util_cache.php`
+(which has no locking); file access is direct via `fopen`/`flock`.
 
 ## Config
 
 Add to `infopedia.cfg` under `[general]`:
 
 ```ini
-data_poll_timeout   = 25   ; seconds, same default as notify
-data_log_viewer_max = 50   ; max add_rows in stats response
+data_poll_timeout   = 25    ; seconds, same default as notify
+data_log_viewer_max = 50    ; max add_rows in stats full response
+ops_rotation_hours  = 3     ; ops JSONL history window in hours (vs notify's 75s)
 ```
 
 ## Testing
 
 ### Unit (`test/util_data_test.php`)
 
-- `data_stats_respond()` on full log fixture → correct request/error/session counts
-- `data_stats_respond()` with warm cache + new lines appended → only new lines processed; merged totals correct
-- `data_stats_respond()` with stale cache (offset > filesize) → cold-start re-read
+- `merge_stats_chunk()` on known log lines → correct request/error/session counts
+- `merge_stats_chunk()` called twice (warm) → non-additive fields (sessions_uniq, avg_ms) correct
+- `data_stats_respond()` with warm cache + new lines → only new lines processed; merged totals correct; cache updated
+- `data_stats_respond()` with no new lines → cache NOT written (no I/O on quiet poll)
+- `data_stats_respond()` with stale cache (`offset > filesize`) → cold-start re-read, cache rebuilt
+- `data_stats_respond()` with wrong `log_file` in cache → treated as invalid, cold-start
 - `stats_cache_valid()` with offset > filesize → false
+- `stats_cache_valid()` with mismatched log_file → false
 - `data_ops_delta()` with `(ts, msgid)` cursor → only newer messages returned
 - `append_ops()` → valid JSONL line with `ts`, `msgid`, `type='ops'`
 - `long_poll_files()` with non-existent files → returns false immediately
