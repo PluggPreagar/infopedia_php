@@ -38,20 +38,21 @@ different payloads.
 | File | Role |
 |------|------|
 | `data.php` | Route handler: validates entity, resolves paths, runs long-poll loop, dispatches to transform functions, responds |
-| `util_data.php` | Pure transform functions. No HTTP logic. Unit-testable in isolation. |
-| `statistic.html` | SPA shell: two parallel poll loops, accumulates state, renders in-place |
+| `util_data.php` | Pure transform + cache functions. No HTTP logic. Unit-testable in isolation. |
+| `util_cache.php` | Add `long_poll_files()`; refactor `long_poll()` to delegate to it |
+| `statistic.html` | SPA shell: two parallel poll loops, stateless for stats, accumulates ops rows |
 | `statistic.php` | Kept as HTTP redirect to `statistic.html` |
-| `test/util_data_test.php` | Unit tests for all transform functions |
+| `test/util_data_test.php` | Unit tests for all transform and cache functions |
 
 ### Entity dispatch table (inside `data.php`)
 
 ```php
 $handlers = [
     'stats' => [
-        'source'  => 'log_offset',
-        'file'    => $logFile,
-        'full'    => 'data_stats_full',
-        'delta'   => 'data_stats_delta',
+        'source'      => 'log_mtime',
+        'file'        => $logFile,
+        'cache_file'  => 'data/stats_aggregate.cache',
+        'handler'     => 'data_stats_respond',
     ],
     'ops' => [
         'source'  => 'jsonl',
@@ -63,9 +64,48 @@ $handlers = [
 ];
 ```
 
-`data.php` selects source watcher and transform function based on entity.
-Adding a new entity type means adding one entry to this table and two functions
-to `util_data.php`. No changes to `data.php` itself.
+Adding a new entity means one table entry + functions in `util_data.php`.
+No changes to `data.php` itself.
+
+## Shared infrastructure: `long_poll_files()` in `util_cache.php`
+
+The existing `long_poll()` hardcodes `entries.csv` and `votes.csv`. Extract
+the core loop into a general function; `long_poll()` becomes a thin wrapper.
+
+```php
+// General: watch any list of files by mtime. Reusable by data.php.
+function long_poll_files(array $files, int $now, int $timeout = 25): bool {
+    if ($timeout <= 0 || empty($files)) return false;
+    $stop_at = $now + $timeout;
+    while (time() < $stop_at) {
+        clearstatcache();
+        foreach ($files as $f) {
+            if (file_exists($f) && filemtime($f) > $now) return true;
+        }
+        sleep(2);
+    }
+    return false;
+}
+
+// Backward-compat wrapper — behaviour unchanged.
+function long_poll(string $tid, int $now, int $timeout = 25): bool {
+    $suffix = $tid !== '' ? '_' . $tid : '';
+    $files  = array_values(array_filter([
+        'data/entries' . $suffix . '.csv',
+        'data/votes'   . $suffix . '.csv',
+    ], 'file_exists'));
+    return long_poll_files($files, $now, $timeout);
+}
+```
+
+Usage in `data.php`:
+```php
+// stats — watches infopedia.log mtime
+long_poll_files([$logFile], $now, $poll_timeout);
+
+// ops — watches both rotation files
+long_poll_files([$file_a, $file_b], $now, $poll_timeout);
+```
 
 ## API Contract
 
@@ -91,14 +131,11 @@ to `util_data.php`. No changes to `data.php` itself.
 
 ### Response envelope
 
-All 200 responses share this envelope:
-
 ```json
 {
-  "entity": "stats",
-  "mode":   "full | delta",
-  "<cursor fields>": ...,
-  "data":   { ... }
+  "entity": "<stats|ops>",
+  "<cursor fields>": "...",
+  "data": { "..." }
 }
 ```
 
@@ -106,66 +143,99 @@ Cursor fields per entity:
 
 | Entity | Cursor fields |
 |--------|---------------|
-| `stats` | `"offset": N` (byte position in log after last parsed line) |
+| `stats` | `"offset": N` (byte position after last parsed line) |
 | `ops`   | `"ts": N, "msgid": M` (last JSONL message coordinates) |
 
 ## Entity: `stats`
 
-### Source and change trigger
+### Change trigger
 
-Watches `infopedia.log` via `filesize()`. Change detected when
-`filesize($logFile) > $offset`. `fseek` to `$offset`, read only new bytes.
-O(1) seek — no re-scanning.
+`long_poll_files([$logFile], $now, $timeout)` — wakes when `infopedia.log`
+mtime advances. The `offset` parameter is the **read cursor**, not the poll
+trigger; polling is always mtime-based.
 
-### First request (no `offset`)
+### Server-side aggregate cache
 
-Parse entire log. Return full aggregate. Include `offset` = current filesize.
-Frontend stores offset for subsequent requests.
+History is read once and cached. Subsequent requests process only new bytes.
 
-### Full payload
+**Cache file:** `data/stats_aggregate.cache`
 
 ```json
 {
-  "entity": "stats", "mode": "full", "offset": 45678,
-  "data": {
-    "requests": 1250, "errors": 12, "warnings": 3,
-    "sessions": 8, "tenants": 2,
-    "avg_ms": 45.2, "max_ms": 1240.0,
-    "first_ts": "2026-06-01 08:00:00",
-    "last_ts":  "2026-06-26 16:00:00",
+  "offset": 45678,
+  "agg": {
+    "requests":     1250,
+    "errors":       12,
+    "warnings":     3,
+    "sessions":     ["abc", "def", "ghi"],
+    "tenants":      ["demo", "test"],
+    "times_sum":    56500.0,
+    "times_count":  1240,
+    "max_ms":       1240.0,
+    "first_ts":     "2026-06-01 08:00:00",
+    "last_ts":      "2026-06-26 16:00:00",
     "by_type": {
-      "entries": { "get": 100, "post": 50, "avg_ms": 23.1, "max_ms": 180.0, "errors": 2 }
+      "entries": { "get": 100, "post": 50, "errors": 2,
+                   "times_sum": 2310.0, "times_count": 150, "max_ms": 180.0 }
     },
-    "by_hour":   [0, 0, 0, 0, 0, 0, 12, 42, 67, ...],
-    "rt_buckets": { "<1ms": 80, "1-10ms": 200, "10-100ms": 900, "100ms-1s": 60, ">1s": 10 },
-    "timeline":  [0, 5, 12, 8, ...],
-    "tl_bucket": 3600,
-    "tl_label":  "1h buckets",
-    "tl_min_ts": 1719792000,
-    "add_rows": [ ... ]
+    "by_hour":    [0, 0, 0, 12, 42, 67, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0,  0,  0, 0, 0, 0, 0, 0, 0],
+    "rt_buckets": { "<1ms": 80, "1-10ms": 200, "10-100ms": 900,
+                    "100ms-1s": 60, ">1s": 10 },
+    "tl_min_ts":  1719792000,
+    "tl_bucket":  3600,
+    "timeline":   { "0": 5, "1": 12, "2": 8 }
   }
 }
 ```
 
-`add_rows` on full: the most recent N rows for the log viewer (configurable,
-default 50). Same structure as delta `add_rows`.
+Non-additive aggregations are correct because the cache holds full sets:
+- `sessions_uniq` = `count(array_unique(array_merge($cache['sessions'], $new_sessions)))`
+- `avg_ms` = `($cache['times_sum'] + $new_sum) / ($cache['times_count'] + $new_count)`
+- `max_ms` = `max($cache['max_ms'], $new_max)`
 
-### Delta payload
+**Cache validity:** `cache.offset <= filesize($logFile)`. Invalid when offset
+exceeds filesize (log rotation) — cold-start re-read, cache rebuilt.
+
+**Request flow:**
+1. Load cache via `readCache()` from `util_cache.php` — O(1)
+2. If valid: `fseek` to `cache.offset`, read only new bytes — O(new_lines)
+3. If invalid (or absent): read from byte 0 — O(full_log), one-time cold start
+4. Merge new lines into cached aggregate
+5. Save updated cache via `writeCache()` from `util_cache.php` — O(1)
+6. Respond with merged full aggregate + `add_rows` (new lines only)
+
+### Response payload (always full — server merges internally)
+
+The frontend is **stateless for stats**: it receives the complete merged
+aggregate on every response and replaces its state. The expensive work
+(history aggregation) is done once and cached server-side.
 
 ```json
 {
-  "entity": "stats", "mode": "delta", "offset": 45890,
+  "entity": "stats", "offset": 45890,
   "data": {
-    "requests_delta": 2,
-    "errors_delta":   0,
-    "warnings_delta": 0,
-    "by_type_delta": {
-      "entries": { "post": 1 },
-      "votes":   { "post": 1 }
+    "requests":    1252,
+    "errors":      12,
+    "warnings":    3,
+    "sessions_uniq": 9,
+    "tenants_uniq":  2,
+    "avg_ms":      44.8,
+    "max_ms":      1240.0,
+    "first_ts":    "2026-06-01 08:00:00",
+    "last_ts":     "2026-06-26 16:07:30",
+    "by_type": {
+      "entries": { "get": 101, "post": 50, "avg_ms": 23.1, "max_ms": 180.0, "errors": 2 },
+      "votes":   { "get": 0,   "post": 51, "avg_ms": 12.1, "max_ms": 45.0,  "errors": 0 }
     },
-    "by_hour_delta":  { "16": 2 },
-    "rt_delta":       { "10-100ms": 1, "1-10ms": 1 },
-    "timeline_delta": { "42": 2 },   // bucket index; frontend maps via tl_min_ts + tl_bucket from full response
+    "by_hour":    [0, 0, 0, 12, 42, 67, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0,  0,  0, 0, 0, 2, 0, 0, 0],
+    "rt_buckets": { "<1ms": 80, "1-10ms": 201, "10-100ms": 901,
+                    "100ms-1s": 60, ">1s": 10 },
+    "tl_min_ts":  1719792000,
+    "tl_bucket":  3600,
+    "tl_label":   "1h buckets",
+    "timeline":   { "0": 5, "1": 12, "2": 8, "42": 2 },
     "add_rows": [
       { "timestamp": "2026-06-26 16:07:00", "type": "entries",
         "uri": "/entries_add", "method": "POST", "ms": 45.2,
@@ -178,10 +248,13 @@ default 50). Same structure as delta `add_rows`.
 }
 ```
 
+`add_rows` = only lines processed this cycle (new since last offset).
+Frontend prepends them to the log viewer without re-rendering the full table.
+
 ### Stale offset
 
-If `$offset > filesize($logFile)`: log was rotated. Respond 400 `STALE_OFFSET`.
-Frontend drops `offset`, restarts as first request (full).
+`$offset > filesize($logFile)` → log rotated → 400 `STALE_OFFSET`.
+Frontend drops offset, cache is rebuilt on next request.
 
 ## Entity: `ops`
 
@@ -194,9 +267,11 @@ Written via `append_ops(string $tid, array $event): void` in `util_data.php`
 
 ### Cursor
 
-`(ts, msgid)` — identical mechanics to `notify.php`. First request (no cursor):
-watermark current state, return all messages within rotation window as full.
-With cursor: return only new messages since `(ts, msgid)`.
+`(ts, msgid)` — identical mechanics to `notify.php`. First request (no
+cursor): watermark current state, return all messages within `re_read_timespan`
+window (same config key as `notify.php`, default 75s) as full. With cursor:
+return only new messages since `(ts, msgid)`. Outside window → 400
+`STALE_CURSOR`.
 
 ### Ops event shape (JSONL line)
 
@@ -207,14 +282,11 @@ With cursor: return only new messages since `(ts, msgid)`.
   "text": "Human-readable description" }
 ```
 
-Messages within the rotation window defined by `re_read_timespan` (same config
-key as `notify.php`, default 75 seconds). Outside this window: 400 `STALE_CURSOR`.
-
-### Full payload
+### Full payload (first request or after stale cursor)
 
 ```json
 {
-  "entity": "ops", "mode": "full", "ts": 1719139200, "msgid": 3,
+  "entity": "ops", "ts": 1719139200, "msgid": 3,
   "data": {
     "add_rows": [
       { "ts": 1719139100, "msgid": 1, "severity": "info",
@@ -226,11 +298,11 @@ key as `notify.php`, default 75 seconds). Outside this window: 400 `STALE_CURSOR
 }
 ```
 
-### Delta payload
+### Delta payload (with cursor)
 
 ```json
 {
-  "entity": "ops", "mode": "delta", "ts": 1719139260, "msgid": 5,
+  "entity": "ops", "ts": 1719139260, "msgid": 5,
   "data": {
     "add_rows": [
       { "ts": 1719139260, "msgid": 5, "severity": "critical",
@@ -239,6 +311,9 @@ key as `notify.php`, default 75 seconds). Outside this window: 400 `STALE_CURSOR
   }
 }
 ```
+
+Frontend accumulates ops: `add_rows` are appended to the ops panel on each
+response. No full-replace — ops history builds up over the session.
 
 ## Frontend: `statistic.html`
 
@@ -250,14 +325,13 @@ async function pollStats(cursor) {
     const res = await fetch('data.php?' + new URLSearchParams(params));
     if (res.status === 200) {
         const body = await res.json();
-        if (body.mode === 'full')  replaceStats(body.data);   // resets module-level state
-        if (body.mode === 'delta') applyStatsDelta(body.data); // mutates module-level state
+        replaceStats(body.data);              // always full — replace state
+        prependLogRows(body.data.add_rows);   // only new rows → log viewer
         pollStats({ offset: body.offset });
     } else if (res.status === 204) {
         pollStats(cursor);
     } else if (res.status === 400) {
-        const err = await res.json();
-        if (err.error.code === 'STALE_OFFSET') pollStats();  // restart full
+        pollStats();                          // STALE_OFFSET → restart full
     }
 }
 
@@ -266,62 +340,33 @@ async function pollOps(cursor) {
     const res = await fetch('data.php?' + new URLSearchParams(params));
     if (res.status === 200) {
         const body = await res.json();
-        body.data.add_rows.forEach(appendOpsRow);
+        body.data.add_rows.forEach(appendOpsRow);  // accumulate
         pollOps({ ts: body.ts, msgid: body.msgid });
     } else if (res.status === 204) {
         pollOps(cursor);
     } else if (res.status === 400) {
-        pollOps();  // stale cursor — restart
+        pollOps();                            // STALE_CURSOR → restart
     }
 }
 
-// page load — no cursor on either → full fetch immediately
-pollStats();
+pollStats();   // no cursor → full fetch immediately
 pollOps();
 ```
 
-### State accumulation for stats delta
-
-`state` is a module-level object initialised by `replaceStats()` on the first
-full response. `applyStatsDelta` mutates it in place; `renderStats` re-renders
-from it after each delta.
-
-```javascript
-function applyStatsDelta(delta) {  // state is module-level
-    state.requests += delta.requests_delta;
-    state.errors   += delta.errors_delta;
-    state.warnings += delta.warnings_delta;
-
-    for (const [type, d] of Object.entries(delta.by_type_delta ?? {})) {
-        const t = state.by_type[type] ??= { get:0, post:0, errors:0, times:[] };
-        if (d.get)    t.get    += d.get;
-        if (d.post)   t.post   += d.post;
-        if (d.errors) t.errors += d.errors;
-    }
-    for (const [h, n]   of Object.entries(delta.by_hour_delta  ?? {}))
-        state.by_hour[h]   = (state.by_hour[h]   ?? 0) + n;
-    for (const [b, n]   of Object.entries(delta.rt_delta       ?? {}))
-        state.rt_buckets[b]= (state.rt_buckets[b] ?? 0) + n;
-    for (const [i, n]   of Object.entries(delta.timeline_delta ?? {}))
-        state.timeline[i]  = (state.timeline[i]   ?? 0) + n;
-
-    delta.add_rows?.forEach(row => prependLogRow(row));
-    renderStats(state);
-}
-```
-
-## Backend transform functions (`util_data.php`)
+## Backend functions (`util_data.php`)
 
 | Function | Description |
 |----------|-------------|
-| `data_stats_full(string $logFile): array` | Parse entire log; return full aggregate |
-| `data_stats_delta(string $logFile, int $offset): array` | `fseek` to offset; parse new lines only; return delta aggregate |
-| `data_ops_full(string $file_a, string $file_b): array` | Return all messages within rotation window |
-| `data_ops_delta(string $file_a, string $file_b, int $ts, int $msgid): array` | Return messages since `(ts, msgid)` cursor |
-| `append_ops(string $tid, array $event): void` | Wrapper: sets `type='ops'`, delegates to `append_incr()` |
+| `data_stats_respond(string $logFile, string $cacheFile, ?int $offset): array` | Load cache, fseek to offset, parse new lines, merge, save cache, return full aggregate + add_rows |
+| `data_ops_full(string $fa, string $fb): array` | All messages within rotation window |
+| `data_ops_delta(string $fa, string $fb, int $ts, int $msgid): array` | Messages since `(ts, msgid)` cursor |
+| `append_ops(string $tid, array $event): void` | Sets `type='ops'`, delegates to `append_incr()` |
+| `load_stats_cache(string $cacheFile, string $logFile): ?array` | `readCache()` + validity check; null on miss/invalid |
+| `save_stats_cache(string $cacheFile, int $offset, array $agg): void` | `writeCache()` with `{offset, agg}` envelope |
+| `stats_cache_valid(array $cache, string $logFile): bool` | `cache['offset'] <= filesize($logFile)` |
 
-All functions are pure-ish (no HTTP side effects), making them unit-testable
-without a running server.
+`load_stats_cache` and `save_stats_cache` delegate to `readCache()` /
+`writeCache()` from `util_cache.php` (CA7 — reuse over reinvent).
 
 ## Config
 
@@ -329,23 +374,25 @@ Add to `infopedia.cfg` under `[general]`:
 
 ```ini
 data_poll_timeout   = 25   ; seconds, same default as notify
-data_log_viewer_max = 50   ; max add_rows in full stats response
+data_log_viewer_max = 50   ; max add_rows in stats response
 ```
 
 ## Testing
 
 ### Unit (`test/util_data_test.php`)
 
-- `data_stats_full()` on a known log fixture → correct request/error/by_type counts
-- `data_stats_delta()` with offset mid-file → only parses lines after offset
-- `data_stats_delta()` with offset = filesize → returns empty delta, no error
-- `data_ops_delta()` with `(ts, msgid)` cursor → returns only newer messages
-- `append_ops()` writes a valid JSONL line with `ts`, `msgid`, `type='ops'`
+- `data_stats_respond()` on full log fixture → correct request/error/session counts
+- `data_stats_respond()` with warm cache + new lines appended → only new lines processed; merged totals correct
+- `data_stats_respond()` with stale cache (offset > filesize) → cold-start re-read
+- `stats_cache_valid()` with offset > filesize → false
+- `data_ops_delta()` with `(ts, msgid)` cursor → only newer messages returned
+- `append_ops()` → valid JSONL line with `ts`, `msgid`, `type='ops'`
+- `long_poll_files()` with non-existent files → returns false immediately
 
 ### E2E
 
 - `GET data.php` (no entity) → 400 `INVALID_ENTITY`
-- `GET data.php?entity=stats` → 200 full payload with correct envelope
+- `GET data.php?entity=stats` → 200 full payload, correct envelope, offset present
 - `GET data.php?entity=stats&offset=999999999` → 400 `STALE_OFFSET`
 - `GET data.php?entity=ops&tid=e2e` (no cursor) → 200 or 204
 - `append_ops('e2e', [...])` then `GET data.php?entity=ops&tid=e2e&ts=<before>` → 200 with `add_rows`
@@ -354,8 +401,9 @@ data_log_viewer_max = 50   ; max add_rows in full stats response
 
 | File | Change |
 |------|--------|
+| `util_cache.php` | Add `long_poll_files()`; refactor `long_poll()` as thin wrapper |
 | `data.php` | Create — new route endpoint |
-| `util_data.php` | Create — transform functions, `append_ops()` |
+| `util_data.php` | Create — transform + cache functions, `append_ops()` |
 | `statistic.html` | Create — SPA monitoring frontend |
 | `statistic.php` | Modify — redirect to `statistic.html` |
 | `infopedia.cfg` | Add `data_poll_timeout`, `data_log_viewer_max` |
@@ -366,4 +414,5 @@ data_log_viewer_max = 50   ; max add_rows in full stats response
 - No changes to `notify.php`, `entries.php`, `votes.php`, `util.php`
 - No multiplexed multi-entity connections (one entity per connection)
 - No WebSockets, no SSE — long-poll pattern only (consistent with existing stack)
-- No tenant filtering on `stats` (log is global; filtering by tenant is a future extension)
+- No tenant filtering on `stats` (log is global; future extension)
+- No cache TTL / maxAge on stats cache — validity is offset-based only
