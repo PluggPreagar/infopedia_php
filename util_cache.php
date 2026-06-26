@@ -45,14 +45,17 @@ function touchOutdated(string $file): void {
 function long_poll_files(array $files, int $now, int $timeout = 25): bool {
     if ($timeout <= 0 || empty($files)) return false;
     $stop_at = $now + $timeout;
-    do {
+    clearstatcache();
+    foreach ($files as $f) {
+        if (file_exists($f) && filemtime($f) > $now) return true;
+    }
+    while (time() < $stop_at) {
+        sleep(2);
         clearstatcache();
         foreach ($files as $f) {
             if (file_exists($f) && filemtime($f) > $now) return true;
         }
-        if (time() >= $stop_at) break;
-        sleep(2);
-    } while (true);
+    }
     return false;
 }
 
