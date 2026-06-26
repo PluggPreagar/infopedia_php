@@ -65,6 +65,9 @@ if ($entity === 'ops') {
     long_poll_files([$fa, $fb], $now, $poll_timeout);
 
     $resp = data_ops_respond($fa, $fb, $ts, $msgid, $ops_rot_secs);
+    if (!empty($resp['stale'])) {
+        respond_error('STALE_OFFSET', 'Ops rotation window exceeded; drop cursor and restart.', 400);
+    }
     if (empty($resp['increments']['rows'])) {
         http_response_code(204); exit;
     }

@@ -418,6 +418,17 @@ ok($r['status'] === 200, 'data: ops with prior event → 200');
 ok(count($r['json']['increments']['rows'] ?? []) >= 1, 'data: ops rows non-empty');
 ok(($r['json']['increments']['rows'][0]['op'] ?? '') === 'deploy', 'data: ops row op=deploy');
 
+// E5b: ops stale cursor (ts=0 is epoch, far behind any recent message) → 400 STALE_OFFSET
+// Write a fresh ops message so the file is non-empty
+$stale_ev = json_encode(['ts' => time() - 5, 'msgid' => 1, 'type' => 'ops',
+                         'severity' => 'info', 'op' => 'stale-test', 'text' => 'x']) . "\n";
+file_put_contents($ops_file_a, $stale_ev);
+file_put_contents($ops_file_b, $stale_ev);
+// ts=0 as explicit cursor: oldest_msg.ts > 0 + rotation_secs → stale
+$r = get('/data', 'entity=ops&tid=' . $tid . '&ts=0&msgid=0');
+ok($r['status'] === 400, 'data: ops stale cursor → 400');
+ok(($r['json']['error']['code'] ?? '') === 'STALE_OFFSET', 'data: ops stale → STALE_OFFSET');
+
 // Cleanup ops files
 foreach ([$ops_file_a, $ops_file_b] as $of) { if (file_exists($of)) unlink($of); }
 
