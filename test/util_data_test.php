@@ -110,4 +110,41 @@ $cache_wrong = ['log_file' => '/other/path.log', 'offset' => 10, 'agg' => []];
 assert_eq(false, stats_cache_valid($cache_wrong, $tmpLog), 'wrong log_file → false');
 unlink($tmpLog);
 
+// ─── load/save_stats_cache ────────────────────────────────────────────────────
+
+$cacheFile = tempnam(sys_get_temp_dir(), 'sc_');
+$logFile2  = tempnam(sys_get_temp_dir(), 'lg_');
+file_put_contents($logFile2, str_repeat('a', 200));
+
+// T12: load from absent file → null
+unlink($cacheFile);
+assert_eq(null, load_stats_cache($cacheFile, $logFile2), 'absent cache → null');
+
+// T13: save then load → returns correct agg
+$agg_save = empty_stats_agg();
+$agg_save['requests'] = 42;
+save_stats_cache($cacheFile, $logFile2, 100, $agg_save);
+$loaded = load_stats_cache($cacheFile, $logFile2);
+assert_eq(42, $loaded['agg']['requests'] ?? null, 'loaded agg matches saved');
+assert_eq(100, $loaded['offset'] ?? null, 'loaded offset matches saved');
+
+// T14: load with stale offset (offset > filesize) → null
+save_stats_cache($cacheFile, $logFile2, 99999, $agg_save);
+assert_eq(null, load_stats_cache($cacheFile, $logFile2), 'stale offset → null');
+
+// T15: load with wrong log_file → null
+save_stats_cache($cacheFile, '/other.log', 10, $agg_save);
+assert_eq(null, load_stats_cache($cacheFile, $logFile2), 'wrong log_file → null');
+
+// T16: save skips write when existing cache has higher offset
+save_stats_cache($cacheFile, $logFile2, 100, $agg_save);   // write offset=100
+$agg_low = empty_stats_agg();
+$agg_low['requests'] = 1;
+save_stats_cache($cacheFile, $logFile2, 50, $agg_low);     // attempt lower offset
+$after = load_stats_cache($cacheFile, $logFile2);
+assert_eq(42, $after['agg']['requests'] ?? null, 'lower-offset write skipped');
+
+unlink($cacheFile);
+unlink($logFile2);
+
 test_summary();

@@ -131,3 +131,40 @@ function stats_cache_valid(array $cache, string $logFile): bool {
     clearstatcache(true, $logFile);
     return file_exists($logFile) && $cache['offset'] <= filesize($logFile);
 }
+
+// ─── Cache I/O ────────────────────────────────────────────────────────────────
+
+function load_stats_cache(string $cacheFile, string $logFile): ?array {
+    if (!file_exists($cacheFile)) return null;
+    $fp = fopen($cacheFile, 'r');
+    if (!$fp) return null;
+    flock($fp, LOCK_SH);
+    $raw = stream_get_contents($fp);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+    $data = json_decode($raw, true);
+    if (!is_array($data) || !isset($data['agg'])) return null;
+    return stats_cache_valid($data, $logFile) ? $data : null;
+}
+
+function save_stats_cache(string $cacheFile, string $logFile,
+                          int $offset, array $agg): void {
+    $fp = fopen($cacheFile, 'c');
+    if (!$fp) return;
+    if (!flock($fp, LOCK_EX)) { fclose($fp); return; }
+    // Re-read: another instance may have written a newer cache while we waited.
+    $raw      = file_get_contents($cacheFile);
+    $existing = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
+    if (is_array($existing)
+        && ($existing['log_file'] ?? '') === $logFile
+        && ($existing['offset'] ?? -1) >= $offset) {
+        flock($fp, LOCK_UN); fclose($fp); return;
+    }
+    ftruncate($fp, 0); rewind($fp);
+    fwrite($fp, json_encode(['log_file' => $logFile,
+                             'offset'   => $offset,
+                             'agg'      => $agg],
+                            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    flock($fp, LOCK_UN);
+    fclose($fp);
+}
