@@ -290,3 +290,51 @@ function data_stats_respond(string $logFile, string $cacheFile,
         ],
     ];
 }
+
+// ─── Ops channel ──────────────────────────────────────────────────────────────
+
+function append_ops(string $tid, array $event): void {
+    $event['type'] = 'ops';
+    append_incr($tid !== '' ? 'ops_' . $tid : 'ops', $event);
+}
+
+// Read messages from both rotation files, deduplicate, filter by cursor, sort.
+function data_ops_messages(string $fa, string $fb, int $ts, int $msgid): array {
+    $msgs = [];
+    $seen = [];
+    foreach ([$fa, $fb] as $file) {
+        if (!file_exists($file)) continue;
+        foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+            $m = json_decode($line, true);
+            if (!is_array($m) || !isset($m['ts'], $m['msgid'])) continue;
+            $key = $m['ts'] . ':' . $m['msgid'];
+            if (isset($seen[$key])) continue;
+            $seen[$key] = true;
+            if ($m['ts'] > $ts || ($m['ts'] === $ts && $m['msgid'] > $msgid))
+                $msgs[] = $m;
+        }
+    }
+    usort($msgs, fn($a, $b) => $a['ts'] === $b['ts']
+        ? $a['msgid'] - $b['msgid']
+        : $a['ts'] - $b['ts']);
+    return $msgs;
+}
+
+function data_ops_respond(string $fa, string $fb,
+                          ?int $ts, ?int $msgid, int $rotation_secs): array {
+    $use_ts    = $ts    ?? 0;
+    $use_msgid = $msgid ?? 0;
+    $msgs      = data_ops_messages($fa, $fb, $use_ts, $use_msgid);
+
+    // Watermark for cursor in response
+    $last     = !empty($msgs) ? end($msgs) : null;
+    $resp_ts  = $last ? $last['ts']    : ($use_ts    ?: time());
+    $resp_mid = $last ? $last['msgid'] : ($use_msgid ?: 0);
+
+    return [
+        'entity'     => 'ops',
+        'ts'         => $resp_ts,
+        'msgid'      => $resp_mid,
+        'increments' => ['rows' => array_values($msgs)],
+    ];
+}

@@ -196,4 +196,45 @@ assert_eq('health', $resp4['increments']['rows'][0]['type'] ?? null, 'delta row 
 unlink($fixLog);
 unlink($fixCache);
 
+// ─── ops functions ────────────────────────────────────────────────────────────
+// append_ops needs append_incr from util.php (loaded in data.php; mock here)
+if (!function_exists('append_incr')) {
+    require_once __DIR__ . '/../util.php';
+}
+
+$ops_tid = 'data_ops_test_' . getmypid();
+$ops_fa  = "data/notify_ops_{$ops_tid}_a.jsonl";
+$ops_fb  = "data/notify_ops_{$ops_tid}_b.jsonl";
+foreach ([$ops_fa, $ops_fb] as $f) { if (file_exists($f)) unlink($f); }
+
+// T21: append_ops creates both files with type='ops'
+append_ops($ops_tid, ['severity' => 'info', 'op' => 'deploy', 'text' => 'v1.0']);
+assert_eq(true, file_exists($ops_fa), 'append_ops creates _a');
+assert_eq(true, file_exists($ops_fb), 'append_ops creates _b');
+$ev = json_decode(trim(file_get_contents($ops_fa)), true);
+assert_eq('ops',    $ev['type']     ?? null, 'type=ops');
+assert_eq('deploy', $ev['op']       ?? null, 'op=deploy');
+assert_eq('info',   $ev['severity'] ?? null, 'severity=info');
+assert_eq(true,     is_int($ev['ts'] ?? null), 'ts is int');
+
+// T22: data_ops_messages ts=0,msgid=0 → all messages
+append_ops($ops_tid, ['severity' => 'warn', 'op' => 'restart', 'text' => 'reboot']);
+$msgs = data_ops_messages($ops_fa, $ops_fb, 0, 0);
+assert_eq(2, count($msgs), 'two ops messages returned');
+
+// T23: data_ops_messages with cursor → only newer
+$cursor_ts    = $msgs[0]['ts'];
+$cursor_msgid = $msgs[0]['msgid'];
+$newer = data_ops_messages($ops_fa, $ops_fb, $cursor_ts, $cursor_msgid);
+assert_eq(1, count($newer), 'cursor filters to 1 newer message');
+
+// T24: data_ops_respond null cursor → returns all within rotation window
+$resp_ops = data_ops_respond($ops_fa, $ops_fb, null, null, 10800);
+assert_eq(2, count($resp_ops['increments']['rows'] ?? []), 'null cursor → 2 rows');
+assert_eq(true, isset($resp_ops['ts']),    'ts cursor in response');
+assert_eq(true, isset($resp_ops['msgid']), 'msgid cursor in response');
+
+// Cleanup
+foreach ([$ops_fa, $ops_fb] as $f) { if (file_exists($f)) unlink($f); }
+
 test_summary();
