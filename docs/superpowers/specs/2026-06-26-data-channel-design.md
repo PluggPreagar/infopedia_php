@@ -18,6 +18,42 @@ Split `statistic.php` into a dynamic frontend (`statistic.html`) that consumes
 - `statistic.html` replaces server-rendered `statistic.php` as the monitoring SPA
 - `notify.php`, `util.php`, `append_incr()` — untouched
 
+## Delivery model — two sections
+
+Every 200 response carries at most two sections. The section present and the
+value shape are self-describing; the frontend applies a fixed dispatch table
+regardless of entity.
+
+| Section | Server contract | FE contract | Value shapes |
+|---------|----------------|-------------|-------------|
+| `full` | Recomputed complete state — non-additive fields that require set operations or weighted averages | Replace state fields unconditionally | scalars, objects |
+| `increments` | New activity since last cursor, shaped for arithmetic or append | Apply each field via its registered handler | number → `+=`, keyed object → bucket-merge, array → prepend |
+
+**FE dispatch — entity-agnostic:**
+
+```javascript
+const APPLY = {
+    // stats scalars
+    requests: (s, v) => s.requests += v,
+    errors:   (s, v) => s.errors   += v,
+    warnings: (s, v) => s.warnings += v,
+    // stats keyed buckets
+    by_hour:  (s, v) => Object.entries(v).forEach(([h, n]) => s.by_hour[h]  = (s.by_hour[h]  ?? 0) + n),
+    rt:       (s, v) => Object.entries(v).forEach(([b, n]) => s.rt[b]       = (s.rt[b]       ?? 0) + n),
+    timeline: (s, v) => Object.entries(v).forEach(([i, n]) => s.timeline[i] = (s.timeline[i] ?? 0) + n),
+    by_type:  (s, v) => mergeByType(s.by_type, v),
+    // universal array append (stats log rows, ops messages)
+    rows:     (s, v) => s.rows = [...v, ...s.rows],
+};
+
+function applyIncrements(inc) {
+    for (const [k, v] of Object.entries(inc)) APPLY[k]?.(state, v);
+}
+```
+
+First load and delta use the **same code path**. On first load `increments`
+contains full historical counts; on delta it contains only the new activity.
+
 ## Architecture
 
 ### Channel topology
@@ -30,50 +66,45 @@ statistic.html  ──┬──→  data.php?entity=stats&offset=N   (long-poll)
                   └──→  data.php?entity=ops&ts=N&msgid=M  (long-poll)
 ```
 
-Each connection is independent: different cursor types, different sources,
-different payloads.
-
 ### File layout
 
 | File | Role |
 |------|------|
-| `data.php` | Route handler: validates entity, resolves paths, runs long-poll loop, dispatches to transform functions, responds |
-| `util_data.php` | Pure transform + cache functions. No HTTP logic. Unit-testable in isolation. |
-| `util_cache.php` | Add `long_poll_files()`; refactor `long_poll()` to delegate to it |
-| `statistic.html` | SPA shell: two parallel poll loops, stateless for stats, accumulates ops rows |
-| `statistic.php` | Kept as HTTP redirect to `statistic.html` |
-| `test/util_data_test.php` | Unit tests for all transform and cache functions |
+| `data.php` | Route handler: validates entity, resolves paths, runs long-poll loop, dispatches to handler functions, responds |
+| `util_data.php` | Transform functions, cache helpers, `append_ops()`. No HTTP logic. |
+| `util_cache.php` | Add `long_poll_files()`; refactor `long_poll()` as thin wrapper |
+| `statistic.html` | SPA shell: two parallel poll loops, unified `applyIncrements` dispatch |
+| `statistic.php` | HTTP redirect to `statistic.html` |
+| `test/util_data_test.php` | Unit tests for transform and cache functions |
 
 ### Entity dispatch table (inside `data.php`)
 
 ```php
 $handlers = [
     'stats' => [
-        'source'      => 'log_mtime',
-        'file'        => $logFile,
-        'cache_file'  => 'data/stats_aggregate.cache',
-        'handler'     => 'data_stats_respond',
+        'source'     => 'log_mtime',
+        'file'       => $logFile,
+        'cache_file' => 'data/stats_aggregate.cache',
+        'handler'    => 'data_stats_respond',
     ],
     'ops' => [
-        'source'  => 'jsonl',
-        'file_a'  => 'data/ops' . $suffix . '_a.jsonl',
-        'file_b'  => 'data/ops' . $suffix . '_b.jsonl',
-        'full'    => 'data_ops_full',
-        'delta'   => 'data_ops_delta',
+        'source' => 'jsonl',
+        'file_a' => 'data/ops' . $suffix . '_a.jsonl',
+        'file_b' => 'data/ops' . $suffix . '_b.jsonl',
+        'full'   => 'data_ops_full',
+        'delta'  => 'data_ops_delta',
     ],
 ];
 ```
 
-Adding a new entity means one table entry + functions in `util_data.php`.
-No changes to `data.php` itself.
+Adding a new entity = one table entry + functions in `util_data.php`.
 
 ## Shared infrastructure: `long_poll_files()` in `util_cache.php`
 
-The existing `long_poll()` hardcodes `entries.csv` and `votes.csv`. Extract
-the core loop into a general function; `long_poll()` becomes a thin wrapper.
+Extract the core loop from `long_poll()` into a general function;
+`long_poll()` becomes a thin backward-compat wrapper.
 
 ```php
-// General: watch any list of files by mtime. Reusable by data.php.
 function long_poll_files(array $files, int $now, int $timeout = 25): bool {
     if ($timeout <= 0 || empty($files)) return false;
     $stop_at = $now + $timeout;
@@ -87,7 +118,6 @@ function long_poll_files(array $files, int $now, int $timeout = 25): bool {
     return false;
 }
 
-// Backward-compat wrapper — behaviour unchanged.
 function long_poll(string $tid, int $now, int $timeout = 25): bool {
     $suffix = $tid !== '' ? '_' . $tid : '';
     $files  = array_values(array_filter([
@@ -100,118 +130,110 @@ function long_poll(string $tid, int $now, int $timeout = 25): bool {
 
 Usage in `data.php`:
 ```php
-// stats — watches infopedia.log mtime
-long_poll_files([$logFile], $now, $poll_timeout);
-
-// ops — watches both rotation files
-long_poll_files([$file_a, $file_b], $now, $poll_timeout);
+long_poll_files([$logFile],         $now, $poll_timeout);  // stats
+long_poll_files([$file_a, $file_b], $now, $poll_timeout);  // ops
 ```
 
 ## API Contract
 
-### `GET data.php?entity=stats[&offset=N]`
+### Parameters
 
-| Parameter | Description |
-|-----------|-------------|
-| `entity`  | Required. `stats` or `ops`. Validated against dispatch table. |
-| `offset`  | Stats only. Byte offset into `infopedia.log`. Absent on first request. |
-| `ts`      | Ops only. Unix int cursor from last response. |
-| `msgid`   | Ops only. Message ID cursor from last response. |
-| `tid`     | Optional. Tenant filter for ops; stats is always global (full log). |
+| Parameter | Entity | Description |
+|-----------|--------|-------------|
+| `entity`  | both   | Required. `stats` or `ops`. Validated against dispatch table. |
+| `offset`  | stats  | Byte offset into `infopedia.log`. Absent on first request. |
+| `ts`      | ops    | Unix int cursor from last response. |
+| `msgid`   | ops    | Message ID cursor from last response. |
+| `tid`     | ops    | Optional tenant filter. Stats is always global (full log). |
 
-**Responses**
+### Responses
 
 | Status | Body | Meaning |
 |--------|------|---------|
-| 200 | JSON object | Data available — handle and reconnect with new cursor |
+| 200 | JSON object | Data available — apply and reconnect with new cursor |
 | 204 | empty | Timeout — reconnect immediately with same cursor |
-| 400 | `{"error":{"code":"INVALID_ENTITY",...}}` | Unknown entity param |
-| 400 | `{"error":{"code":"STALE_OFFSET",...}}` | Log was rotated; drop offset, restart |
-| 400 | `{"error":{"code":"STALE_CURSOR",...}}` | Ops JSONL outside rotation window; restart |
+| 400 | `{"error":{"code":"INVALID_ENTITY"}}` | Unknown entity |
+| 400 | `{"error":{"code":"STALE_OFFSET"}}` | Log rotated; drop offset, restart |
+| 400 | `{"error":{"code":"STALE_CURSOR"}}` | Ops JSONL outside rotation window; restart |
 
 ### Response envelope
 
 ```json
 {
-  "entity": "<stats|ops>",
-  "<cursor fields>": "...",
-  "data": { "..." }
+  "entity":   "<stats|ops>",
+  "<cursor>": "...",
+  "full":       { "…": "…" },
+  "increments": { "…": "…" }
 }
 ```
 
-Cursor fields per entity:
+Either section may be absent when empty. Cursor fields per entity:
 
-| Entity | Cursor fields |
-|--------|---------------|
-| `stats` | `"offset": N` (byte position after last parsed line) |
-| `ops`   | `"ts": N, "msgid": M` (last JSONL message coordinates) |
+| Entity | Cursor |
+|--------|--------|
+| `stats` | `"offset": N` |
+| `ops`   | `"ts": N, "msgid": M` |
 
 ## Entity: `stats`
 
 ### Change trigger
 
 `long_poll_files([$logFile], $now, $timeout)` — wakes when `infopedia.log`
-mtime advances. The `offset` parameter is the **read cursor**, not the poll
-trigger; polling is always mtime-based.
+mtime advances. `offset` is the **read cursor** (fseek position), not the
+poll trigger.
 
 ### Server-side aggregate cache
 
-History is read once and cached. Subsequent requests process only new bytes.
+History is read once; subsequent requests process only new bytes.
 
 **Cache file:** `data/stats_aggregate.cache`
 
 ```json
 {
-  "offset": 45678,
+  "log_file": "infopedia.log",
+  "offset":   45678,
   "agg": {
-    "requests":     1250,
-    "errors":       12,
-    "warnings":     3,
-    "sessions":     ["abc", "def", "ghi"],
-    "tenants":      ["demo", "test"],
-    "times_sum":    56500.0,
-    "times_count":  1240,
-    "max_ms":       1240.0,
-    "first_ts":     "2026-06-01 08:00:00",
-    "last_ts":      "2026-06-26 16:00:00",
+    "requests":    1250,
+    "errors":      12,
+    "warnings":    3,
+    "sessions":    ["abc", "def", "ghi"],
+    "tenants":     ["demo", "test"],
+    "times_sum":   56500.0,
+    "times_count": 1240,
+    "max_ms":      1240.0,
+    "first_ts":    "2026-06-01 08:00:00",
+    "last_ts":     "2026-06-26 16:00:00",
     "by_type": {
       "entries": { "get": 100, "post": 50, "errors": 2,
                    "times_sum": 2310.0, "times_count": 150, "max_ms": 180.0 }
     },
-    "by_hour":    [0, 0, 0, 12, 42, 67, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0,  0,  0, 0, 0, 0, 0, 0, 0],
-    "rt_buckets": { "<1ms": 80, "1-10ms": 200, "10-100ms": 900,
-                    "100ms-1s": 60, ">1s": 10 },
+    "by_hour":    [0,0,0,12,42,67,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    "rt_buckets": { "<1ms":80, "1-10ms":200, "10-100ms":900, "100ms-1s":60, ">1s":10 },
     "tl_min_ts":  1719792000,
     "tl_bucket":  3600,
-    "timeline":   { "0": 5, "1": 12, "2": 8 }
+    "timeline":   { "0":5, "1":12, "2":8 }
   }
 }
 ```
 
-Non-additive aggregations are correct because the cache holds full sets:
-- `sessions_uniq` = `count(array_unique(array_merge($cache['sessions'], $new_sessions)))`
+**Non-additive fields correct via cached sets:**
+- `sessions_uniq` = `count(array_unique(array_merge($cache['sessions'], $new)))`
 - `avg_ms` = `($cache['times_sum'] + $new_sum) / ($cache['times_count'] + $new_count)`
 - `max_ms` = `max($cache['max_ms'], $new_max)`
 
 **Cache validity:** `cache.log_file === $logFile && cache.offset <= filesize($logFile)`.
-`log_file` is stored in the cache from `$config['general']['logFile']` and
-validated on load — guards against a config-driven log path change between
-deployments (runtime config changes are not supported). Invalid on mismatch or
-when offset exceeds filesize (log rotation) — cold-start re-read, cache rebuilt.
+`log_file` stored from `$config['general']['logFile']`; runtime config changes
+not supported. Invalid = cold-start full re-read.
 
 **Request flow:**
-1. Load + validate cache — O(1) file read with LOCK_SH
-2. If valid: `fseek` to `cache.offset`, read only new bytes — O(new_lines)
-3. If invalid (or absent): read from byte 0 — O(full_log), one-time cold start
-4. Merge new lines into `merge_stats_chunk($cache_agg, $new_lines)` — pure function
-5. **Only if new lines were found:** save updated cache with LOCK_EX (see below)
-6. Respond with merged full aggregate + `add_rows` (new lines only)
+1. Load cache (LOCK_SH) — O(1)
+2. Valid: `fseek` to `cache.offset`, read new bytes — O(new_lines)
+3. Invalid/absent: read from 0 — O(full_log), one-time cold start
+4. `merge_stats_chunk($cache_agg, $new_lines)` — pure, no I/O
+5. **Only if new lines found:** save cache (LOCK_EX, re-read after lock)
+6. Respond
 
-**Cache write locking:** Two concurrent browser tabs must not corrupt the cache.
-Write uses `fopen` + `flock(LOCK_EX)`. The second instance waits for the lock;
-once acquired it re-reads the file — if the first instance already wrote a cache
-with `offset >= ours`, use it and skip the write. Otherwise write ours.
+**Cache write — concurrent tab safety:**
 
 ```php
 function save_stats_cache(string $cacheFile, string $logFile,
@@ -219,88 +241,85 @@ function save_stats_cache(string $cacheFile, string $logFile,
     $fp = fopen($cacheFile, 'c');
     if (!flock($fp, LOCK_EX)) { fclose($fp); return; }
     // Re-read: another instance may have written a newer cache while we waited.
-    $raw = file_get_contents($cacheFile);
-    $existing = $raw !== false ? json_decode($raw, true) : null;
+    $existing = json_decode((string)file_get_contents($cacheFile), true);
     if (is_array($existing) && ($existing['offset'] ?? -1) >= $offset) {
-        flock($fp, LOCK_UN); fclose($fp); return;  // use theirs
+        flock($fp, LOCK_UN); fclose($fp); return;
     }
     ftruncate($fp, 0); rewind($fp);
     fwrite($fp, json_encode(['log_file' => $logFile,
-                             'offset'   => $offset,
-                             'agg'      => $agg]));
+                             'offset'   => $offset, 'agg' => $agg]));
     flock($fp, LOCK_UN); fclose($fp);
-}
-
-### Response payload (always full — server merges internally)
-
-The frontend is **stateless for stats**: it receives the complete merged
-aggregate on every response and replaces its state. The expensive work
-(history aggregation) is done once and cached server-side.
-
-```json
-{
-  "entity": "stats", "offset": 45890,
-  "data": {
-    "requests":    1252,
-    "errors":      12,
-    "warnings":    3,
-    "sessions_uniq": 9,
-    "tenants_uniq":  2,
-    "avg_ms":      44.8,
-    "max_ms":      1240.0,
-    "first_ts":    "2026-06-01 08:00:00",
-    "last_ts":     "2026-06-26 16:07:30",
-    "by_type": {
-      "entries": { "get": 101, "post": 50, "avg_ms": 23.1, "max_ms": 180.0, "errors": 2 },
-      "votes":   { "get": 0,   "post": 51, "avg_ms": 12.1, "max_ms": 45.0,  "errors": 0 }
-    },
-    "by_hour":    [0, 0, 0, 12, 42, 67, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0,  0,  0, 0, 0, 2, 0, 0, 0],
-    "rt_buckets": { "<1ms": 80, "1-10ms": 201, "10-100ms": 901,
-                    "100ms-1s": 60, ">1s": 10 },
-    "tl_min_ts":  1719792000,
-    "tl_bucket":  3600,
-    "tl_label":   "1h buckets",
-    "timeline":   { "0": 5, "1": 12, "2": 8, "42": 2 },
-    "add_rows": [
-      { "timestamp": "2026-06-26 16:07:00", "type": "entries",
-        "uri": "/entries_add", "method": "POST", "ms": 45.2,
-        "session": "abc", "tenant": "demo", "level": "RETURN" },
-      { "timestamp": "2026-06-26 16:07:30", "type": "votes",
-        "uri": "/votes_add", "method": "POST", "ms": 12.1,
-        "session": "abc", "tenant": "demo", "level": "RETURN" }
-    ]
-  }
 }
 ```
 
-`add_rows` = only lines processed this cycle (new since last offset).
-Frontend prepends them to the log viewer without re-rendering the full table.
+### Stats response
+
+**`full` section** — non-additive, always recomputed via merged cache:
+
+```json
+"full": {
+  "sessions_uniq": 9,
+  "tenants_uniq":  2,
+  "avg_ms":        44.8,
+  "max_ms":        1240.0,
+  "first_ts":      "2026-06-01 08:00:00",
+  "last_ts":       "2026-06-26 16:07:30",
+  "tl_min_ts":     1719792000,
+  "tl_bucket":     3600,
+  "tl_label":      "1h buckets",
+  "rows_truncated": true
+}
+```
+
+`tl_min_ts`/`tl_bucket`/`tl_label` in `full` — stable reference values the
+FE needs to map `increments.timeline` bucket indices to wall-clock times.
+`rows_truncated: true` when `increments.rows` on first load is capped at
+`data_log_viewer_max`; absent (or false) when all rows are present.
+
+**`increments` section** — additive, fanned to all consumers:
+
+```json
+"increments": {
+  "requests":  2,
+  "errors":    0,
+  "warnings":  0,
+  "by_hour":   { "16": 2 },
+  "rt":        { "10-100ms": 1, "1-10ms": 1 },
+  "by_type":   { "entries": { "post": 1 }, "votes": { "post": 1 } },
+  "timeline":  { "42": 2 },
+  "rows": [
+    { "timestamp":"2026-06-26 16:07:00", "type":"entries",
+      "uri":"/entries_add", "method":"POST", "ms":45.2,
+      "session":"abc", "tenant":"demo", "level":"RETURN" },
+    { "timestamp":"2026-06-26 16:07:30", "type":"votes",
+      "uri":"/votes_add", "method":"POST", "ms":12.1,
+      "session":"abc", "tenant":"demo", "level":"RETURN" }
+  ]
+}
+```
+
+`increments.rows` = only lines processed this cycle. On first load, capped at
+`data_log_viewer_max` (default 50); signalled by `full.rows_truncated`.
 
 ### Stale offset
 
-`$offset > filesize($logFile)` → log rotated → 400 `STALE_OFFSET`.
-Frontend drops offset, cache is rebuilt on next request.
+`offset > filesize($logFile)` → 400 `STALE_OFFSET`. FE drops offset, cache
+rebuilt on next request.
 
 ## Entity: `ops`
 
 ### Source
 
-Dual-write JSONL files per tenant: `data/ops_<tid>_a.jsonl`,
-`data/ops_<tid>_b.jsonl`. Same rotation pattern as `notify_<tid>_a/b.jsonl`.
-Written via `append_ops(string $tid, array $event): void` in `util_data.php`
-(thin wrapper around `append_incr()`).
+Dual-write JSONL: `data/ops_<tid>_a.jsonl`, `data/ops_<tid>_b.jsonl`.
+Same rotation pattern as `notify_<tid>_a/b.jsonl`. Written via
+`append_ops(string $tid, array $event)` in `util_data.php` — thin wrapper
+around `append_incr()`.
 
 ### Cursor
 
-`(ts, msgid)` — same mechanics as `notify.php`. First request (no cursor):
-watermark, return all messages within the ops rotation window. With cursor:
-return only new messages since `(ts, msgid)`. Outside window → 400
-`STALE_CURSOR`.
-
-Ops has a **longer rotation window than notify** (`ops_rotation_hours = 3`,
-default 3 hours vs notify's 75s) so deploy and restart history stays visible
-for a full session. Configured separately from `re_read_timespan`.
+`(ts, msgid)` — same mechanics as `notify.php`. Rotation window:
+`ops_rotation_hours = 3` (ops keeps 3h of history; notify keeps 75s).
+Outside window → 400 `STALE_CURSOR`.
 
 ### Ops event shape (JSONL line)
 
@@ -311,29 +330,15 @@ for a full session. Configured separately from `re_read_timespan`.
   "text": "Human-readable description" }
 ```
 
-### Full payload (first request or after stale cursor)
+### Ops response
 
-```json
-{
-  "entity": "ops", "ts": 1719139200, "msgid": 3,
-  "data": {
-    "add_rows": [
-      { "ts": 1719139100, "msgid": 1, "severity": "info",
-        "op": "deploy", "text": "v1.2.0 deployed" },
-      { "ts": 1719139200, "msgid": 3, "severity": "warn",
-        "op": "restart", "text": "PHP process restarted" }
-    ]
-  }
-}
-```
-
-### Delta payload (with cursor)
+Ops carries only `increments` (no non-additive fields → `full` absent).
 
 ```json
 {
   "entity": "ops", "ts": 1719139260, "msgid": 5,
-  "data": {
-    "add_rows": [
+  "increments": {
+    "rows": [
       { "ts": 1719139260, "msgid": 5, "severity": "critical",
         "op": "alert", "text": "Error rate exceeded 10%" }
     ]
@@ -341,116 +346,111 @@ for a full session. Configured separately from `re_read_timespan`.
 }
 ```
 
-Frontend accumulates ops: `add_rows` are appended to the ops panel on each
-response. No full-replace — ops history builds up over the session.
+First request (no cursor): `rows` contains all messages within rotation window.
+With cursor: `rows` contains only new messages since `(ts, msgid)`.
+Same FE code path — `APPLY.rows` prepends in both cases.
 
 ## Frontend: `statistic.html`
 
-### Two parallel poll loops
-
 ```javascript
 async function pollStats(cursor) {
-    const params = { entity: 'stats', ...(cursor ?? {}) };
-    const res = await fetch('data.php?' + new URLSearchParams(params));
+    const res = await fetch('data.php?' + new URLSearchParams(
+        { entity: 'stats', ...(cursor ?? {}) }));
     if (res.status === 200) {
         const body = await res.json();
-        replaceStats(body.data);              // always full — replace state
-        prependLogRows(body.data.add_rows);   // only new rows → log viewer
+        Object.assign(state, body.full ?? {});      // replace non-additives
+        applyIncrements(body.increments ?? {});      // apply all increment types
+        renderStats(state);
         pollStats({ offset: body.offset });
     } else if (res.status === 204) {
         pollStats(cursor);
     } else if (res.status === 400) {
-        pollStats();                          // STALE_OFFSET → restart full
+        pollStats();                                 // STALE_OFFSET → restart
     }
 }
 
 async function pollOps(cursor) {
-    const params = { entity: 'ops', ...(cursor ?? {}) };
-    const res = await fetch('data.php?' + new URLSearchParams(params));
+    const res = await fetch('data.php?' + new URLSearchParams(
+        { entity: 'ops', ...(cursor ?? {}) }));
     if (res.status === 200) {
         const body = await res.json();
-        body.data.add_rows.forEach(appendOpsRow);  // accumulate
+        applyIncrements(body.increments ?? {});      // same applier
+        renderOps(state);
         pollOps({ ts: body.ts, msgid: body.msgid });
     } else if (res.status === 204) {
         pollOps(cursor);
     } else if (res.status === 400) {
-        pollOps();                            // STALE_CURSOR → restart
+        pollOps();
     }
 }
 
-pollStats();   // no cursor → full fetch immediately
+pollStats();
 pollOps();
 ```
 
 ## Backend functions (`util_data.php`)
 
-Two-layer split for stats: thin I/O shell + pure mergeable core.
-
 | Function | Layer | Description |
 |----------|-------|-------------|
-| `data_stats_respond(string $logFile, string $cacheFile, ?int $offset): array` | I/O shell | Load cache, fseek, call `merge_stats_chunk`, save cache only if new lines found, return payload |
-| `merge_stats_chunk(array $agg, array $new_lines): array` | Pure | Merge parsed log lines into aggregate; all non-additive fields handled correctly; unit-testable without filesystem |
-| `load_stats_cache(string $cacheFile, string $logFile): ?array` | I/O | LOCK_SH read + validity check (`log_file` match + offset ≤ filesize); null on miss/invalid |
-| `save_stats_cache(string $cacheFile, string $logFile, int $offset, array $agg): void` | I/O | LOCK_EX write; re-reads after lock acquired and skips write if existing cache is newer |
+| `data_stats_respond(string $logFile, string $cacheFile, ?int $offset): array` | I/O shell | Load cache, fseek, call `merge_stats_chunk`, save if new lines, build two-section response |
+| `merge_stats_chunk(array $agg, array $new_lines): array` | Pure | Merge parsed lines into aggregate; non-additive fields handled via sets/sums; unit-testable without filesystem |
+| `load_stats_cache(string $cacheFile, string $logFile): ?array` | I/O | LOCK_SH read + validity check; null on miss/invalid |
+| `save_stats_cache(string $cacheFile, string $logFile, int $offset, array $agg): void` | I/O | LOCK_EX write; re-reads after lock, skips write if existing cache is newer |
 | `stats_cache_valid(array $cache, string $logFile): bool` | Pure | `cache['log_file'] === $logFile && cache['offset'] <= filesize($logFile)` |
-| `data_ops_full(string $fa, string $fb): array` | I/O | All messages within ops rotation window |
-| `data_ops_delta(string $fa, string $fb, int $ts, int $msgid): array` | I/O | Messages since `(ts, msgid)` cursor |
+| `data_ops_full(string $fa, string $fb): array` | I/O | All messages within ops rotation window → `increments.rows` |
+| `data_ops_delta(string $fa, string $fb, int $ts, int $msgid): array` | I/O | Messages since cursor → `increments.rows` |
 | `append_ops(string $tid, array $event): void` | I/O | Sets `type='ops'`, delegates to `append_incr()` |
-
-`load_stats_cache` uses LOCK_SH (shared read lock) to prevent reading a
-partial write. It does NOT delegate to `readCache()` from `util_cache.php`
-(which has no locking); file access is direct via `fopen`/`flock`.
 
 ## Config
 
 Add to `infopedia.cfg` under `[general]`:
 
 ```ini
-data_poll_timeout   = 25    ; seconds, same default as notify
-data_log_viewer_max = 50    ; max add_rows in stats full response
-ops_rotation_hours  = 3     ; ops JSONL history window in hours (vs notify's 75s)
+data_poll_timeout   = 25    ; seconds
+data_log_viewer_max = 50    ; max rows in increments.rows on first stats load
+ops_rotation_hours  = 3     ; ops JSONL history window (hours); notify uses re_read_timespan
 ```
 
 ## Testing
 
 ### Unit (`test/util_data_test.php`)
 
-- `merge_stats_chunk()` on known log lines → correct request/error/session counts
-- `merge_stats_chunk()` called twice (warm) → non-additive fields (sessions_uniq, avg_ms) correct
-- `data_stats_respond()` with warm cache + new lines → only new lines processed; merged totals correct; cache updated
-- `data_stats_respond()` with no new lines → cache NOT written (no I/O on quiet poll)
-- `data_stats_respond()` with stale cache (`offset > filesize`) → cold-start re-read, cache rebuilt
-- `data_stats_respond()` with wrong `log_file` in cache → treated as invalid, cold-start
-- `stats_cache_valid()` with offset > filesize → false
-- `stats_cache_valid()` with mismatched log_file → false
-- `data_ops_delta()` with `(ts, msgid)` cursor → only newer messages returned
+- `merge_stats_chunk()` on known lines → correct counts, sessions_uniq, avg_ms
+- `merge_stats_chunk()` called twice → non-additive fields accumulate correctly
+- `data_stats_respond()` warm cache + new lines → only new lines processed; cache updated; two-section response correct
+- `data_stats_respond()` no new lines → cache NOT written
+- `data_stats_respond()` stale cache (`offset > filesize`) → cold-start, cache rebuilt
+- `data_stats_respond()` mismatched `log_file` in cache → cold-start
+- `stats_cache_valid()` offset > filesize → false
+- `stats_cache_valid()` mismatched log_file → false
+- `data_ops_delta()` with cursor → only newer messages in `increments.rows`
 - `append_ops()` → valid JSONL line with `ts`, `msgid`, `type='ops'`
-- `long_poll_files()` with non-existent files → returns false immediately
+- `long_poll_files()` empty/non-existent files → false immediately
 
 ### E2E
 
 - `GET data.php` (no entity) → 400 `INVALID_ENTITY`
-- `GET data.php?entity=stats` → 200 full payload, correct envelope, offset present
+- `GET data.php?entity=stats` → 200, envelope has `full` + `increments`, `offset` present
 - `GET data.php?entity=stats&offset=999999999` → 400 `STALE_OFFSET`
 - `GET data.php?entity=ops&tid=e2e` (no cursor) → 200 or 204
-- `append_ops('e2e', [...])` then `GET data.php?entity=ops&tid=e2e&ts=<before>` → 200 with `add_rows`
+- `append_ops('e2e', [...])` then poll with prior cursor → 200, `increments.rows` non-empty
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
 | `util_cache.php` | Add `long_poll_files()`; refactor `long_poll()` as thin wrapper |
-| `data.php` | Create — new route endpoint |
+| `data.php` | Create — route, dispatch, long-poll loop |
 | `util_data.php` | Create — transform + cache functions, `append_ops()` |
-| `statistic.html` | Create — SPA monitoring frontend |
+| `statistic.html` | Create — SPA frontend, unified `applyIncrements` dispatch |
 | `statistic.php` | Modify — redirect to `statistic.html` |
-| `infopedia.cfg` | Add `data_poll_timeout`, `data_log_viewer_max` |
+| `infopedia.cfg` | Add `data_poll_timeout`, `data_log_viewer_max`, `ops_rotation_hours` |
 | `test/util_data_test.php` | Create — unit tests |
 
 ## Non-goals
 
 - No changes to `notify.php`, `entries.php`, `votes.php`, `util.php`
 - No multiplexed multi-entity connections (one entity per connection)
-- No WebSockets, no SSE — long-poll pattern only (consistent with existing stack)
-- No tenant filtering on `stats` (log is global; future extension)
-- No cache TTL / maxAge on stats cache — validity is offset-based only
+- No WebSockets, no SSE — long-poll only, consistent with existing stack
+- No per-tenant stats filtering (log is global; future extension)
+- No cache TTL — validity is offset + log_file match only
