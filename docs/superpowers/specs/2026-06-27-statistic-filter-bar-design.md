@@ -26,27 +26,34 @@ All filter criteria travel as a single namespaced array param `f[key]=value`. Th
 
 ### Defined keys (v1)
 
-| Key | Applied to | Type | Example |
-|-----|-----------|------|---------|
-| `t` | endpoint type | comma-separated exact values | `f[t]=entries,votes` |
-| `tid` | tenant | regex-capable string | `f[tid]=demo` or `f[tid]=demo.*` |
-| `p` | topic path | regex-capable substring on `uri` | `f[p]=^/science` |
-| `r` | full URI | explicit regex | `f[r]=POST.*add` |
+Filter keys align to the JSON field names in the data channel row response (`type`, `tenant`, `uri`, `method`). Each key filters the field of the same name in parsed log rows.
 
-**`f[t]` is the only key that uses comma-separation** (endpoint types are a finite known set). All other values are treated as regex patterns — a plain string like `demo` is a valid regex that matches literally.
+| Key | Row field | Type | Example |
+|-----|-----------|------|---------|
+| `f[type]` | `row.type` | comma-separated values | `f[type]=entries,votes` |
+| `f[tenant]` | `row.tenant` | regex-capable string | `f[tenant]=demo` or `f[tenant]=demo.*` |
+| `f[uri]` | `row.uri` | regex-capable string | `f[uri]=^/science` or `f[uri]=add$` |
+| `f[method]` | `row.method` | comma-separated values | `f[method]=GET` or `f[method]=GET,POST` |
+
+**`f[type]` and `f[method]` use comma-separation** (finite known sets). All other values are treated as regex patterns — a plain string like `demo` is a valid regex that matches literally.
+
+> **Note on `tenant` vs `tid`:** `tid` is the existing codebase query param for tenant routing (ops entity, session identification). `tenant` is the JSON field name in log rows and in the data channel response. Filter keys use the row field names consistently — `f[tenant]` filters on `row.tenant`. The `?tid=` routing param is unrelated.
 
 ### Regex sanity check
 
-Every `f[key]` value except `f[t]` is validated as a regex before use.
+`f[tenant]` and `f[uri]` values are validated as regex before use.
 
 **Server:** `@preg_match('/' . addcslashes($v, '/') . '/', '')` — if the return value is `false`, the pattern is malformed. Respond `400 INVALID_FILTER` with body `{"error":{"code":"INVALID_FILTER","key":"<key>","message":"Invalid regex in filter"}}` before any log scan begins.
 
 **Client:** `try { new RegExp(value) } catch(e) { /* mark invalid */ }` — live validation as the user types. Malformed regex → red border + tooltip "Invalid regular expression". Filter submission is blocked while any field is invalid.
 
-### URL example
+### URL examples
+
+With filter active:
 
 ```
-data.php?entity=stats&f[t]=entries,votes&f[tid]=demo&f[p]=^%2Fscience
+data.php?entity=stats&f[type]=entries,votes&f[tenant]=demo&f[uri]=^%2Fscience
+data.php?entity=stats&f[method]=GET&f[tenant]=demo.*
 ```
 
 No filter active (normal load):
@@ -106,10 +113,11 @@ Validates filter input. Returns:
 ```
 
 Rules:
-- `f['t']`: split on comma, `trim()` each value, discard empty strings. No hardcoded type whitelist — unknown types produce empty results, not an error. Stored as an array in the returned `filter`.
-- All other keys: validate as regex via `@preg_match('/' . addcslashes($v, '/') . '/', '')`. Invalid → `valid=false, bad_key=<key>`.
+- `f['type']`: split on comma, `trim()` each value, discard empty strings. No hardcoded type whitelist — unknown types produce empty results, not an error. Stored as an array in the returned `filter`.
+- `f['method']`: split on comma, `trim()` each value, discard empty strings. Stored as an array.
+- `f['tenant']`, `f['uri']`: validate as regex via `@preg_match('/' . addcslashes($v, '/') . '/', '')`. Invalid → `valid=false, bad_key=<key>`.
 - Values are NOT further escaped — callers pass them directly to `preg_match` wrapped in `/…/i`.
-- Return `filter['t']` as `array<string>`, all other keys as `string`.
+- Return `filter['type']` and `filter['method']` as `array<string>`, `filter['tenant']` and `filter['uri']` as `string`.
 
 #### `apply_filter(array $row, array $filter): bool`
 
@@ -117,23 +125,23 @@ Applies all active criteria to a single parsed log row. Returns `true` if the ro
 
 ```php
 function apply_filter(array $row, array $filter): bool {
-    if (!empty($filter['t'])) {
-        if (!in_array($row['type'], $filter['t'], true)) return false;
+    if (!empty($filter['type'])) {
+        if (!in_array($row['type'], $filter['type'], true)) return false;
     }
-    if (!empty($filter['tid'])) {
-        if (!preg_match('/' . $filter['tid'] . '/i', $row['tenant'])) return false;
+    if (!empty($filter['method'])) {
+        if (!in_array($row['method'], $filter['method'], true)) return false;
     }
-    if (!empty($filter['p'])) {
-        if (!preg_match('/' . $filter['p'] . '/i', $row['uri'])) return false;
+    if (!empty($filter['tenant'])) {
+        if (!preg_match('/' . $filter['tenant'] . '/i', $row['tenant'])) return false;
     }
-    if (!empty($filter['r'])) {
-        if (!preg_match('/' . $filter['r'] . '/i', $row['uri'])) return false;
+    if (!empty($filter['uri'])) {
+        if (!preg_match('/' . $filter['uri'] . '/i', $row['uri'])) return false;
     }
     return true;
 }
 ```
 
-`apply_filter` is pure and receives the already-validated filter from `parse_filter`. No regex validation inside — that is `parse_filter`'s responsibility.
+`apply_filter` is pure and receives the already-validated filter from `parse_filter`. No regex validation inside — that is `parse_filter`'s responsibility. All criteria are AND-combined.
 
 ### 4.3 `util_data.php` — `data_stats_respond()` changes
 
@@ -194,16 +202,15 @@ Two objects, kept separate per CA19:
 ```js
 // Global filter — sent to server on every poll
 var gFilter = {
-    t:   [],   // string[] — selected endpoint types
-    tid: '',   // string   — tenant regex
-    p:   '',   // string   — path/topic regex
-    r:   ''    // string   — full URI regex
+    type:   [],  // string[] — selected endpoint types (row.type)
+    tenant: '',  // string   — tenant regex (row.tenant)
+    uri:    '',  // string   — URI regex (row.uri)
+    method: []   // string[] — selected methods, e.g. ['GET'] (row.method)
 };
 
 // View sub-filter — client-only, applied to state.rows on render
 var vFilter = {
-    level:  '',  // 'ERROR' | 'WARNING' | 'RETURN' | '' (all)
-    method: ''   // 'GET' | 'POST' | '' (all)
+    level: ''    // 'ERROR' | 'WARNING' | 'RETURN' | '' (all)
 };
 ```
 
@@ -212,20 +219,20 @@ var vFilter = {
 Sits between the `<nav>` and the summary strip. Collapsed by default (single "Filter" button). Expanding reveals:
 
 ```
-[ entries ] [ votes ] [ health ] [+ more]   Tenant: [_____]   Path: [_____]   URI regex: [_____]   [× Clear]
+Type: [ entries ] [ votes ] [ health ]   Method: [ GET ] [ POST ]   Tenant: [_____]   URI: [_____]   [× Clear]
 ```
 
-Endpoint type chips are toggleable (active = filled, inactive = outline). The other three fields are text inputs with live regex validation. Active filters are shown as dismissible chips on the collapsed bar so the filter state is visible without expanding.
+Type and Method chips are toggleable (active = filled, inactive = outline). Tenant and URI fields are text inputs with live regex validation. Active filters are shown as dismissible chips on the collapsed bar so the filter state is visible without expanding.
 
 ### 5.3 Filter change → poll restart
 
 ```js
 function buildFilterParams() {
     var p = {};
-    if (gFilter.t.length)  p['f[t]']   = gFilter.t.join(',');
-    if (gFilter.tid)       p['f[tid]'] = gFilter.tid;
-    if (gFilter.p)         p['f[p]']   = gFilter.p;
-    if (gFilter.r)         p['f[r]']   = gFilter.r;
+    if (gFilter.type.length)   p['f[type]']   = gFilter.type.join(',');
+    if (gFilter.method.length) p['f[method]'] = gFilter.method.join(',');
+    if (gFilter.tenant)        p['f[tenant]'] = gFilter.tenant;
+    if (gFilter.uri)           p['f[uri]']    = gFilter.uri;
     return p;
 }
 ```
@@ -238,7 +245,7 @@ Filtered `pollStats()` loop: always calls `pollStats()` with no cursor on the ne
 
 ### 5.4 Client-side regex validation
 
-Each text input (`tid`, `p`, `r`) validates on `input` event:
+Each text input (`tenant`, `uri`) validates on `input` event:
 
 ```js
 function isValidRegex(s) {
@@ -249,12 +256,12 @@ function isValidRegex(s) {
 
 Invalid → red border on input, tooltip "Invalid regular expression", `gFilter` key not updated (old value or empty retained), filter not sent to server.
 
-### 5.5 View sub-filters (log viewer)
+### 5.5 View sub-filter (log viewer)
 
-Below the "Recent Requests" heading, a compact chip row:
+Below the "Recent Requests" heading, a compact chip row for level:
 
 ```
-Level: [ All ] [ ERROR ] [ WARNING ] [ RETURN ]    Method: [ All ] [ GET ] [ POST ]
+Level: [ All ] [ ERROR ] [ WARNING ] [ RETURN ]
 ```
 
 Active chip is visually selected. Changing a chip re-renders `state.rows` through `filteredRows()`:
@@ -262,14 +269,15 @@ Active chip is visually selected. Changing a chip re-renders `state.rows` throug
 ```js
 function filteredRows() {
     return state.rows.filter(function(r) {
-        if (vFilter.level  && r.level  !== vFilter.level)  return false;
-        if (vFilter.method && r.method !== vFilter.method) return false;
+        if (vFilter.level && r.level !== vFilter.level) return false;
         return true;
     });
 }
 ```
 
 `renderStats()` uses `filteredRows()` instead of `state.rows` directly for the log viewer table. No server request.
+
+> Method and type filtering are global (CA19) — they live in the filter bar, not in view sub-filters.
 
 ### 5.6 Filtered mode indicator
 
@@ -283,13 +291,15 @@ New tests in `test/util_data_test.php`:
 
 | Test | Verifies |
 |------|---------|
-| `parse_filter` — valid t | comma-split, known types kept, unknown dropped |
-| `parse_filter` — valid regex | tid/p/r with plain string → valid |
-| `parse_filter` — invalid regex | `f[r]=[unclosed` → valid=false, bad_key='r' |
-| `apply_filter` — type match | row type not in t → excluded |
-| `apply_filter` — type pass | row type in t → included |
-| `apply_filter` — tid regex | row tenant matches pattern → included |
-| `apply_filter` — p regex | uri matches path pattern → included |
+| `parse_filter` — valid type | comma-split, trimmed, stored as array |
+| `parse_filter` — valid method | comma-split GET,POST stored as array |
+| `parse_filter` — valid regex | tenant/uri with plain string → valid |
+| `parse_filter` — invalid regex | `f[uri]=[unclosed` → valid=false, bad_key='uri' |
+| `apply_filter` — type match | row type not in type list → excluded |
+| `apply_filter` — type pass | row type in type list → included |
+| `apply_filter` — method match | row method not in method list → excluded |
+| `apply_filter` — tenant regex | row tenant matches pattern → included |
+| `apply_filter` — uri regex | row uri matches pattern → included |
 | `apply_filter` — no filter | empty filter → all rows pass |
 | `apply_filter` — multi-criteria | all criteria AND-combined |
 | `data_stats_respond` with filter | filtered response has only matching rows |
@@ -304,7 +314,7 @@ New tests in `test/util_data_test.php`:
 | `infopedia.cfg` | Modify | Add `log_requests = false` under `[data]` |
 | `util_data.php` | Modify | Add `parse_filter()`, `apply_filter()`; extend `data_stats_respond()` with `$filter` param |
 | `data.php` | Modify | Read `$_GET['f']`, validate, pass to `data_stats_respond()`; conditional `log_return()` |
-| `statistic.html` | Modify | Filter bar UI, `gFilter`/`vFilter` state, poll restart on filter change, view sub-filter chips |
+| `statistic.html` | Modify | Filter bar UI, `gFilter`/`vFilter` state, poll restart on filter change, view sub-filter level chip |
 | `test/util_data_test.php` | Modify | Add `parse_filter` + `apply_filter` + filtered-respond unit tests |
 
 No new files. No E2E test changes (existing E1–E5b remain valid; unfiltered path unchanged).
