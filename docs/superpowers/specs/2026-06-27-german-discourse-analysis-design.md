@@ -290,6 +290,8 @@ One JSONL record per analysed sentence, appended to `data/analysis.jsonl`.
 }
 ```
 
+Position shift records (§6a) are also written to `data/analysis.jsonl` with `"type": "shift"` and a distinct schema — see §6a for the full field list.
+
 ---
 
 ## 6. Contradiction Detection
@@ -357,6 +359,97 @@ Cross-statement comparison within a `(topic × verb_lemma)` group.
 
 ---
 
+## 6a. Diachronic Speaker Consistency
+
+Contradiction detection (§6) flags *that* two records contradict each other. This section asks the **follow-up question**: is the shift *understandable*?
+
+A speaker who revises a position after citing new evidence is different from one who silently reverses course when the topic becomes popular. A single deviant statement surrounded by a consistent record looks different from a sustained pivot. These distinctions matter for evaluating a speaker's overall discourse quality.
+
+### What triggers a position shift
+
+For each `(speaker × topic × verb_lemma)` group, records are sorted by `ts`. A **position shift** is detected when two consecutive records from the same speaker show any of:
+
+- `negated` flips — an assertion becomes a denial (or vice versa) on the same subject+verb
+- `object_lemma` valence sign flips — the object head switches from positive to negative (or vice versa) according to SentiWS
+- `primary_label` crosses the constructive ↔ manipulative boundary — a speaker who argued with `logos` now predominantly uses `pathos_manipulative`
+
+### Shift classification
+
+Applied to the sentence at the shift point (the later record in the pair). Evaluated in order; first match wins:
+
+| Class | Condition |
+|-------|-----------|
+| `evidence_responsive` | Shift sentence has `logos > 0.4` AND contains a new-evidence marker (*laut neuen Daten, nach den Erkenntnissen von, neue Studien zeigen, das zeigt jetzt*) |
+| `acknowledged` | Shift sentence contains explicit meta-commentary (*ich habe meine Meinung geändert, ich sehe das jetzt anders, angesichts von X ändere ich meinen Standpunkt*) |
+| `constructive_growth` | `primary_label` moves from a manipulative dimension to a constructive one; no manipulative markers > 0.3 in the new sentence — speaker is arguing better than before |
+| `anomaly` | Single isolated shift, surrounded by ≥ 3 consistent records on each side; treated as a one-off, not a sustained reversal |
+| `unexplained` | Shift detected; none of the above markers present — position changed without stated reason |
+| `populistic_candidate` | `unexplained` AND the new position aligns with the **modal primary_label** of other speakers on the same topic — moving toward the crowd without explanation |
+
+**Interpretation note:** `populistic_candidate` is a flag for human review, not a verdict. It means the shift was unexplained *and* aligned with the majority direction. It is evidence of potential populism, not proof.
+
+### Output record (`type: shift`)
+
+Shift records are appended to `data/analysis.jsonl` alongside sentence records and carry a distinct `type` field:
+
+```json
+{
+  "type":        "shift",
+  "id":          "sha1(speaker + topic + verb_lemma + ts_from + ts_to)",
+  "speaker":     "known_name_or_tid",
+  "topic":       "/politik/klima",
+  "verb_lemma":  "tun",
+  "from_id":     "<sha1 of earlier sentence record>",
+  "to_id":       "<sha1 of later sentence record>",
+  "ts_from":     "2026-01-15T10:00:00Z",
+  "ts_to":       "2026-06-20T14:00:00Z",
+  "shift_type":  "negation_flip | object_polarity | label_flip",
+  "shift_class": "evidence_responsive | acknowledged | constructive_growth | anomaly | unexplained | populistic_candidate",
+  "shift_note":  "primary_label changed from logos to pathos_manipulative"
+}
+```
+
+`data.php` filter support: `f[type]=shift` · `f[speaker]` · `f[topic]` · `f[shift_class]`
+
+### Algorithm flow
+
+```
+ All JSONL sentence records
+        │
+        ▼
+ Group by (speaker × topic × verb_lemma), sort by ts
+        │
+ for each group, scan consecutive same-speaker pairs (R_earlier, R_later):
+        │
+  position shift detected?
+  (negated flip OR object valence flip OR label boundary cross)
+        │
+    ┌───┴───┐
+   yes       no → skip pair
+    │
+    ▼
+ examine R_later sentence — evaluate in order:
+        │
+        ├── logos > 0.4 + new-evidence marker? ──────────► evidence_responsive
+        │
+        ├── explicit acknowledgment marker? ─────────────► acknowledged
+        │
+        ├── primary_label: manipulative → constructive,
+        │   all manipulative dims < 0.3? ────────────────► constructive_growth
+        │
+        ├── single isolated point (≥ 3 consistent
+        │   records on each side)? ──────────────────────► anomaly
+        │
+        └── no markers → unexplained
+            AND new position = modal label of
+            other speakers on this topic? ──────────────► populistic_candidate
+        │
+        ▼
+ append type=shift record to analysis.jsonl
+```
+
+---
+
 ## 7. Tool Architecture
 
 **Primary implementation: Python (Hypothesis A)**
@@ -369,6 +462,7 @@ lang_analyze/
   rhetoric.py           # lexicon + rule-based dimension scoring (14 dimensions)
   emotion.py            # SentiWS + NRC-German scoring → emotion vector
   contradiction.py      # cross-record group comparison → flag injection
+  consistency.py        # per-speaker diachronic position shift detection + classification
   readers/
     infopedia.py        # GET /entries JSON or parse CSV cache
     file_reader.py      # plain text / JSON / CSV external corpus
@@ -488,6 +582,7 @@ No Python required; called from PHP `exec()`; outputs CoNLL-U. Stays entirely wi
 - InfoPedia entries input (HTTP or cache file)
 - JSONL output + `data.php` `analysis` entity with filter support
 - Intra-speaker temporal + inter-speaker + performative contradiction detection
+- Diachronic position shift detection + classification (§6a): evidence_responsive, acknowledged, constructive_growth, anomaly, unexplained, populistic_candidate
 
 **Out (v2+):**
 - Session-protocol frontend (recording UI for specific tid + topic)
@@ -542,5 +637,9 @@ Scientific and technical terms used throughout this specification, in alphabetic
 **Toulmin model** — Argument scheme (Toulmin, 1958): *claim* (conclusion) + *grounds* (supporting data) + *warrant* (inference rule linking grounds to claim) + *backing* (support for warrant) + *qualifier* (strength of claim) + *rebuttal* (acknowledged exceptions). The `logos` dimension uses claim + grounds + causal connector as a minimal Toulmin footprint.
 
 **Tu quoque** — "You too" / whataboutism. Deflecting a criticism by pointing to the critic's alleged similar behaviour, without addressing the argument. Pragma-dialectics: violation of the *relevance rule* (one may not advance arguments not relevant to the standpoint under discussion).
+
+**Diachronic analysis** — Analysis across time, tracing how an entity (here: a speaker's stated position) evolves from one point to another. Contrasts with *synchronic* analysis (a single snapshot). In this tool: per-speaker, per-topic tracking of SVO triples and dimension scores sorted by timestamp, enabling position shift detection.
+
+**Populistic candidate** — A detected position shift that is (1) unexplained — the speaker offered no evidence or acknowledgment — and (2) directionally aligned with the majority rhetorical stance of other speakers on the same topic. The label signals that the shift *might* be audience-driven rather than evidence-driven. It is a flag for human review, not a verdict; other explanations (e.g. new private information, social pressure the corpus does not capture) remain possible.
 
 **Universal Dependencies (UD)** — Cross-linguistically consistent syntactic annotation scheme (de Marneffe et al., 2021) used across 100+ languages. Defines ~40 dependency relation labels: `nsubj` (nominal subject), `obj` (direct object), `aux` (auxiliary verb), `aux:pass` (passive auxiliary), `compound:prt` (separable verb particle), `ROOT` (main predicate), `xcomp` (open clausal complement), `neg` (negation modifier). spaCy's `de_core_news_md` outputs UD labels, enabling the SVO resolver to traverse deterministic tree paths regardless of German free word order.
