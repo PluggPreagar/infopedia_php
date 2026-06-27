@@ -1,11 +1,11 @@
 <!--
 SYNC IMPACT REPORT
-- Version: 1.9.0 -> 1.10.0  (add CG-DS1–CG-DS5: design-system guards)
+- Version: 1.10.0 -> 1.11.0  (add CA19: filter source contract)
 - ID scheme (prefix by section):
     CG = Governance              CA = Core Assumptions      CC = Core Principles
     CW = The Basic Workflow      CD = Data & Compatibility  CP = PHP-Specific principles
     CT = Tooling & Commands      CV = Versioning & Commits
-- Numbering: CA1-CA18 (CA15-CA17 added 1.8.0; CA18 added 1.9.0), CC1-CC5 (sub-steps CC1.1-CC1.6), CW1-CW9, CP1-CP3, others per section
+- Numbering: CA1-CA19 (CA15-CA17 added 1.8.0; CA18 added 1.9.0; CA19 added 1.11.0), CC1-CC5 (sub-steps CC1.1-CC1.6), CW1-CW9, CP1-CP3, others per section
 - Companion files: `.ai/requirements.md` (+ `requirements/S1...S6`) maps IDs to steps;
   `docs/app2-use-cases.md` — UC1–UC15 + AC (business, no implementation detail);
   `docs/app2-spec.md` — state vars, functions, test coverage (implementation detail only)
@@ -123,6 +123,17 @@ Principles below and are the lens for "is this change healthy?".
   where possible, what to do next ("Bitte Seite neu laden.", "Bitte erneut versuchen.").
   *Rationale: leaking "Unexpected token < in JSON at position 0" is useless to a user
   and erodes trust.*
+
+- **CA19 -- Filter Source Contract:** Three tiers, unambiguous placement.
+  **(1) Global filter** — always server-side; backend applies before aggregating and returns
+  filtered data. The only path to accurate filtered aggregates over full log history.
+  **(2) View sub-filter on detail data** (rows, individual records already in memory) —
+  client-side, no round-trip.
+  **(3) View sub-filter on aggregated data** (charts, totals computed from history) —
+  server-side; backend returns a separately filtered aggregate. A client filtering
+  aggregated data from a bounded row buffer is an accuracy violation of this principle.
+  *Rationale: aggregates over full history cannot be accurately derived from a bounded
+  client buffer. Detail data is already memory-resident — a server round-trip is waste.*
 
 - **CA16 -- Developer-detailed error logs:** every error that is softened for the user
   (CA15) MUST be logged in full technical detail on the developer side. Frontend:
@@ -331,4 +342,4 @@ Concrete commands and tools that support The Basic Workflow on Windows/XAMPP.
   comment, so reviewers can verify the type/scope and rationale (especially for breaking
   changes). / wait for edits to be accepted before committing.
 
-**Version**: 1.10.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-25
+**Version**: 1.11.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-06-27
