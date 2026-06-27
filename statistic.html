@@ -58,18 +58,52 @@ table tr:hover { background:var(--color-interactive-50); }
 .ops-row .sev-critical { color:var(--color-error); font-weight:var(--font-weight-bold); }
 .ops-row .sev-warn { color:#92400e; }
 .ops-row .sev-info { color:var(--color-neutral-600); }
-.status-dot { display:inline-block; width:8px; height:8px; border-radius:50%;
-              margin-right:var(--space-2); background:var(--color-neutral-300); }
-.status-dot.live { background:#22c55e; animation:pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.live-dot--live { animation:live-pulse 2s infinite; }
+@keyframes live-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 </style>
 </head>
 <body>
 <nav class="nav">
   <a class="nav-back" href="infopage.html">← Home</a>
   <span class="nav-title">Statistics</span>
-  <span id="live-dot" class="status-dot" title="Live updates"></span>
+  <span id="live-dot" class="live-dot" style="margin-right:var(--space-2)" title="Live updates"></span>
 </nav>
+<div class="filter-bar" id="filter-bar">
+  <div class="filter-bar-summary">
+    <button class="btn btn-ghost" id="filter-toggle"
+            style="min-height:36px;font-size:var(--text-sm);padding:var(--space-1) var(--space-3)">Filter</button>
+    <div class="filter-pills" id="filter-pills"></div>
+    <button class="btn btn-ghost" id="filter-clear"
+            style="display:none;min-height:36px;font-size:var(--text-sm);padding:var(--space-1) var(--space-3);color:var(--color-neutral-600)">× Clear</button>
+  </div>
+  <div class="filter-bar-body">
+    <div class="filter-bar-body-inner">
+      <div class="filter-group">
+        <span class="filter-label">Type</span>
+        <div class="chip-group" id="fg-type">
+          <button class="chip chip-filter" data-val="entries">entries</button>
+          <button class="chip chip-filter" data-val="votes">votes</button>
+          <button class="chip chip-filter" data-val="health">health</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Method</span>
+        <div class="chip-group" id="fg-method">
+          <button class="chip chip-filter" data-val="GET">GET</button>
+          <button class="chip chip-filter" data-val="POST">POST</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="fg-tid">Tenant</label>
+        <input class="input filter-input" id="fg-tid" placeholder="regex…">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="fg-uri">URI</label>
+        <input class="input filter-input" id="fg-uri" placeholder="regex…">
+      </div>
+    </div>
+  </div>
+</div>
 <div class="page">
 
 <!-- Summary strip -->
@@ -112,6 +146,15 @@ table tr:hover { background:var(--color-interactive-50); }
 <!-- Log viewer -->
 <div class="section">
   <h2>Recent Requests</h2>
+  <div class="subfilter-bar">
+    <span class="filter-label">Level</span>
+    <div class="chip-group" id="vf-level">
+      <button class="chip chip-filter active" data-val="">All</button>
+      <button class="chip chip-filter" data-val="ERROR">ERROR</button>
+      <button class="chip chip-filter" data-val="WARNING">WARNING</button>
+      <button class="chip chip-filter" data-val="RETURN">RETURN</button>
+    </div>
+  </div>
   <p class="dim" id="rows-truncated-note" style="display:none;font-size:var(--text-xs);margin:0 0 var(--space-2)">
     Showing last <span id="rows-truncated-n"></span> rows — full history in cache.
   </p>
@@ -124,6 +167,166 @@ table tr:hover { background:var(--color-interactive-50); }
 <script>
 (function () {
 'use strict';
+
+// ── Filter state ──────────────────────────────────────────────────────────────
+var gFilter = {
+    type:   [],  // string[] — f[type] — row.type exact match
+    tid:    '',  // string   — f[tid] regex — row.tenant
+    uri:    '',  // string   — f[uri] regex — row.uri
+    method: []   // string[] — f[method] — row.method exact match
+};
+
+var vFilter = {
+    level: ''    // 'ERROR'|'WARNING'|'RETURN'|'' — client-only, no round-trip
+};
+
+function gFilterActive() {
+    return gFilter.type.length > 0 || gFilter.tid !== '' ||
+           gFilter.uri !== '' || gFilter.method.length > 0;
+}
+
+function isValidRegex(s) {
+    if (!s) return true;
+    try { new RegExp(s); return true; } catch(e) { return false; }
+}
+
+function buildFilterParams() {
+    var p = {};
+    if (gFilter.type.length)   p['f[type]']   = gFilter.type.join(',');
+    if (gFilter.method.length) p['f[method]'] = gFilter.method.join(',');
+    if (gFilter.tid)           p['f[tid]']    = gFilter.tid;
+    if (gFilter.uri)           p['f[uri]']    = gFilter.uri;
+    return p;
+}
+
+function filteredRows() {
+    return state.rows.filter(function(r) {
+        if (vFilter.level && r.level !== vFilter.level) return false;
+        return true;
+    });
+}
+
+// ── Live dot ──────────────────────────────────────────────────────────────────
+function updateLiveDot() {
+    var dot = document.getElementById('live-dot');
+    dot.className = 'live-dot live-dot--live' + (gFilterActive() ? ' live-dot--amber' : '');
+}
+
+// ── Filter bar ────────────────────────────────────────────────────────────────
+var _filterDebounce = null;
+
+function onFilterChange() {
+    state.requests = 0; state.errors = 0; state.warnings = 0;
+    state.by_hour = Array(24).fill(0);
+    state.rt = { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 };
+    state.by_type = {};
+    state.timeline = {};
+    state.rows = [];
+    updateFilterPills();
+    updateLiveDot();
+    renderStats();
+    pollStats();   // filtered mode — no cursor passed
+}
+
+function updateFilterPills() {
+    var pills = document.getElementById('filter-pills');
+    var clear = document.getElementById('filter-clear');
+    pills.innerHTML = '';
+    var active = gFilterActive();
+    clear.style.display = active ? '' : 'none';
+    if (!active) return;
+
+    function pill(label, onDismiss) {
+        var sp = document.createElement('span');
+        sp.className = 'filter-pill';
+        sp.textContent = label + ' ';
+        var btn = document.createElement('button');
+        btn.className = 'filter-pill-dismiss';
+        btn.setAttribute('aria-label', 'Remove filter');
+        btn.textContent = '×';
+        btn.addEventListener('click', onDismiss);
+        sp.appendChild(btn);
+        pills.appendChild(sp);
+    }
+
+    if (gFilter.type.length)
+        pill('type: ' + gFilter.type.join(','), function() { gFilter.type = []; syncChips('fg-type', gFilter.type); onFilterChange(); });
+    if (gFilter.method.length)
+        pill('method: ' + gFilter.method.join(','), function() { gFilter.method = []; syncChips('fg-method', gFilter.method); onFilterChange(); });
+    if (gFilter.tid)
+        pill('tid: ' + gFilter.tid, function() { gFilter.tid = ''; document.getElementById('fg-tid').value = ''; onFilterChange(); });
+    if (gFilter.uri)
+        pill('uri: ' + gFilter.uri, function() { gFilter.uri = ''; document.getElementById('fg-uri').value = ''; onFilterChange(); });
+}
+
+function syncChips(groupId, activeValues) {
+    document.querySelectorAll('#' + groupId + ' .chip-filter').forEach(function(btn) {
+        btn.classList.toggle('active', activeValues.indexOf(btn.dataset.val) !== -1);
+    });
+}
+
+// Filter toggle open/close
+document.getElementById('filter-toggle').addEventListener('click', function() {
+    var fb = document.getElementById('filter-bar');
+    fb.classList.toggle('open');
+    this.textContent = fb.classList.contains('open') ? 'Filter ▲' : 'Filter';
+});
+
+// Clear all
+document.getElementById('filter-clear').addEventListener('click', function() {
+    gFilter.type = []; gFilter.tid = ''; gFilter.uri = ''; gFilter.method = [];
+    syncChips('fg-type',   gFilter.type);
+    syncChips('fg-method', gFilter.method);
+    document.getElementById('fg-tid').value = '';
+    document.getElementById('fg-uri').value = '';
+    onFilterChange();
+});
+
+// Type chips
+document.querySelectorAll('#fg-type .chip-filter').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var v = this.dataset.val;
+        var idx = gFilter.type.indexOf(v);
+        if (idx === -1) gFilter.type.push(v); else gFilter.type.splice(idx, 1);
+        this.classList.toggle('active', idx === -1);
+        onFilterChange();
+    });
+});
+
+// Method chips
+document.querySelectorAll('#fg-method .chip-filter').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var v = this.dataset.val;
+        var idx = gFilter.method.indexOf(v);
+        if (idx === -1) gFilter.method.push(v); else gFilter.method.splice(idx, 1);
+        this.classList.toggle('active', idx === -1);
+        onFilterChange();
+    });
+});
+
+// Text inputs: debounce + live regex validation
+['fg-tid', 'fg-uri'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', function() {
+        var v = this.value.trim();
+        var valid = isValidRegex(v);
+        this.classList.toggle('input--invalid', !valid);
+        if (!valid) return;
+        var key = id === 'fg-tid' ? 'tid' : 'uri';
+        clearTimeout(_filterDebounce);
+        _filterDebounce = setTimeout(function() { gFilter[key] = v; onFilterChange(); }, 400);
+    });
+});
+
+// Level sub-filter (client-side only — no server round-trip)
+document.querySelectorAll('#vf-level .chip-filter').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        vFilter.level = this.dataset.val;
+        document.querySelectorAll('#vf-level .chip-filter').forEach(function(b) {
+            b.classList.toggle('active', b === btn);
+        });
+        renderStats();
+    });
+});
 
 // ── State ─────────────────────────────────────────────────────────────────────
 var state = {
@@ -233,7 +436,7 @@ function renderStats() {
 
     // Log viewer (most recent first — rows are prepended)
     var rtbody = document.querySelector('#tbl-rows tbody');
-    rtbody.innerHTML = state.rows.map(function(r) {
+    rtbody.innerHTML = filteredRows().map(function(r) {
         var lvlCls = r.level==='ERROR'?'err-txt':(r.level==='WARNING'?'warn-txt':'dim');
         return '<tr><td class="mono">'+h(r.timestamp)+'</td>'
             +'<td>'+h(r.type)+'</td><td>'+h(r.method)+'</td>'
@@ -242,6 +445,8 @@ function renderStats() {
             +'<td class="mono">'+msFmt(r.ms)+'</td>'
             +'<td class="'+lvlCls+'"><span class="clip">'+h(r.details)+'</span></td></tr>';
     }).join('');
+    document.querySelector('.nav-title').textContent =
+        gFilterActive() ? 'Statistics (filtered)' : 'Statistics';
 }
 
 function appendOpsRow(row) {
@@ -258,14 +463,16 @@ function appendOpsRow(row) {
 
 // ── Poll loops ────────────────────────────────────────────────────────────────
 function pollStats(cursor) {
-    var params = Object.assign({ entity: 'stats' }, cursor || {});
+    var filterParams = buildFilterParams();
+    var filtered = Object.keys(filterParams).length > 0;
+    // Filtered mode never passes cursor — server always full-scans from offset 0
+    var params = Object.assign({ entity: 'stats' }, filtered ? {} : (cursor || {}), filterParams);
     fetch('data?' + new URLSearchParams(params))
         .then(function(res) {
             if (res.status === 200) {
                 return res.json().then(function(body) {
                     applyFull(body.full || {});
                     applyIncrements(body.increments);
-                    // rows_truncated note
                     if (body.full && body.full.rows_truncated) {
                         document.getElementById('rows-truncated-note').style.display = '';
                         document.getElementById('rows-truncated-n').textContent =
@@ -273,13 +480,13 @@ function pollStats(cursor) {
                                 ? body.increments.rows.length : '?';
                     }
                     renderStats();
-                    document.getElementById('live-dot').className = 'status-dot live';
-                    pollStats({ offset: body.offset });
+                    updateLiveDot();
+                    // Filtered: no cursor advance; unfiltered: advance offset
+                    if (filtered) { pollStats(); } else { pollStats({ offset: body.offset }); }
                 });
             } else if (res.status === 204) {
                 pollStats(cursor);
             } else {
-                // STALE or error — reset accumulators before fresh start
                 state.requests = 0; state.errors = 0; state.warnings = 0;
                 state.by_hour = Array(24).fill(0);
                 state.rt = { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 };
