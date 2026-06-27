@@ -6,6 +6,61 @@
 
 ---
 
+## 0. Context
+
+### Why discourse analysis for a knowledge base
+
+InfoPedia stores structured knowledge contributed by identified speakers — tenants with known identities — on a hierarchical topic tree (paths like `/politik/klima`, `/gesellschaft/migration`). When multiple speakers contribute entries on the same topic over time, their entries form a **discourse corpus**: interconnected claims, rebuttals, and framings on a shared subject.
+
+The quality of that discourse determines whether the knowledge base grows richer or degrades into noise. Two entries on the same topic may reach opposite conclusions — but *how* they argue matters as much as *what* they conclude. A speaker citing peer-reviewed evidence differs fundamentally from one who amplifies fear, deflects blame, or misrepresents the opposing position.
+
+### The known-speakers model
+
+Unlike anonymous public discourse analysis, InfoPedia operates with **known tenants**. Each entry is attributed to a `tid` (tenant identifier). This enables:
+
+- **Intra-speaker consistency** — does a speaker's claim on topic X contradict their earlier statement on the same verb/object cluster?
+- **Inter-speaker comparison** — given three speakers on `/politik/klima`, who argues constructively and who relies on fallacy patterns?
+- **Topic-level quality** — what is the constructive-to-manipulative ratio for a topic across all contributors?
+
+**Concrete example:**
+
+| Speaker | Statement | Expected primary label |
+|---------|-----------|------------------------|
+| Anna | *„Laut IPCC-Daten stieg die Temperatur um 1,1 °C seit 1850 – das zeigt Handlungsbedarf."* | `logos` |
+| Ben | *„Wenn wir das nicht sofort stoppen, verlieren wir alles – Küsten, Ernten, Zukunft."* | `pathos_manipulative` (ad metum) |
+| Carl | *„Ihr wollt ja nur die Wirtschaft kaputt machen – das sagen alle hier."* | `straw_man` + `ad_populum` |
+
+The tool extracts these classifications automatically from the attributed text and feeds the results into the InfoPedia data channel for visualisation and speaker comparison.
+
+### Why deterministic rules, not machine learning
+
+Argument mining research increasingly relies on neural classifiers (BERT, RoBERTa fine-tuned on German). This tool deliberately chooses rule-based detection for v1:
+
+| Criterion | ML classifier | Rule-based (this tool) |
+|-----------|--------------|------------------------|
+| Explainability | Black-box output | Every score traceable to a rule or lexicon hit |
+| Training data | Requires a labelled German corpus | No training data needed |
+| Speed | 100–500 ms/sentence (GPU) | ~5 ms/sentence (CPU) |
+| Auditability | Hard — why did it fire? | Easy — which YAML rule matched? |
+| Stability | Can drift with model updates | Deterministic given the same lexicon version |
+| Domain correction | Requires re-training | Edit a YAML rule file |
+
+The YAML rule files in `lang_analyze/data/rules/` are the auditable artefact: a domain expert can read `blame.yaml`, dispute a surface marker, and correct it without touching Python code.
+
+### What "helpful vs. manipulative" means concretely
+
+The tool classifies *argumentative strategy*, not *truth value*. A statement can be factually correct and still score high on `pathos_manipulative` (if it forecloses alternatives via fear). A statement can be factually wrong and score high on `logos` (if it cites a source, even a flawed one).
+
+| Category | Characterisation | Dimensions |
+|----------|-----------------|------------|
+| **Constructive** | Advances shared understanding; acknowledges uncertainty; supports or refutes claims with evidence or empathy | `logos` · `ethos_legitimate` · `pathos_empathic` · `engagement_open` |
+| **Manipulative / fallacious** | Advances the speaker's position by exploiting cognitive shortcuts, social pressure, or emotional coercion | `pathos_manipulative` · `blame_attribution` · `ad_hominem` · `ad_ignorantiam` · `ad_populum` · `straw_man` · `tu_quoque` · `bifurcation` · `gaslighting` |
+| **Stylistic risk markers** | Not inherently bad; elevated scores contextually significant | `absolutism` · `strategic_manoeuvring` |
+
+Contradiction detection then surfaces **performative contradictions** (Habermas): a speaker who claims `engagement_open` while simultaneously deploying `ad_hominem` is contradicting their own stated discursive position in the same breath.
+
+---
+
 ## 1. Goal
 
 Extract two complementary layers of meaning from German-language text and feed the results into InfoPedia's data channel for comparison and visualisation.
@@ -62,6 +117,46 @@ Per sentence, one normalised triple plus structural metadata.
 | Passiv | *das wurde getan* | `werden` = `aux:pass`; participle = `ROOT` → passiv = true |
 | Separable verb | *ich rufe an* | particle (`compound:prt`) + verb head → concatenated lemma: `anrufen` |
 | Reflexive | *ich freue mich* | reflexive pronoun as `obj`; verb stays; mark as reflexive |
+
+**Verb construction resolution — decision tree:**
+
+```
+                 spaCy dependency parse of one clause
+                               │
+                               ▼
+                      Find ROOT token
+                               │
+          ┌────────────────────┴─────────────────────┐
+          │                                          │
+  dep="aux:pass" child present?              no aux:pass
+          │                                          │
+         yes                               werden as plain aux?
+          │                                          │
+          ▼                                 ┌────────┴────────┐
+     passiv = true                         yes               no
+     verb  = ROOT.lemma                     │                 │
+     tense = passiv                         ▼                 ▼
+                                        Futur I       haben/sein as aux
+                                  verb = xcomp.lemma  with ROOT=participle?
+                                  tense = futur              │
+                                                    ┌────────┴────────┐
+                                                   yes               no
+                                                    │                 │
+                                                    ▼                 ▼
+                                                Perfekt         modal as ROOT
+                                          verb = ROOT.lemma   with xcomp present?
+                                          tense = perfekt            │
+                                                           ┌─────────┴─────────┐
+                                                          yes                  no
+                                                           │                   │
+                                                           ▼                   ▼
+                                                        Modal         Präsens/Präteritum
+                                                 verb = xcomp.lemma  verb = ROOT.lemma
+                                                 modality = ROOT     tense from ROOT.morph
+```
+
+**Post-processing:** if ROOT has a `compound:prt` child, prefix the particle:
+`verb_lemma = prt.lower_ + ROOT.lemma_`  →  `"an"` + `"rufen"` = `"anrufen"`
 
 ### 3.2 Layer 2 — Rhetorical/Emotional Dimensions
 
@@ -209,6 +304,57 @@ Cross-statement comparison within a `(topic × verb_lemma)` group.
 5. Flag as **performative contradiction** (Habermas): speaker's primary rhetorical label (e.g. `engagement_open`) contradicts the fallacy present in the same sentence (e.g. `ad_hominem`)
 6. Write `contradiction_flag: true` + `contradiction_with: ["<id>", ...]` on all implicated records
 
+**Contradiction detection — algorithm flow:**
+
+```
+ All JSONL records
+        │
+        ▼
+┌───────────────────────────────┐
+│  Group by (topic, verb_lemma) │
+└───────────────┬───────────────┘
+                │
+    for each group G, pairwise compare (A, B):
+                │
+        ┌───────┴──────────────────────────────────┐
+        │                                          │
+  same_speaker(A, B)?                      diff_speaker(A, B)?
+        │                                          │
+       yes                                        yes
+        │                                          │
+  negated(A) ≠ negated(B)?           negated(A) ≠ negated(B)?
+        │                                          │
+    ┌───┴───┐                                  ┌───┴───┐
+   yes      no                               yes       no
+    │                                         │         │
+    ▼                                         ▼         ▼
+⚑ intra-speaker                  ⚑ inter-speaker    valence sign
+  temporal contradiction           contradiction     flip on obj?
+                                                          │
+                                                      ┌───┴───┐
+                                                     yes       no
+                                                      │
+                                                      ▼
+                                          ⚑ inter-speaker (valence-flip)
+        │
+        ▼
+ for each record R independently:
+        │
+  primary_label(R) in constructive set
+  AND any manipulative dimension(R) > 0.4?
+        │
+    ┌───┴───┐
+   yes       no
+    │
+    ▼
+⚑ performative contradiction (Habermas)
+        │
+        ▼
+ write contradiction_flag=true
+       contradiction_with=[...ids]
+ on all implicated records
+```
+
 ---
 
 ## 7. Tool Architecture
@@ -235,6 +381,52 @@ lang_analyze/
       fear_appeal.yaml
       absolutism.yaml
       ...
+```
+
+**Processing pipeline:**
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  INPUT READERS                                                        │
+│  readers/infopedia.py    readers/file_reader.py    session_stub.py   │
+│  (HTTP or CSV cache)     (plain text / JSON / CSV)  (v2 — stub)      │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │  [{speaker, topic, text, ts}, ...]
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  SEGMENTATION  (pipeline.py)                                          │
+│  spaCy sentence boundary detection → sentence list per record        │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │  per sentence
+               ┌───────────────┴───────────────┐
+               ▼                               ▼
+┌──────────────────────────┐   ┌──────────────────────────────────────┐
+│  LAYER 1  svo.py          │   │  LAYER 2  rhetoric.py + emotion.py   │
+│                           │   │                                       │
+│  UD dependency tree walk: │   │  YAML rules per dimension             │
+│  nsubj    → subject       │   │  → scored vector 0.0–1.0 (× 15)      │
+│  ROOT     → verb resolve  │   │                                       │
+│  obj      → object        │   │  SentiWS → valence + arousal          │
+│  aux      → tense         │   │  NRC-German → Plutchik 8 emotions     │
+│  aux:pass → passiv        │   │                                       │
+│  compound:prt → sep. verb │   │  primary_label  (highest score > 0.4) │
+│  neg      → negated flag  │   │  secondary_label (2nd score > 0.3)    │
+└────────────┬──────────────┘   └─────────────────┬────────────────────┘
+             │  SVO triple                         │  dimension + emotion vector
+             └───────────────┬─────────────────────┘
+                             │  merged record
+                             ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  CONTRADICTION DETECTION  (contradiction.py)                          │
+│  group by (topic × verb_lemma) → pairwise flag injection             │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │  finalised records
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  OUTPUT                                                               │
+│  data/analysis.jsonl (append)  →  data.php entity=analysis           │
+│                                   filter: f[speaker] f[topic] f[label]│
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 **Python dependencies:**
@@ -304,3 +496,51 @@ No Python required; called from PHP `exec()`; outputs CoNLL-U. Stays entirely wi
 - Cross-language extension
 - Real-time analysis pipeline
 - Rhetoric quality dashboard in `statistic.html`
+
+---
+
+## 11. Glossary
+
+Scientific and technical terms used throughout this specification, in alphabetical order.
+
+**Ad hominem** — Fallacy attacking the speaker rather than their argument. Pragma-dialectics: violation of the *freedom rule* (participants must not prevent each other from advancing standpoints). Subforms: abusive (personal insult), circumstantial (bias accusation), tu quoque (whataboutism, see below).
+
+**Ad ignorantiam** *(argumentum ad ignorantiam)* — Exploits knowledge asymmetry: claiming a position is true because the other party cannot disprove it, or excluding interlocutors on grounds of insufficient expertise. Related to Fricker's *testimonial injustice*: deflating a speaker's credibility as a knower based on social category, weaponised to silence.
+
+**Ad metum** *(argumentum ad metum, appeal to fear)* — Compels agreement by invoking extreme negative consequences, bypassing rational evaluation of alternatives. Witte's *Extended Parallel Process Model* (EPPM) describes how disproportionate fear appeals trigger defensive avoidance rather than the intended behaviour change.
+
+**Ad populum** *(argumentum ad populum)* — Treats popular belief as evidence for a claim. Surface markers: universal quantifiers (`alle`, `jeder`, `niemand`) combined with a belief verb, without citing evidence or argument.
+
+**Appraisal Theory** — Linguistic framework (Martin & White, 2005) for analysing how speakers evaluate entities, events, and propositions. Three subsystems: *attitude* (affect, judgement, appreciation), *engagement* (dialogic contraction = shutting down other voices vs. expansion = opening space for them), *graduation* (force/intensity and focus/sharpness of evaluation).
+
+**Argument Mining** — NLP subfield concerned with automatically detecting argumentative content, classifying claims and premises, identifying reasoning patterns, and flagging fallacies in natural language text. Tasks in this tool: claim classification (15 dimensions) and fallacy detection.
+
+**Bifurcation** *(false dichotomy)* — Restricts option space to two alternatives when more exist, forcing a binary choice. German markers: *entweder … oder* without acknowledging a middle ground; *es gibt nur zwei Möglichkeiten*.
+
+**DARVO** — *Deny, Attack, Reverse Victim and Offender* (Freyd, 1997). A response pattern in which the accused denies wrongdoing, attacks the accuser, then repositions themselves as the victim. Operationalised in the `gaslighting` dimension via reality-negation markers targeting the interlocutor's perception (*das hast du dir eingebildet, du übertreibst*).
+
+**Epistemic coercion / epistemic injustice** — Fricker (2007): *testimonial injustice* = deflating a speaker's credibility as a knower based on social identity. *Hermeneutical injustice* = gaps in shared interpretive resources that disadvantage certain speakers. This tool operationalises both via the `ad_ignorantiam` dimension (knowledge-gate framing + 2nd-person exclusion).
+
+**Ethos / Logos / Pathos** — Aristotle's three modes of persuasion. *Ethos*: credibility of the speaker. *Logos*: rational argument, evidence, and valid inference. *Pathos*: emotional appeal. Each has a legitimate variant (genuine expertise, valid reasoning, empathic support) and a manipulative one (false authority = *ad verecundiam*, sophistry, fear appeal = *ad metum*).
+
+**NRC Emotion Lexicon** — Word-emotion association lexicon (Mohammad & Turney, 2013) covering Plutchik's 8 basic emotions and binary sentiment for ~14,000 English words. The German translation used here covers ~10,000 lemmas.
+
+**Performative contradiction** — Habermas (1984): an utterance contradicts itself when its propositional content (e.g. "I am open to dialogue") is falsified by its illocutionary performance (simultaneous deployment of ad hominem). Named *performative* because the contradiction is between what the act does and what it asserts it does.
+
+**Plutchik's Wheel of Emotions** — Model of 8 basic bipolar emotions (Plutchik, 1980): joy–sadness, trust–disgust, fear–anger, anticipation–surprise. Complex emotions arise from pairwise combinations (joy + trust = love; fear + surprise = awe). Structural basis for the NRC Emotion Lexicon dimensions.
+
+**Pragma-dialectics** — Normative theory of argumentation (Van Eemeren & Grootendorst, 1984/2004). Defines the *critical discussion* as the ideal form for resolving differences of opinion. Ten discussion rules — violations constitute the fallacy categories used in §3.2. *Strategic manoeuvring* = pursuing rhetorical goals while maintaining the appearance of reasonable discourse.
+
+**SentiWS** *(Sentiment Wortschatz Deutsch)* — German-language sentiment lexicon (Remus et al., 2010; Leipzig/ASLD). ~3,500 lemmas with POS tags, polarity (positive/negative), and intensity weights (0.0002–1.0). Covers nouns, verbs, adjectives, adverbs.
+
+**Speech Act Theory** — Theory of language use (Austin, 1962; Searle, 1969) in which utterances perform *illocutionary acts*. Five categories: *assertives* (claims), *directives* (commands, demands), *commissives* (promises, threats), *expressives* (apologies, accusations), *declaratives* (pronouncements that change reality by being uttered). Used in this tool to contextualise dimension scoring: a commissive threat raises `pathos_manipulative` more than an assertive warning with equivalent surface markers.
+
+**Strategic manoeuvring** — Van Eemeren & Houtlosser (2002): attempts to gain rhetorical advantage while maintaining the appearance of reasonable discourse. Three aspects: *topical selection* (choose favourable argument terrain), *audience demand adaptation* (exploit shared starting points), *presentational devices* (exploit framing and emphasis).
+
+**Straw man** — Misrepresenting an opponent's position in order to attack the distorted version. Pragma-dialectics: violation of the *standpoint rule* (one may not attribute to the other party a standpoint they have not advanced).
+
+**Toulmin model** — Argument scheme (Toulmin, 1958): *claim* (conclusion) + *grounds* (supporting data) + *warrant* (inference rule linking grounds to claim) + *backing* (support for warrant) + *qualifier* (strength of claim) + *rebuttal* (acknowledged exceptions). The `logos` dimension uses claim + grounds + causal connector as a minimal Toulmin footprint.
+
+**Tu quoque** — "You too" / whataboutism. Deflecting a criticism by pointing to the critic's alleged similar behaviour, without addressing the argument. Pragma-dialectics: violation of the *relevance rule* (one may not advance arguments not relevant to the standpoint under discussion).
+
+**Universal Dependencies (UD)** — Cross-linguistically consistent syntactic annotation scheme (de Marneffe et al., 2021) used across 100+ languages. Defines ~40 dependency relation labels: `nsubj` (nominal subject), `obj` (direct object), `aux` (auxiliary verb), `aux:pass` (passive auxiliary), `compound:prt` (separable verb particle), `ROOT` (main predicate), `xcomp` (open clausal complement), `neg` (negation modifier). spaCy's `de_core_news_md` outputs UD labels, enabling the SVO resolver to traverse deterministic tree paths regardless of German free word order.
