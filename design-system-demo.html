@@ -454,7 +454,124 @@
     </div>
   </div>
 
+
+  <!-- Input invalid state -->
+  <div class="demo-label" style="margin-top:var(--space-8)">Input — invalid state</div>
+  <div style="display:flex;flex-direction:column;gap:var(--space-1);max-width:240px">
+    <input class="input input--invalid" type="text" value="[bad(regex">
+    <span style="font-size:var(--text-xs);color:var(--color-error)">Invalid regular expression</span>
+  </div>
+
+  <!-- Live dot -->
+  <div class="demo-label" style="margin-top:var(--space-6)">Live dot</div>
+  <div class="demo-row">
+    <span style="display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm)">
+      <span class="live-dot"></span> Live (normal)
+    </span>
+    <span style="display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm)">
+      <span class="live-dot live-dot--amber"></span> Filtered
+    </span>
+    <span style="display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm)">
+      <span class="live-dot live-dot--error"></span> Error
+    </span>
+  </div>
+
+  <!-- Chip group -->
+  <div class="demo-label" style="margin-top:var(--space-6)">Chip group (.chip-filter + .chip-group)</div>
+  <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+    <div class="chip-group">
+      <button class="chip chip-filter active">entries</button>
+      <button class="chip chip-filter active">votes</button>
+      <button class="chip chip-filter">health</button>
+    </div>
+    <div class="chip-group">
+      <button class="chip chip-filter active">GET</button>
+      <button class="chip chip-filter">POST</button>
+    </div>
+  </div>
+
+  <!-- Filter bar — collapsed, no active filters -->
+  <div class="demo-label" style="margin-top:var(--space-6)">Filter bar — collapsed (no active filters)</div>
+  <div class="filter-bar" id="fb-empty" style="margin:0 calc(-1 * var(--space-4))">
+    <div class="filter-bar-summary">
+      <button class="btn btn-ghost" style="min-height:36px;font-size:var(--text-sm);padding:var(--space-1) var(--space-3)" onclick="toggleFilter('fb-empty')">Filter</button>
+      <div class="filter-pills"></div>
+    </div>
+    <div class="filter-bar-body"><div class="filter-bar-body-inner"></div></div>
+  </div>
+
+  <!-- Filter bar — collapsed, active filters -->
+  <div class="demo-label" style="margin-top:var(--space-4)">Filter bar — collapsed (active filters)</div>
+  <div class="filter-bar" id="fb-pills" style="margin:0 calc(-1 * var(--space-4))">
+    <div class="filter-bar-summary">
+      <button class="btn btn-ghost" style="min-height:36px;font-size:var(--text-sm);padding:var(--space-1) var(--space-3)" onclick="toggleFilter('fb-pills')">Filter</button>
+      <div class="filter-pills">
+        <span class="filter-pill">type: entries <button class="filter-pill-dismiss" aria-label="Remove type filter">×</button></span>
+        <span class="filter-pill">tid: demo <button class="filter-pill-dismiss" aria-label="Remove tenant filter">×</button></span>
+      </div>
+      <button class="btn btn-ghost" style="min-height:36px;font-size:var(--text-sm);padding:var(--space-1) var(--space-3);color:var(--color-neutral-600)">× Clear</button>
+    </div>
+    <div class="filter-bar-body"><div class="filter-bar-body-inner"></div></div>
+  </div>
+
+  <!-- Filter bar — expanded -->
+  <div class="demo-label" style="margin-top:var(--space-4)">Filter bar — expanded</div>
+  <div class="filter-bar open" id="fb-open" style="margin:0 calc(-1 * var(--space-4))">
+    <div class="filter-bar-summary">
+      <button class="btn btn-ghost" style="min-height:36px;font-size:var(--text-sm);padding:var(--space-1) var(--space-3)" onclick="toggleFilter('fb-open')">Filter ▲</button>
+      <div class="filter-pills">
+        <span class="filter-pill">type: entries <button class="filter-pill-dismiss" aria-label="Remove">×</button></span>
+      </div>
+      <button class="btn btn-ghost" style="min-height:36px;font-size:var(--text-sm);padding:var(--space-1) var(--space-3);color:var(--color-neutral-600)">× Clear</button>
+    </div>
+    <div class="filter-bar-body">
+      <div class="filter-bar-body-inner">
+        <div class="filter-group">
+          <span class="filter-label">Type</span>
+          <div class="chip-group">
+            <button class="chip chip-filter active">entries</button>
+            <button class="chip chip-filter">votes</button>
+            <button class="chip chip-filter">health</button>
+          </div>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Method</span>
+          <div class="chip-group">
+            <button class="chip chip-filter">GET</button>
+            <button class="chip chip-filter">POST</button>
+          </div>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="demo-tid">Tenant</label>
+          <input class="input filter-input" id="demo-tid" placeholder="regex…">
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="demo-uri">URI</label>
+          <input class="input filter-input input--invalid" id="demo-uri" placeholder="regex…" value="[bad(">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub-filter bar -->
+  <div class="demo-label" style="margin-top:var(--space-8)">Sub-filter bar (.subfilter-bar — view-level, client-side)</div>
+  <div class="subfilter-bar">
+    <span class="filter-label">Level</span>
+    <div class="chip-group">
+      <button class="chip chip-filter active">All</button>
+      <button class="chip chip-filter">ERROR</button>
+      <button class="chip chip-filter">WARNING</button>
+      <button class="chip chip-filter">RETURN</button>
+    </div>
+  </div>
+
 </div>
+
+<script>
+  function toggleFilter(id) {
+    document.getElementById(id).classList.toggle('open');
+  }
+</script>
 
 <!-- FAB -->
 <button class="fab" aria-label="Add entry">

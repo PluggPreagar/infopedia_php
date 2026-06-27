@@ -583,6 +583,158 @@ a { text-decoration: none; color: inherit; }
   border-color: var(--color-interactive-400);
 }
 
+/* ── Input — invalid state ───────────────────────────────────────────────── */
+.input--invalid,
+.textarea--invalid {
+  border-color: var(--color-error);
+}
+
+.input--invalid:focus-visible,
+.textarea--invalid:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
+  border-color: var(--color-error);
+}
+
+/* ── Chip — filter variant (indigo active; no entry-type color semantics) ── */
+/* Use .chip.chip-filter on filter and sub-filter toggles.                   */
+.chip-filter.active { background: var(--color-interactive-600); }
+
+/* ── Chip group (inline, not sticky) ─────────────────────────────────────── */
+/* Wraps .chip elements inline; use inside .filter-group or .subfilter-bar.  */
+.chip-group {
+  display: inline-flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+/* Compact chip height for dense filter rows */
+.chip-group .chip {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+/* ── Live dot ────────────────────────────────────────────────────────────── */
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-semantic-500);   /* green — normal live state */
+  flex-shrink: 0;
+}
+
+.live-dot--amber { background: #F59E0B; }   /* CG-DS1 exception — filtered/pending state */
+.live-dot--error { background: var(--color-error); }
+
+/* ── Filter bar ──────────────────────────────────────────────────────────── */
+/* Collapsible filter panel below .nav or .chip-bar for data views.          */
+/* Toggle .open to expand. Inner structure: summary + body-inner.            */
+.filter-bar {
+  background: var(--color-surface-card);
+  border-bottom: 1px solid var(--color-neutral-200);
+  padding: 0 var(--space-4);
+}
+
+/* Always-visible row: toggle button, active pills, optional clear action */
+.filter-bar-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+
+/* Grid-row collapse: 0fr → 1fr smooth animation */
+.filter-bar-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-normal) var(--ease-out);
+}
+
+.filter-bar.open .filter-bar-body { grid-template-rows: 1fr; }
+
+/* overflow:hidden required for collapse; open adds bottom padding */
+.filter-bar-body-inner {
+  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.filter-bar.open .filter-bar-body-inner { padding-bottom: var(--space-3); }
+
+/* ── Filter group (one filter dimension: label + controls) ───────────────── */
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-neutral-600);
+  white-space: nowrap;
+}
+
+/* Inline input inside filter-bar; narrower than full-width .input */
+.filter-input {
+  width: auto;
+  min-width: 100px;
+  max-width: 180px;
+  padding: var(--space-1) var(--space-3);
+  min-height: 36px;
+  font-size: var(--text-sm);
+}
+
+/* ── Filter pills (active-filter summary in collapsed bar) ───────────────── */
+.filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  background: var(--color-interactive-50);
+  border: 1px solid var(--color-interactive-400);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--color-interactive-700);
+  white-space: nowrap;
+}
+
+.filter-pill-dismiss {
+  background: none;
+  border: none;
+  color: var(--color-interactive-600);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--text-sm);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-pill-dismiss:hover { color: var(--color-interactive-700); }
+
+/* ── Sub-filter bar (view-level, client-side, no sticky) ─────────────────── */
+/* Sits below a section heading to narrow visible rows without a round-trip. */
+.subfilter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+}
+
 /* ── QR Frame ────────────────────────────────────────────────────────────── */
 .qr-frame {
   display: inline-flex;

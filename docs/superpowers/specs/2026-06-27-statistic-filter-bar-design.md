@@ -31,17 +31,17 @@ Filter keys align to the JSON field names in the data channel row response (`typ
 | Key | Row field | Type | Example |
 |-----|-----------|------|---------|
 | `f[type]` | `row.type` | comma-separated values | `f[type]=entries,votes` |
-| `f[tenant]` | `row.tenant` | regex-capable string | `f[tenant]=demo` or `f[tenant]=demo.*` |
+| `f[tid]` | `row.tenant` | regex-capable string | `f[tid]=demo` or `f[tid]=demo.*` |
 | `f[uri]` | `row.uri` | regex-capable string | `f[uri]=^/science` or `f[uri]=add$` |
 | `f[method]` | `row.method` | comma-separated values | `f[method]=GET` or `f[method]=GET,POST` |
 
 **`f[type]` and `f[method]` use comma-separation** (finite known sets). All other values are treated as regex patterns — a plain string like `demo` is a valid regex that matches literally.
 
-> **Note on `tenant` vs `tid`:** `tid` is the existing codebase query param for tenant routing (ops entity, session identification). `tenant` is the JSON field name in log rows and in the data channel response. Filter keys use the row field names consistently — `f[tenant]` filters on `row.tenant`. The `?tid=` routing param is unrelated.
+> **`tid`** is the established codebase convention for tenant identification across all routes (`?tid=` param, session tracking). `f[tid]` follows that convention — it filters `row.tenant` in parsed log rows.
 
 ### Regex sanity check
 
-`f[tenant]` and `f[uri]` values are validated as regex before use.
+`f[tid]` and `f[uri]` values are validated as regex before use.
 
 **Server:** `@preg_match('/' . addcslashes($v, '/') . '/', '')` — if the return value is `false`, the pattern is malformed. Respond `400 INVALID_FILTER` with body `{"error":{"code":"INVALID_FILTER","key":"<key>","message":"Invalid regex in filter"}}` before any log scan begins.
 
@@ -52,8 +52,8 @@ Filter keys align to the JSON field names in the data channel row response (`typ
 With filter active:
 
 ```
-data.php?entity=stats&f[type]=entries,votes&f[tenant]=demo&f[uri]=^%2Fscience
-data.php?entity=stats&f[method]=GET&f[tenant]=demo.*
+data.php?entity=stats&f[type]=entries,votes&f[tid]=demo&f[uri]=^%2Fscience
+data.php?entity=stats&f[method]=GET&f[tid]=demo.*
 ```
 
 No filter active (normal load):
@@ -115,9 +115,9 @@ Validates filter input. Returns:
 Rules:
 - `f['type']`: split on comma, `trim()` each value, discard empty strings. No hardcoded type whitelist — unknown types produce empty results, not an error. Stored as an array in the returned `filter`.
 - `f['method']`: split on comma, `trim()` each value, discard empty strings. Stored as an array.
-- `f['tenant']`, `f['uri']`: validate as regex via `@preg_match('/' . addcslashes($v, '/') . '/', '')`. Invalid → `valid=false, bad_key=<key>`.
+- `f['tid']`, `f['uri']`: validate as regex via `@preg_match('/' . addcslashes($v, '/') . '/', '')`. Invalid → `valid=false, bad_key=<key>`.
 - Values are NOT further escaped — callers pass them directly to `preg_match` wrapped in `/…/i`.
-- Return `filter['type']` and `filter['method']` as `array<string>`, `filter['tenant']` and `filter['uri']` as `string`.
+- Return `filter['type']` and `filter['method']` as `array<string>`, `filter['tid']` and `filter['uri']` as `string`.
 
 #### `apply_filter(array $row, array $filter): bool`
 
@@ -131,8 +131,8 @@ function apply_filter(array $row, array $filter): bool {
     if (!empty($filter['method'])) {
         if (!in_array($row['method'], $filter['method'], true)) return false;
     }
-    if (!empty($filter['tenant'])) {
-        if (!preg_match('/' . $filter['tenant'] . '/i', $row['tenant'])) return false;
+    if (!empty($filter['tid'])) {
+        if (!preg_match('/' . $filter['tid'] . '/i', $row['tenant'])) return false;
     }
     if (!empty($filter['uri'])) {
         if (!preg_match('/' . $filter['uri'] . '/i', $row['uri'])) return false;
@@ -203,7 +203,7 @@ Two objects, kept separate per CA19:
 // Global filter — sent to server on every poll
 var gFilter = {
     type:   [],  // string[] — selected endpoint types (row.type)
-    tenant: '',  // string   — tenant regex (row.tenant)
+    tid:    '',  // string   — tenant regex (row.tenant), uses existing tid convention
     uri:    '',  // string   — URI regex (row.uri)
     method: []   // string[] — selected methods, e.g. ['GET'] (row.method)
 };
@@ -216,13 +216,48 @@ var vFilter = {
 
 ### 5.2 Filter bar HTML
 
-Sits between the `<nav>` and the summary strip. Collapsed by default (single "Filter" button). Expanding reveals:
+Uses design system components from `components.css` (see Section 9). Sits between the `<nav>` and the summary strip. Collapsed by default (`.filter-bar` without `.open`). Active filters shown as `.filter-pill` elements even when collapsed. Expanding (`.filter-bar.open`) reveals all `.filter-group` controls.
 
-```
-Type: [ entries ] [ votes ] [ health ]   Method: [ GET ] [ POST ]   Tenant: [_____]   URI: [_____]   [× Clear]
+```html
+<div class="filter-bar" id="filter-bar">
+  <div class="filter-bar-summary">
+    <button class="btn btn-ghost" id="filter-toggle">Filter</button>
+    <div class="filter-pills" id="filter-pills">
+      <!-- one .filter-pill per active dimension, rendered by JS -->
+    </div>
+    <button class="btn btn-ghost" id="filter-clear" style="display:none">× Clear</button>
+  </div>
+  <div class="filter-bar-body">
+    <div class="filter-bar-body-inner">
+      <div class="filter-group">
+        <span class="filter-label">Type</span>
+        <div class="chip-group" id="fg-type">
+          <button class="chip chip-filter" data-val="entries">entries</button>
+          <button class="chip chip-filter" data-val="votes">votes</button>
+          <button class="chip chip-filter" data-val="health">health</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Method</span>
+        <div class="chip-group" id="fg-method">
+          <button class="chip chip-filter" data-val="GET">GET</button>
+          <button class="chip chip-filter" data-val="POST">POST</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="fg-tid">Tenant</label>
+        <input class="input filter-input" id="fg-tid" placeholder="regex…">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="fg-uri">URI</label>
+        <input class="input filter-input" id="fg-uri" placeholder="regex…">
+      </div>
+    </div>
+  </div>
+</div>
 ```
 
-Type and Method chips are toggleable (active = filled, inactive = outline). Tenant and URI fields are text inputs with live regex validation. Active filters are shown as dismissible chips on the collapsed bar so the filter state is visible without expanding.
+Clicking a `.chip-filter` toggles `.active` on it and updates `gFilter`. Clicking `#filter-toggle` toggles `.open` on `.filter-bar`. Invalid regex adds `.input--invalid` to the input via JS; the `gFilter` key is not updated while invalid.
 
 ### 5.3 Filter change → poll restart
 
@@ -231,7 +266,7 @@ function buildFilterParams() {
     var p = {};
     if (gFilter.type.length)   p['f[type]']   = gFilter.type.join(',');
     if (gFilter.method.length) p['f[method]'] = gFilter.method.join(',');
-    if (gFilter.tenant)        p['f[tenant]'] = gFilter.tenant;
+    if (gFilter.tid)           p['f[tid]']    = gFilter.tid;
     if (gFilter.uri)           p['f[uri]']    = gFilter.uri;
     return p;
 }
@@ -245,7 +280,7 @@ Filtered `pollStats()` loop: always calls `pollStats()` with no cursor on the ne
 
 ### 5.4 Client-side regex validation
 
-Each text input (`tenant`, `uri`) validates on `input` event:
+Each text input (`tid`, `uri`) validates on `input` event:
 
 ```js
 function isValidRegex(s) {
@@ -258,13 +293,21 @@ Invalid → red border on input, tooltip "Invalid regular expression", `gFilter`
 
 ### 5.5 View sub-filter (log viewer)
 
-Below the "Recent Requests" heading, a compact chip row for level:
+Below the "Recent Requests" heading, a `.subfilter-bar` (design system component, Section 9):
 
-```
-Level: [ All ] [ ERROR ] [ WARNING ] [ RETURN ]
+```html
+<div class="subfilter-bar">
+  <span class="filter-label">Level</span>
+  <div class="chip-group">
+    <button class="chip chip-filter active" data-val="">All</button>
+    <button class="chip chip-filter" data-val="ERROR">ERROR</button>
+    <button class="chip chip-filter" data-val="WARNING">WARNING</button>
+    <button class="chip chip-filter" data-val="RETURN">RETURN</button>
+  </div>
+</div>
 ```
 
-Active chip is visually selected. Changing a chip re-renders `state.rows` through `filteredRows()`:
+Clicking a chip sets `vFilter.level` to its `data-val` (empty = all) and re-renders via `filteredRows()`:
 
 ```js
 function filteredRows() {
@@ -281,7 +324,7 @@ function filteredRows() {
 
 ### 5.6 Filtered mode indicator
 
-When any `gFilter` key is active, the summary strip title changes to "Statistics (filtered)" and the live dot uses an amber colour instead of green, indicating the aggregates reflect a subset of the log.
+When any `gFilter` key is active, the summary strip title changes to "Statistics (filtered)" and the `.live-dot` gets class `.live-dot--amber` instead of the default green, indicating the aggregates reflect a subset of the log.
 
 ---
 
@@ -293,12 +336,12 @@ New tests in `test/util_data_test.php`:
 |------|---------|
 | `parse_filter` — valid type | comma-split, trimmed, stored as array |
 | `parse_filter` — valid method | comma-split GET,POST stored as array |
-| `parse_filter` — valid regex | tenant/uri with plain string → valid |
+| `parse_filter` — valid regex | tid/uri with plain string → valid |
 | `parse_filter` — invalid regex | `f[uri]=[unclosed` → valid=false, bad_key='uri' |
 | `apply_filter` — type match | row type not in type list → excluded |
 | `apply_filter` — type pass | row type in type list → included |
 | `apply_filter` — method match | row method not in method list → excluded |
-| `apply_filter` — tenant regex | row tenant matches pattern → included |
+| `apply_filter` — tid regex | row tenant matches tid pattern → included |
 | `apply_filter` — uri regex | row uri matches pattern → included |
 | `apply_filter` — no filter | empty filter → all rows pass |
 | `apply_filter` — multi-criteria | all criteria AND-combined |
@@ -316,6 +359,8 @@ New tests in `test/util_data_test.php`:
 | `data.php` | Modify | Read `$_GET['f']`, validate, pass to `data_stats_respond()`; conditional `log_return()` |
 | `statistic.html` | Modify | Filter bar UI, `gFilter`/`vFilter` state, poll restart on filter change, view sub-filter level chip |
 | `test/util_data_test.php` | Modify | Add `parse_filter` + `apply_filter` + filtered-respond unit tests |
+| `components.css` | Modify | Add filter bar components (see Section 9) |
+| `design-system-demo.html` | Modify | Add filter bar component demo section |
 
 No new files. No E2E test changes (existing E1–E5b remain valid; unfiltered path unchanged).
 
@@ -327,3 +372,41 @@ No new files. No E2E test changes (existing E1–E5b remain valid; unfiltered pa
 - No sub-filters on charts or totals (global filter covers those via server)
 - No ops entity filtering (ops events are already sparse; add in v2 if needed)
 - No saved/named filter presets
+
+---
+
+## 9. Design System Components (`components.css`)
+
+New reusable components added for this feature and future data views/frames/plots.
+
+### `.input--invalid` / `.textarea--invalid`
+Error state for text inputs. Red border, red focus ring. Applied by JS when regex validation fails.
+
+### `.chip-filter`
+Modifier on `.chip` for selection chips without entry-type color semantics (type/method toggles, level sub-filter). Active state: indigo (`--color-interactive-600`) background, white text.
+
+### `.chip-group`
+Inline flex wrapper for `.chip` elements outside of the sticky `.chip-bar` context. Chips inside get compact height (36 px) and smaller font.
+
+### `.live-dot`
+8 px circular status indicator. Default: green (`--color-semantic-500`). Modifiers:
+- `.live-dot--amber` — `#F59E0B` (CG-DS1 exception) — filtered/pending state
+- `.live-dot--error` — `--color-error` — offline/error state
+
+### `.filter-bar` / `.filter-bar-summary` / `.filter-bar-body` / `.filter-bar-body-inner`
+Collapsible filter panel. Add `.open` to expand. Uses CSS grid `0fr → 1fr` row transition for smooth collapse. Structure:
+```
+.filter-bar[.open]
+  .filter-bar-summary      ← always visible: toggle + pills + clear
+  .filter-bar-body
+    .filter-bar-body-inner ← wraps .filter-group elements; hidden when collapsed
+```
+
+### `.filter-group` / `.filter-label` / `.filter-input`
+One filter dimension: a `.filter-label` beside a `.chip-group` or `.filter-input`. `.filter-input` is a narrow variant of `.input` (width:auto, compact padding) for inline use.
+
+### `.filter-pills` / `.filter-pill` / `.filter-pill-dismiss`
+Active-filter summary row shown in the collapsed bar. Each active dimension renders one `.filter-pill` (indigo tinted, dismissible via `.filter-pill-dismiss` ×).
+
+### `.subfilter-bar`
+View-level sub-filter row (below a section heading). No sticky, no border. Contains a `.filter-label` and a `.chip-group`. Used for client-side narrowing of already-loaded detail data (CA19 tier 2).
