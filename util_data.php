@@ -217,21 +217,28 @@ function save_stats_cache(string $cacheFile, string $logFile,
 // ─── Stats respond ────────────────────────────────────────────────────────────
 
 function data_stats_respond(string $logFile, string $cacheFile,
-                            ?int $client_offset, int $log_viewer_max): array {
+                            ?int $client_offset, int $log_viewer_max,
+                            array $filter = []): array {
     clearstatcache(true, $logFile);
     $file_size = file_exists($logFile) ? filesize($logFile) : 0;
+    $filtered  = !empty($filter);
 
-    // Stale offset check
-    if ($client_offset !== null && $client_offset > $file_size) {
+    // Stale offset check (unfiltered only — filtered mode never provides a cursor)
+    if (!$filtered && $client_offset !== null && $client_offset > $file_size) {
         return ['stale' => true];
     }
 
     // Load or init aggregate
-    $cached      = load_stats_cache($cacheFile, $logFile);
-    $agg         = $cached ? $cached['agg'] : empty_stats_agg();
-    $from_offset = $cached ? $cached['offset'] : 0;
+    if ($filtered) {
+        $agg         = empty_stats_agg();
+        $from_offset = 0;
+    } else {
+        $cached      = load_stats_cache($cacheFile, $logFile);
+        $agg         = $cached ? $cached['agg'] : empty_stats_agg();
+        $from_offset = $cached ? $cached['offset'] : 0;
+    }
 
-    // Read new lines since from_offset
+    // Read new lines; in filtered mode apply filter per-line
     $new_lines = [];
     if ($from_offset < $file_size) {
         $fp = fopen($logFile, 'r');
@@ -239,13 +246,15 @@ function data_stats_respond(string $logFile, string $cacheFile,
             fseek($fp, $from_offset);
             while (($raw = fgets($fp)) !== false) {
                 $r = parse_log_line(trim($raw));
-                if ($r !== null) $new_lines[] = $r;
+                if ($r !== null) {
+                    if (!$filtered || apply_filter($r, $filter)) $new_lines[] = $r;
+                }
             }
             fclose($fp);
         }
     }
 
-    // Init timeline params on first ever build (no tl_min_ts yet)
+    // Init timeline params on first ever build
     if ($agg['tl_min_ts'] === null && !empty($new_lines)) {
         $ts_vals = array_filter(array_map(
             fn($r) => $r['level'] === 'RETURN' ? strtotime($r['timestamp']) : null,
@@ -263,10 +272,10 @@ function data_stats_respond(string $logFile, string $cacheFile,
         }
     }
 
-    // Merge new lines
+    // Merge; skip cache write in filtered mode
     if (!empty($new_lines)) {
         $agg = merge_stats_chunk($agg, $new_lines);
-        save_stats_cache($cacheFile, $logFile, $file_size, $agg);
+        if (!$filtered) save_stats_cache($cacheFile, $logFile, $file_size, $agg);
     }
 
     // Compute increments (what changed this cycle)

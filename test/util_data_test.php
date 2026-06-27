@@ -372,4 +372,24 @@ assert_eq(true, apply_filter($af_row, $filt), 'T41: multi-criteria all match');
 $filt = parse_filter(['type' => 'entries', 'method' => 'POST'])['filter'];
 assert_eq(false, apply_filter($af_row, $filt), 'T42: multi-criteria one fails');
 
+// ─── data_stats_respond with filter ───────────────────────────────────────────
+
+// T43: filtered mode — only matching rows returned; cache not written
+$filt_log = tempnam(sys_get_temp_dir(), 'fstat_');
+file_put_contents($filt_log, implode("\n", [
+    '[2026-06-27 10:00:00] ;  entries ;  /entries?tid=demo ;  GET ;  abc@demo ;  entries.php ;  RETURN: ok in 0.050 seconds',
+    '[2026-06-27 10:01:00] ;  votes   ;  /votes?tid=demo   ;  GET ;  abc@demo ;  votes.php   ;  RETURN: ok in 0.020 seconds',
+    '[2026-06-27 10:02:00] ;  entries ;  /entries?tid=test ;  POST ;  xyz@test ;  entries.php ;  RETURN: ok in 0.080 seconds',
+]) . "\n");
+
+$fv   = parse_filter(['type' => 'entries']);
+$resp = data_stats_respond($filt_log, '/dev/null', null, 50, $fv['filter']);
+
+assert_eq(false,     $resp['stale'] ?? false,                  'T43: not stale');
+assert_eq(2,         $resp['increments']['requests'] ?? 0,     'T43: 2 entries requests');
+assert_eq(2,         count($resp['increments']['rows'] ?? []), 'T43: 2 rows returned');
+assert_eq('entries', $resp['increments']['rows'][0]['type'] ?? null, 'T43: row type=entries');
+
+unlink($filt_log);
+
 test_summary();
