@@ -27,6 +27,15 @@ if (!in_array($entity, $allowed, true)) {
     respond_error('INVALID_ENTITY', 'entity must be one of: ' . implode(', ', $allowed), 400);
 }
 
+// Read and validate filter (f[key]=value — any combination)
+$filter_raw = is_array($_GET['f'] ?? null) ? $_GET['f'] : [];
+$fv = parse_filter($filter_raw);
+if (!$fv['valid']) {
+    respond_error('INVALID_FILTER',
+        'Invalid regex in filter[' . $fv['bad_key'] . ']', 400);
+}
+$filter = $fv['filter'];
+
 $poll_timeout   = (int)($config['poll_timeout']      ?? 25);
 $log_viewer_max = (int)($config['log_viewer_max']    ?? 50);
 $ops_rot_secs   = (int)($config['ops_rotation_hours'] ?? 3) * 3600;
@@ -46,11 +55,13 @@ if ($entity === 'stats') {
     long_poll_files([$logFile], $now, $poll_timeout);
 
     $resp = data_stats_respond($logFile, 'data/stats_aggregate.cache',
-                               $client_offset, $log_viewer_max);
+                               $client_offset, $log_viewer_max, $filter);
     if (!empty($resp['stale'])) {
         respond_error('STALE_OFFSET', 'Log rotated; drop offset and restart.', 400);
     }
-    log_return('data/stats: offset=' . ($client_offset ?? 'first') . ' → ' . $resp['offset']);
+    if (!empty($config['log_requests'])) {
+        log_return('data/stats: offset=' . ($client_offset ?? 'first') . ' → ' . $resp['offset']);
+    }
     respond_json($resp);
 }
 
@@ -71,6 +82,8 @@ if ($entity === 'ops') {
     if (empty($resp['increments']['rows'])) {
         http_response_code(204); exit;
     }
-    log_return('data/ops: ' . count($resp['increments']['rows']) . ' message(s)');
+    if (!empty($config['log_requests'])) {
+        log_return('data/ops: ' . count($resp['increments']['rows']) . ' message(s)');
+    }
     respond_json($resp);
 }
