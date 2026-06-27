@@ -123,6 +123,51 @@ function _empty_type_bucket(): array {
     return ['get'=>0,'post'=>0,'errors'=>0,'times_sum'=>0.0,'times_count'=>0,'max_ms'=>0.0];
 }
 
+// ─── Filter helpers ───────────────────────────────────────────────────────────
+
+function parse_filter(array $f): array {
+    $out      = ['type' => [], 'method' => [], 'tid' => '', 'uri' => ''];
+    $csv_keys = ['type', 'method'];
+    $re_keys  = ['tid', 'uri'];
+
+    foreach ($csv_keys as $k) {
+        if (isset($f[$k]) && $f[$k] !== '') {
+            $out[$k] = array_values(array_filter(
+                array_map('trim', explode(',', (string)$f[$k])),
+                fn($v) => $v !== ''
+            ));
+        }
+    }
+
+    foreach ($re_keys as $k) {
+        if (isset($f[$k]) && $f[$k] !== '') {
+            $v = (string)$f[$k];
+            if (@preg_match('/' . addcslashes($v, '/') . '/', '') === false) {
+                return ['valid' => false, 'bad_key' => $k, 'filter' => []];
+            }
+            $out[$k] = $v;
+        }
+    }
+
+    return ['valid' => true, 'bad_key' => null, 'filter' => $out];
+}
+
+function apply_filter(array $row, array $filter): bool {
+    if (!empty($filter['type'])) {
+        if (!in_array($row['type'], $filter['type'], true)) return false;
+    }
+    if (!empty($filter['method'])) {
+        if (!in_array($row['method'], $filter['method'], true)) return false;
+    }
+    if (!empty($filter['tid'])) {
+        if (!preg_match('/' . addcslashes($filter['tid'], '/') . '/i', $row['tenant'])) return false;
+    }
+    if (!empty($filter['uri'])) {
+        if (!preg_match('/' . addcslashes($filter['uri'], '/') . '/i', $row['uri'])) return false;
+    }
+    return true;
+}
+
 // ─── Cache validity ───────────────────────────────────────────────────────────
 
 function stats_cache_valid(array $cache, string $logFile): bool {

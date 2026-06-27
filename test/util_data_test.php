@@ -279,4 +279,97 @@ assert_eq(true, $resp_stale['stale'] ?? false, 'cursor outside window → stale=
 // Cleanup
 foreach ([$ops_fa, $ops_fb, $stale_fa, $stale_fb] as $f) { if (file_exists($f)) unlink($f); }
 
+// ─── parse_filter ─────────────────────────────────────────────────────────────
+
+// T25: valid type — comma-split, trimmed, stored as array
+$pf = parse_filter(['type' => 'entries,votes']);
+assert_eq(true,               $pf['valid'],             'T25: type valid');
+assert_eq(null,               $pf['bad_key'],           'T25: no bad_key');
+assert_eq(['entries','votes'], $pf['filter']['type'],   'T25: type as array');
+
+// T26: valid method — comma-split, trimmed
+$pf = parse_filter(['method' => 'GET, POST']);
+assert_eq(true,           $pf['valid'],              'T26: method valid');
+assert_eq(['GET','POST'], $pf['filter']['method'],   'T26: method as array');
+
+// T27: valid regex — plain string is a valid pattern
+$pf = parse_filter(['tid' => 'demo', 'uri' => '^/science']);
+assert_eq(true,        $pf['valid'],            'T27: regex valid');
+assert_eq('demo',      $pf['filter']['tid'],    'T27: tid stored');
+assert_eq('^/science', $pf['filter']['uri'],    'T27: uri stored');
+
+// T28: invalid regex in f[uri]
+$pf = parse_filter(['uri' => '[bad(']);
+assert_eq(false, $pf['valid'],    'T28: invalid regex fails');
+assert_eq('uri', $pf['bad_key'], 'T28: bad_key=uri');
+
+// T29: invalid regex in f[tid]
+$pf = parse_filter(['tid' => '(unclosed']);
+assert_eq(false, $pf['valid'],    'T29: invalid tid fails');
+assert_eq('tid', $pf['bad_key'], 'T29: bad_key=tid');
+
+// T30: empty values discarded from comma-split
+$pf = parse_filter(['type' => 'entries,,votes,']);
+assert_eq(['entries','votes'], $pf['filter']['type'], 'T30: empty values discarded');
+
+// T31: empty filter — all clear
+$pf = parse_filter([]);
+assert_eq(true, $pf['valid'],                  'T31: empty valid');
+assert_eq([],   $pf['filter']['type']   ?? [], 'T31: type empty');
+assert_eq([],   $pf['filter']['method'] ?? [], 'T31: method empty');
+assert_eq('',   $pf['filter']['tid']    ?? '', 'T31: tid empty');
+assert_eq('',   $pf['filter']['uri']    ?? '', 'T31: uri empty');
+
+// ─── apply_filter ─────────────────────────────────────────────────────────────
+
+$af_row = [
+    'timestamp' => '2026-06-27 10:00:00', 'type' => 'entries',
+    'uri' => '/entries?tid=demo', 'method' => 'GET',
+    'session' => 'abc', 'tenant' => 'demo',
+    'details' => 'RETURN: ok in 0.045 seconds', 'level' => 'RETURN', 'ms' => 45.0
+];
+
+// T32: empty filter — all rows pass
+assert_eq(true, apply_filter($af_row, []), 'T32: empty filter passes all');
+
+// T33: type in list → included
+$filt = parse_filter(['type' => 'entries,votes'])['filter'];
+assert_eq(true, apply_filter($af_row, $filt), 'T33: type match included');
+
+// T34: type not in list → excluded
+$filt = parse_filter(['type' => 'votes'])['filter'];
+assert_eq(false, apply_filter($af_row, $filt), 'T34: type mismatch excluded');
+
+// T35: method match
+$filt = parse_filter(['method' => 'GET'])['filter'];
+assert_eq(true, apply_filter($af_row, $filt), 'T35: method GET included');
+
+// T36: method mismatch
+$filt = parse_filter(['method' => 'POST'])['filter'];
+assert_eq(false, apply_filter($af_row, $filt), 'T36: method POST excluded');
+
+// T37: tid regex match
+$filt = parse_filter(['tid' => 'dem'])['filter'];
+assert_eq(true, apply_filter($af_row, $filt), 'T37: tid regex matches demo');
+
+// T38: tid regex no match
+$filt = parse_filter(['tid' => '^prod'])['filter'];
+assert_eq(false, apply_filter($af_row, $filt), 'T38: tid regex ^prod no match');
+
+// T39: uri regex match
+$filt = parse_filter(['uri' => '^/entries'])['filter'];
+assert_eq(true, apply_filter($af_row, $filt), 'T39: uri regex match');
+
+// T40: uri regex no match
+$filt = parse_filter(['uri' => '^/votes'])['filter'];
+assert_eq(false, apply_filter($af_row, $filt), 'T40: uri regex no match');
+
+// T41: multi-criteria AND — all match
+$filt = parse_filter(['type' => 'entries', 'method' => 'GET', 'tid' => 'demo'])['filter'];
+assert_eq(true, apply_filter($af_row, $filt), 'T41: multi-criteria all match');
+
+// T42: multi-criteria AND — one fails
+$filt = parse_filter(['type' => 'entries', 'method' => 'POST'])['filter'];
+assert_eq(false, apply_filter($af_row, $filt), 'T42: multi-criteria one fails');
+
 test_summary();
