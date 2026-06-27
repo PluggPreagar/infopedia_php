@@ -383,13 +383,17 @@ file_put_contents($filt_log, implode("\n", [
 ]) . "\n");
 
 $fv   = parse_filter(['type' => 'entries']);
-$resp = data_stats_respond($filt_log, '/dev/null', null, 50, $fv['filter']);
+$filt_cache = tempnam(sys_get_temp_dir(), 'fcache_');
+unlink($filt_cache); // ensure it doesn't exist before the call
+$resp = data_stats_respond($filt_log, $filt_cache, null, 50, $fv['filter']);
 
 assert_eq(false,     $resp['stale'] ?? false,                  'T43: not stale');
 assert_eq(2,         $resp['increments']['requests'] ?? 0,     'T43: 2 entries requests');
 assert_eq(2,         count($resp['increments']['rows'] ?? []), 'T43: 2 rows returned');
 assert_eq('entries', $resp['increments']['rows'][0]['type'] ?? null, 'T43: row type=entries');
+assert_eq(false, file_exists($filt_cache), 'T43: cache not written in filtered mode');
 
 unlink($filt_log);
+// $filt_cache should not exist (not written in filtered mode), so no unlink needed
 
 test_summary();

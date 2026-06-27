@@ -169,6 +169,8 @@ table tr:hover { background:var(--color-interactive-50); }
 'use strict';
 
 // ── Filter state ──────────────────────────────────────────────────────────────
+var _pollGen = 0;
+
 var gFilter = {
     type:   [],  // string[] — f[type] — row.type exact match
     tid:    '',  // string   — f[tid] regex — row.tenant
@@ -216,6 +218,7 @@ function updateLiveDot() {
 var _filterDebounce = null;
 
 function onFilterChange() {
+    _pollGen++;
     state.requests = 0; state.errors = 0; state.warnings = 0;
     state.by_hour = Array(24).fill(0);
     state.rt = { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 };
@@ -463,6 +466,7 @@ function appendOpsRow(row) {
 
 // ── Poll loops ────────────────────────────────────────────────────────────────
 function pollStats(cursor) {
+    var myGen = _pollGen;
     var filterParams = buildFilterParams();
     var filtered = Object.keys(filterParams).length > 0;
     // Filtered mode never passes cursor — server always full-scans from offset 0
@@ -471,6 +475,15 @@ function pollStats(cursor) {
         .then(function(res) {
             if (res.status === 200) {
                 return res.json().then(function(body) {
+                    if (myGen !== _pollGen) return;
+                    if (filtered) {
+                        state.requests = 0; state.errors = 0; state.warnings = 0;
+                        state.by_hour = Array(24).fill(0);
+                        state.rt = { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 };
+                        state.by_type = {};
+                        state.timeline = {};
+                        state.rows = [];
+                    }
                     applyFull(body.full || {});
                     applyIncrements(body.increments);
                     if (body.full && body.full.rows_truncated) {
@@ -485,8 +498,10 @@ function pollStats(cursor) {
                     if (filtered) { pollStats(); } else { pollStats({ offset: body.offset }); }
                 });
             } else if (res.status === 204) {
+                if (myGen !== _pollGen) return;
                 pollStats(cursor);
             } else {
+                if (myGen !== _pollGen) return;
                 state.requests = 0; state.errors = 0; state.warnings = 0;
                 state.by_hour = Array(24).fill(0);
                 state.rt = { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 };
@@ -497,6 +512,7 @@ function pollStats(cursor) {
             }
         })
         .catch(function(err) {
+            if (myGen !== _pollGen) return;
             console.error('[statistic] stats poll error:', err);
             setTimeout(function() { pollStats(cursor); }, 5000);
         });
