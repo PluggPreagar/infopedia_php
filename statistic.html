@@ -446,7 +446,7 @@ function pollStats(cursor) {
     var filtered = Object.keys(filterParams).length > 0;
     // Filtered mode never passes cursor — server always full-scans from offset 0
     var params = Object.assign({ entity: 'stats' }, filtered ? {} : (cursor || {}), filterParams);
-    fetch('data?' + new URLSearchParams(params))
+    fetch('data/?' + new URLSearchParams(params))
         .then(function(res) {
             if (res.status === 200) {
                 return res.json().then(function(body) {
@@ -485,7 +485,7 @@ function pollStats(cursor) {
 
 function pollOps(cursor) {
     var params = Object.assign({ entity: 'ops' }, cursor || {});
-    fetch('data?' + new URLSearchParams(params))
+    fetch('data/?' + new URLSearchParams(params))
         .then(function(res) {
             if (res.status === 200) {
                 return res.json().then(function(body) {
