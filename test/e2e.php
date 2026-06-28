@@ -372,8 +372,8 @@ register_shutdown_function(function() use ($orig_cfg3) {
 $patched3 = preg_replace('/^(\[data\].*?)poll_timeout\s*=\s*\d+/ms', '$1poll_timeout = 0', $orig_cfg3);
 file_put_contents('infopedia.cfg', $patched3);
 
-// Ensure infopedia.log exists (E2E may create it via prior requests)
-if (!file_exists('infopedia.log')) file_put_contents('infopedia.log', '');
+// Ensure data/infopedia.log exists (E2E may create it via prior requests)
+if (!file_exists('data/infopedia.log')) file_put_contents('data/infopedia.log', '');
 
 // E1: no entity → 400 INVALID_ENTITY
 $r = get('/data');

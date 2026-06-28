@@ -121,15 +121,15 @@ e2e-demo tid="demo":
 
 # Show last 40 log lines
 log:
-    tail -40 infopedia.log
+    tail -40 data/infopedia.log
 
 # Follow log in real time
 log-tail:
-    tail -f infopedia.log
+    tail -f data/infopedia.log
 
 # Grep log for errors
 log-errors:
-    grep -i " ERROR " infopedia.log | tail -20
+    grep -i " ERROR " data/infopedia.log | tail -20
 
 # ── Clean ────────────────────────────────────────────────────────────────────
 

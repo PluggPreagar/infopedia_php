@@ -75,7 +75,7 @@
         die("Configuration file not found.");
     }
 
-    $logFile = $config['logFile'] ?? 'infopedia.log'; // Path to the log file
+    $logFile = $config['logFile'] ?? 'data/infopedia.log';
 
     // logging functions
 
