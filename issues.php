@@ -67,9 +67,9 @@ function html_head(string $title): void {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= htmlspecialchars($title) ?></title>
-<link rel="icon" type="image/x-icon" href="favicon.ico">
-<link rel="stylesheet" href="design-tokens.css">
-<link rel="stylesheet" href="components.css">
+<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+<link rel="stylesheet" href="assets/design-tokens.css">
+<link rel="stylesheet" href="assets/components.css">
 <style>
 .page { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4); }
 
@@ -121,7 +121,7 @@ pre { background: var(--color-surface-page); padding: var(--space-4); overflow-x
 #edit-bar { margin-bottom: var(--space-2); display: flex; gap: var(--space-2); align-items: center; }
 #edit-err { color: var(--color-error); font-size: var(--text-sm); }
 </style>
-<script src="md-renderer.js"></script>
+<script src="assets/md-renderer.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById('md-body');

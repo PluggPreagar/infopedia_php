@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>InfoPedia Design System Demo</title>
-  <link rel="icon" type="image/x-icon"       href="favicon.ico">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-  <link rel="apple-touch-icon"               href="apple-touch-icon.png">
-  <link rel="stylesheet" href="design-tokens.css">
-  <link rel="stylesheet" href="components.css">
+  <link rel="icon" type="image/x-icon"       href="assets/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+  <link rel="apple-touch-icon"               href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
   <style>
     .demo-section { max-width: 800px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
     .demo-label   { font-size: var(--text-xs); color: var(--color-neutral-400); margin-bottom: var(--space-2); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -142,7 +142,7 @@
 <!-- Nav — btn-icon should be white on indigo bg -->
 <nav class="nav">
   <a href="#" class="nav-back">
-    <img src="favicon-32x32.png" alt="" style="height:1.25em;margin-right:var(--space-2);vertical-align:middle">
+    <img src="assets/favicon-32x32.png" alt="" style="height:1.25em;margin-right:var(--space-2);vertical-align:middle">
     &nbsp;Back
   </a>
   <span class="nav-title">Design System Demo</span>
@@ -578,7 +578,7 @@
   <svg class="icon icon-lg"><use href="#icon-plus"></use></svg>
 </button>
 
-<script src="card-swipe.js"></script>
+<script src="assets/card-swipe.js"></script>
 <script>
   initCardSwipe(document.getElementById('card-list'), { showTray: true });
   document.getElementById('card-list').addEventListener('cardswipe:action', function (e) {
