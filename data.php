@@ -52,7 +52,10 @@ if ($entity === 'stats') {
         }
     }
 
-    long_poll_files([$logFile], $now, $poll_timeout);
+    // Skip long-poll on initial load (no cursor) — return current data immediately.
+    if ($client_offset !== null) {
+        long_poll_files([$logFile], $now, $poll_timeout);
+    }
 
     $resp = data_stats_respond($logFile, 'data/stats_aggregate.cache',
                                $client_offset, $log_viewer_max, $filter);
