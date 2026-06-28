@@ -136,17 +136,13 @@
         log_to_file( "RETURN: " . $message . " in " . number_format($duration, 4) . " seconds" );
     }
 
-    // always log import
-    $log_message="";
-    // Log GET parameters if available
-    if (!empty($_GET)) {
-        $log_message .= json_encode($_GET) ;
+    // log import — skipped for data channel when log_requests is off (default false)
+    if ($type !== 'data' || !empty($config['log_requests'])) {
+        $log_message = '';
+        if (!empty($_GET))  { $log_message .= json_encode($_GET);  }
+        if (!empty($_POST)) { $log_message .= json_encode($_POST); }
+        log_to_file($log_message ?: 'no message');
     }
-    // Log POST data if available
-    if (!empty($_POST)) {
-        $log_message .= json_encode($_POST) ;
-    }
-    log_to_file( $log_message ?? "no message" );
 
 // ─── Notify channel ──────────────────────────────────────────────────────────
 
