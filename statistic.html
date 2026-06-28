@@ -345,39 +345,14 @@ var state = {
 };
 
 // ── Increment dispatch ────────────────────────────────────────────────────────
-function mergeByType(existing, delta) {
-    Object.entries(delta).forEach(function([type, d]) {
-        if (!existing[type]) existing[type] = {get:0,post:0,errors:0,times_sum:0,times_count:0,max_ms:0};
-        var t = existing[type];
-        if (d.get)          t.get          += d.get;
-        if (d.post)         t.post         += d.post;
-        if (d.errors)       t.errors       += d.errors;
-        if (d.times_sum)    t.times_sum    += d.times_sum;
-        if (d.times_count)  t.times_count  += d.times_count;
-        if (d.max_ms)       t.max_ms        = Math.max(t.max_ms, d.max_ms);
-    });
-}
-
-var APPLY = {
-    requests: function(s,v) { s.requests += v; },
-    errors:   function(s,v) { s.errors   += v; },
-    warnings: function(s,v) { s.warnings += v; },
-    by_hour:  function(s,v) { Object.entries(v).forEach(function([h,n]) { s.by_hour[+h] = (s.by_hour[+h]||0)+n; }); },
-    rt:       function(s,v) { Object.entries(v).forEach(function([b,n]) { s.rt[b]       = (s.rt[b]      ||0)+n; }); },
-    by_type:  function(s,v) { mergeByType(s.by_type, v); },
-    timeline: function(s,v) { Object.entries(v).forEach(function([i,n]) { s.timeline[+i]= (s.timeline[+i]||0)+n; }); },
-    rows:     function(s,v) { s.rows = v.concat(s.rows).slice(0, 200); }
-};
-
+// increments carries only `rows` — all aggregate figures come from full
 function applyFull(full) {
     Object.assign(state, full);
 }
 
 function applyIncrements(inc) {
-    if (!inc) return;
-    Object.entries(inc).forEach(function([k,v]) {
-        if (APPLY[k]) APPLY[k](state, v);
-    });
+    if (!inc || !inc.rows) return;
+    state.rows = inc.rows.concat(state.rows).slice(0, 200);
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -477,11 +452,6 @@ function pollStats(cursor) {
                 return res.json().then(function(body) {
                     if (myGen !== _pollGen) return;
                     if (filtered) {
-                        state.requests = 0; state.errors = 0; state.warnings = 0;
-                        state.by_hour = Array(24).fill(0);
-                        state.rt = { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 };
-                        state.by_type = {};
-                        state.timeline = {};
                         state.rows = [];
                     }
                     applyFull(body.full || {});
@@ -502,11 +472,6 @@ function pollStats(cursor) {
                 pollStats(cursor);
             } else {
                 if (myGen !== _pollGen) return;
-                state.requests = 0; state.errors = 0; state.warnings = 0;
-                state.by_hour = Array(24).fill(0);
-                state.rt = { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 };
-                state.by_type = {};
-                state.timeline = {};
                 state.rows = [];
                 setTimeout(function() { pollStats(); }, 1000);
             }

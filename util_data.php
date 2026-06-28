@@ -278,7 +278,7 @@ function data_stats_respond(string $logFile, string $cacheFile,
         if (!$filtered) save_stats_cache($cacheFile, $logFile, $file_size, $agg);
     }
 
-    // Compute increments (what changed this cycle)
+    // Log viewer rows (new lines only; truncate on initial full-scan)
     $return_lines   = array_filter($new_lines, fn($r) => $r['level'] === 'RETURN');
     $rows_truncated = false;
     $rows           = array_values($return_lines);
@@ -287,49 +287,17 @@ function data_stats_respond(string $logFile, string $cacheFile,
         $rows_truncated = true;
     }
 
-    // Delta counts from new_lines only
-    $inc_requests = 0; $inc_errors = 0; $inc_warnings = 0;
-    $inc_by_hour  = []; $inc_rt = []; $inc_by_type = []; $inc_timeline = [];
-    foreach ($new_lines as $r) {
-        if ($r['level'] === 'ERROR') {
-            $inc_errors++;
-            $t = $r['type'];
-            $inc_by_type[$t] ??= ['get'=>0,'post'=>0,'errors'=>0,'times_sum'=>0.0,'times_count'=>0,'max_ms'=>0.0];
-            $inc_by_type[$t]['errors']++;
-        }
-        if ($r['level'] === 'WARNING') { $inc_warnings++; }
-        if ($r['level'] === 'RETURN') {
-            $inc_requests++;
-            $t = $r['type'];
-            $inc_by_type[$t] ??= ['get'=>0,'post'=>0,'errors'=>0,'times_sum'=>0.0,'times_count'=>0,'max_ms'=>0.0];
-            $r['method'] === 'GET' ? $inc_by_type[$t]['get']++ : $inc_by_type[$t]['post']++;
-            if ($r['ms'] !== null) {
-                $ms = $r['ms'];
-                $inc_by_type[$t]['times_sum']  += $ms;
-                $inc_by_type[$t]['times_count']++;
-                $inc_by_type[$t]['max_ms'] = max($inc_by_type[$t]['max_ms'], $ms);
-            }
-            if (preg_match('/ (\d{2}):\d{2}:\d{2}/', $r['timestamp'], $m))
-                $inc_by_hour[(int)$m[1]] = ($inc_by_hour[(int)$m[1]] ?? 0) + 1;
-            if ($r['ms'] !== null) {
-                $ms = $r['ms'];
-                $bk = $ms < 1 ? '<1ms' : ($ms < 10 ? '1-10ms' : ($ms < 100 ? '10-100ms' : ($ms < 1000 ? '100ms-1s' : '>1s')));
-                $inc_rt[$bk] = ($inc_rt[$bk] ?? 0) + 1;
-            }
-            if ($agg['tl_min_ts'] !== null && $agg['tl_bucket'] > 0) {
-                $ts = strtotime($r['timestamp']);
-                if ($ts !== false) {
-                    $idx = (int)floor(($ts - $agg['tl_min_ts']) / $agg['tl_bucket']);
-                    if ($idx >= 0) $inc_timeline[$idx] = ($inc_timeline[$idx] ?? 0) + 1;
-                }
-            }
-        }
-    }
-
     return [
         'entity' => 'stats',
         'offset' => $file_size,
         'full'   => [
+            'requests'       => $agg['requests'],
+            'errors'         => $agg['errors'],
+            'warnings'       => $agg['warnings'],
+            'by_hour'        => $agg['by_hour'],
+            'rt'             => $agg['rt_buckets'],
+            'by_type'        => $agg['by_type'],
+            'timeline'       => $agg['timeline'],
             'sessions_uniq'  => count(array_unique($agg['sessions'])),
             'tenants_uniq'   => count(array_filter(array_unique($agg['tenants']))),
             'avg_ms'         => $agg['times_count'] > 0
@@ -344,14 +312,7 @@ function data_stats_respond(string $logFile, string $cacheFile,
             'rows_truncated' => $rows_truncated,
         ],
         'increments' => [
-            'requests' => $inc_requests,
-            'errors'   => $inc_errors,
-            'warnings' => $inc_warnings,
-            'by_hour'  => $inc_by_hour,
-            'rt'       => $inc_rt,
-            'by_type'  => $inc_by_type,
-            'timeline' => $inc_timeline,
-            'rows'     => $rows,
+            'rows' => $rows,
         ],
     ];
 }
