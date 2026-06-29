@@ -148,6 +148,8 @@ function html_foot(): void { ?>
 
 // ── Views ───────────────────────────────────────────────────────────────────
 
+    // ['new', 'ready', 'blocked', 'inProgress', 'inReview', 'canceled', 'closed'];
+
 function render_overview(string $base): void {
     $cols = ['new' => [], 'ready' => []];
     foreach (array_keys($cols) as $state) {
@@ -164,7 +166,8 @@ function render_overview(string $base): void {
         }
     }
     html_head('Issues'); ?>
-<?php foreach (['new' => 'Neu', 'ready' => 'Bereit'] as $state => $label): ?>
+<?php foreach (['new' => 'Neu', 'ready' => 'Bereit', 'inProgress' => 'In Bearbeitung', 'inReview' => 'In Review', 'blocked' => 'Blockiert', 'canceled' => 'Abgebrochen', 'closed' => 'Geschlossen'
+    ] as $state => $label): ?>
 <h2><?= $label ?></h2>
 <?php if (empty($cols[$state])): ?>
   <p style="color:var(--color-neutral-400);font-size:var(--text-sm)">Keine Issues.</p>
