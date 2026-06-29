@@ -151,7 +151,7 @@ function html_foot(): void { ?>
     // ['new', 'ready', 'blocked', 'inProgress', 'inReview', 'canceled', 'closed'];
 
 function render_overview(string $base): void {
-    $cols = ['new' => [], 'ready' => []];
+    $cols = ['new' => [], 'ready' => [], 'inProgress' => [], 'inReview' => [], 'blocked' => [], 'canceled' => [], 'closed' => []];
     foreach (array_keys($cols) as $state) {
         $dir   = "$base/$state";
         $files = is_dir($dir) ? (glob("$dir/*.md") ?: []) : [];
