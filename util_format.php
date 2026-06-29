@@ -70,7 +70,7 @@ function _parse_csv_rows(string $csv): array {
             continue;
         }
 
-        $parts = str_getcsv($line);
+        $parts = str_getcsv($line, ','); // returns array of fields, stripping quotes
         if (count($parts) < 2) {
             continue;
         }

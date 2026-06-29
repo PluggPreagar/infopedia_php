@@ -131,7 +131,7 @@ function sortCsvData(string $csv): string {
         }
 
         // Use str_getcsv to decode for path/delete detection only.
-        $parts = str_getcsv($line);
+        $parts = str_getcsv($line, ',');
         if (count($parts) < 2) {
             continue;
         }
@@ -250,7 +250,7 @@ function aggregateVotes(string $csv, string $session_id): string {
             continue;
         }
 
-        $parts = str_getcsv($line);
+        $parts = str_getcsv($line, ',');
         if (count($parts) < 2) {
             continue;
         }
