@@ -27,13 +27,13 @@ else {
     header('Content-Type: text/html; charset=utf-8');
     echo <<<HTML
     <pre>
-Usage:
-  ?test=&lt;file.html&gt;    serve with test harness + test cases injected
-  ?trace=&lt;file.html&gt;   serve with function-call tracer injected (console)
+        Usage:
+          ?test=&lt;file.html&gt;    serve with test harness + test cases injected
+          ?trace=&lt;file.html&gt;   serve with function-call tracer injected (console)
 
-Example:
-  wrapper.php?test=app2.html
-  wrapper.php?trace=app2.html
+        Example:
+          wrapper.php?test=app2.html
+          wrapper.php?trace=app2.html
     </pre>
     HTML;
     exit;
