@@ -6,6 +6,7 @@ RewriteRule ^/?votes/?$             votes.php [QSA,L]
 RewriteRule ^/?dumps/?$             dumps.php [QSA,L]
 RewriteRule ^/?files/(.+)$          files.php?file=$1 [QSA,L]
 RewriteRule ^/?health/?$            health.php [QSA,L]
+RewriteRule ^/?notify/?$            notify.php [QSA,L]
 RewriteRule ^/?stats/?$             statistic.php [QSA,L]
 
 RewriteRule ^(favicon.*|apple-touch-icon\.png|android-chrome-.*|site\.webmanifest|robots\.txt|styles.*\.css)$ $1 [NC,L]

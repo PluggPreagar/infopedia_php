@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Infopedia Statistics</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="stylesheet" href="design-tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+body { font-family:var(--font-family); font-size:var(--text-sm);
+       background:var(--color-surface-page); color:var(--color-neutral-900); }
+.page { max-width:1100px; margin:0 auto; padding:var(--space-6) var(--space-4); }
+
+.stat-strip { display:flex; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-4); }
+.stat-box { background:var(--color-surface-card); border:1px solid var(--color-interactive-100);
+            border-radius:var(--radius-md); padding:var(--space-3) var(--space-4);
+            flex:1; min-width:100px; text-align:center; }
+.stat-box .val { font-size:1.9em; font-weight:var(--font-weight-bold);
+                 color:var(--color-interactive-700); line-height:1.1; }
+.stat-box .lbl { font-size:var(--text-xs); color:var(--color-neutral-600); margin-top:var(--space-1); }
+.stat-box.err .val { color:var(--color-error); }
+
+.section { background:var(--color-surface-card); border:1px solid var(--color-interactive-100);
+           border-radius:var(--radius-md); padding:var(--space-4); margin-bottom:var(--space-4); }
+.section h2 { margin:0 0 var(--space-3); font-size:var(--text-sm); text-transform:uppercase;
+              letter-spacing:.04em; border-bottom:1px solid var(--color-interactive-100);
+              padding-bottom:var(--space-2); color:var(--color-interactive-700); }
+.section.err-section { border-color:var(--color-error); background:#fff8f8; }
+.section.err-section h2 { color:var(--color-error); border-color:#fca5a5; }
+
+table { width:100%; border-collapse:collapse; font-size:var(--text-xs); }
+table th, table td { border:1px solid var(--color-neutral-200);
+                     padding:var(--space-1) var(--space-2); text-align:left; }
+table th { background:var(--color-interactive-50); color:var(--color-interactive-700);
+           text-transform:uppercase; font-weight:var(--font-weight-bold); }
+table tr:nth-child(even) { background:var(--color-surface-page); }
+table tr:hover { background:var(--color-interactive-50); }
+
+.bc-row { display:flex; align-items:center; gap:6px; margin:3px 0; font-size:var(--text-xs); }
+.bc-lbl { flex-shrink:0; min-width:72px; text-align:right; color:var(--color-neutral-600); }
+.bc-track { flex:1; height:9px; background:var(--color-interactive-50); border-radius:2px; }
+.bc-bar { height:9px; background:var(--color-interactive-600); border-radius:2px; transition:width .2s; }
+.bc-val { flex-shrink:0; min-width:24px; color:var(--color-neutral-400); }
+
+.vchart { display:flex; align-items:flex-end; gap:1px; height:60px; }
+.vc-col { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; }
+.vc-bar { width:100%; background:var(--color-interactive-600); border-radius:2px 2px 0 0; transition:height .2s; }
+
+.mono { font-family:monospace; font-size:var(--text-xs); }
+.dim  { color:var(--color-neutral-400); }
+.err-txt  { color:var(--color-error); }
+.warn-txt { color:#92400e; }
+.clip { max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        display:inline-block; vertical-align:bottom; }
+.ops-row { padding:var(--space-1) var(--space-2); border-bottom:1px solid var(--color-neutral-100);
+           font-size:var(--text-xs); }
+.ops-row .sev-critical { color:var(--color-error); font-weight:var(--font-weight-bold); }
+.ops-row .sev-warn { color:#92400e; }
+.ops-row .sev-info { color:var(--color-neutral-600); }
+.status-dot { display:inline-block; width:8px; height:8px; border-radius:50%;
+              margin-right:var(--space-2); background:var(--color-neutral-300); }
+.status-dot.live { background:#22c55e; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="nav-back" href="infopage.html">← Home</a>
+  <span class="nav-title">Statistics</span>
+  <span id="live-dot" class="status-dot" title="Live updates"></span>
+</nav>
+<div class="page">
+
+<!-- Summary strip -->
+<div class="stat-strip" id="stat-strip">
+  <div class="stat-box"><div class="val" id="s-requests">—</div><div class="lbl">Requests</div></div>
+  <div class="stat-box"><div class="val" id="s-sessions">—</div><div class="lbl">Sessions</div></div>
+  <div class="stat-box"><div class="val" id="s-tenants">—</div><div class="lbl">Tenants</div></div>
+  <div class="stat-box err" id="s-err-box">
+    <div class="val" id="s-errors">—</div><div class="lbl">Errors</div></div>
+  <div class="stat-box"><div class="val" id="s-avg">—</div><div class="lbl">Avg · max <span id="s-max">—</span></div></div>
+</div>
+
+<!-- Charts row -->
+<div style="display:flex;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-4)">
+  <div class="section" style="flex:1 1 240px">
+    <h2>Requests by Hour</h2>
+    <div class="vchart" id="chart-hour"></div>
+    <div id="chart-hour-labels" style="display:flex;gap:1px;font-size:0.6em;color:var(--color-neutral-400);margin-top:2px"></div>
+  </div>
+  <div class="section" style="flex:1 1 200px">
+    <h2>Response Time</h2>
+    <div id="chart-rt"></div>
+  </div>
+</div>
+
+<!-- By endpoint -->
+<div class="section">
+  <h2>By Endpoint</h2>
+  <table id="tbl-bytype"><thead>
+    <tr><th>Type</th><th>GET</th><th>POST</th><th>Total</th><th>Avg ms</th><th>Max ms</th><th>Errors</th></tr>
+  </thead><tbody></tbody></table>
+</div>
+
+<!-- Ops panel -->
+<div class="section" id="ops-section" style="display:none">
+  <h2>Operations</h2>
+  <div id="ops-list"></div>
+</div>
+
+<!-- Log viewer -->
+<div class="section">
+  <h2>Recent Requests</h2>
+  <p class="dim" id="rows-truncated-note" style="display:none;font-size:var(--text-xs);margin:0 0 var(--space-2)">
+    Showing last <span id="rows-truncated-n"></span> rows — full history in cache.
+  </p>
+  <table id="tbl-rows"><thead>
+    <tr><th>Timestamp</th><th>Type</th><th>Method</th><th>Tenant</th><th>URI</th><th>ms</th><th>Details</th></tr>
+  </thead><tbody></tbody></table>
+</div>
+
+</div>
+<script>
+(function () {
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+var state = {
+    requests: 0, errors: 0, warnings: 0,
+    sessions_uniq: 0, tenants_uniq: 0, avg_ms: 0, max_ms: 0,
+    first_ts: null, last_ts: null,
+    tl_min_ts: null, tl_bucket: null, tl_label: null,
+    by_hour: Array(24).fill(0),
+    rt: { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 },
+    by_type: {},
+    timeline: {},
+    rows: []
+};
+
+// ── Increment dispatch ────────────────────────────────────────────────────────
+function mergeByType(existing, delta) {
+    Object.entries(delta).forEach(function([type, d]) {
+        if (!existing[type]) existing[type] = {get:0,post:0,errors:0,times_sum:0,times_count:0,max_ms:0};
+        var t = existing[type];
+        if (d.get)          t.get          += d.get;
+        if (d.post)         t.post         += d.post;
+        if (d.errors)       t.errors       += d.errors;
+        if (d.times_sum)    t.times_sum    += d.times_sum;
+        if (d.times_count)  t.times_count  += d.times_count;
+        if (d.max_ms)       t.max_ms        = Math.max(t.max_ms, d.max_ms);
+    });
+}
+
+var APPLY = {
+    requests: function(s,v) { s.requests += v; },
+    errors:   function(s,v) { s.errors   += v; },
+    warnings: function(s,v) { s.warnings += v; },
+    by_hour:  function(s,v) { Object.entries(v).forEach(function([h,n]) { s.by_hour[+h] = (s.by_hour[+h]||0)+n; }); },
+    rt:       function(s,v) { Object.entries(v).forEach(function([b,n]) { s.rt[b]       = (s.rt[b]      ||0)+n; }); },
+    by_type:  function(s,v) { mergeByType(s.by_type, v); },
+    timeline: function(s,v) { Object.entries(v).forEach(function([i,n]) { s.timeline[+i]= (s.timeline[+i]||0)+n; }); },
+    rows:     function(s,v) { s.rows = v.concat(s.rows).slice(0, 200); }
+};
+
+function applyFull(full) {
+    Object.assign(state, full);
+}
+
+function applyIncrements(inc) {
+    if (!inc) return;
+    Object.entries(inc).forEach(function([k,v]) {
+        if (APPLY[k]) APPLY[k](state, v);
+    });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function msFmt(ms) {
+    if (ms == null || ms === 0) return '—';
+    return ms >= 1000 ? (ms/1000).toFixed(2)+'s' : ms.toFixed(1)+'ms';
+}
+function h(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderStats() {
+    document.getElementById('s-requests').textContent = state.requests;
+    document.getElementById('s-sessions').textContent = state.sessions_uniq;
+    document.getElementById('s-tenants').textContent  = state.tenants_uniq;
+    document.getElementById('s-errors').textContent   = state.errors;
+    document.getElementById('s-err-box').classList.toggle('err', state.errors > 0);
+    document.getElementById('s-avg').textContent = msFmt(state.avg_ms);
+    document.getElementById('s-max').textContent = msFmt(state.max_ms);
+
+    // By hour chart
+    var hourMax = Math.max(1, ...state.by_hour);
+    var hc = document.getElementById('chart-hour');
+    hc.innerHTML = state.by_hour.map(function(n, h) {
+        var barH = n > 0 ? Math.max(1, Math.round(n/hourMax*56)) : 0;
+        return '<div class="vc-col" title="'+h+'h: '+n+'">'
+            +(barH?'<div class="vc-bar" style="height:'+barH+'px"></div>':'')
+            +'</div>';
+    }).join('');
+    document.getElementById('chart-hour-labels').innerHTML =
+        Array.from({length:24},function(_,h){
+            return '<div style="flex:1;text-align:center">'+(h%6===0?String(h).padStart(2,'0'):'')+'</div>';
+        }).join('');
+
+    // RT histogram
+    var rtKeys = ['<1ms','1-10ms','10-100ms','100ms-1s','>1s'];
+    var rtMax  = Math.max(1, ...rtKeys.map(function(k){return state.rt[k]||0;}));
+    document.getElementById('chart-rt').innerHTML = rtKeys.map(function(k) {
+        var n = state.rt[k]||0;
+        var pct = n > 0 ? Math.max(2, Math.round(n/rtMax*100)) : 0;
+        return '<div class="bc-row"><span class="bc-lbl">'+h(k)+'</span>'
+            +'<div class="bc-track"><div class="bc-bar" style="width:'+pct+'%"></div></div>'
+            +'<span class="bc-val">'+(n||'')+'</span></div>';
+    }).join('');
+
+    // By type table
+    var tbody = document.querySelector('#tbl-bytype tbody');
+    var types = Object.entries(state.by_type)
+        .sort(function(a,b){return (b[1].get+b[1].post)-(a[1].get+a[1].post);});
+    tbody.innerHTML = types.map(function([t,s]) {
+        var total = s.get+s.post;
+        var avg = s.times_count>0 ? (s.times_sum/s.times_count).toFixed(1) : '—';
+        var mx  = s.max_ms > 0    ? s.max_ms.toFixed(1)                    : '—';
+        return '<tr><td><strong>'+h(t)+'</strong></td><td>'+(s.get||'—')+'</td>'
+            +'<td>'+(s.post||'—')+'</td><td>'+total+'</td>'
+            +'<td>'+avg+'</td><td>'+mx+'</td>'
+            +'<td>'+(s.errors?'<span class="err-txt">'+s.errors+'</span>':'<span class="dim">—</span>')+'</td></tr>';
+    }).join('');
+
+    // Log viewer (most recent first — rows are prepended)
+    var rtbody = document.querySelector('#tbl-rows tbody');
+    rtbody.innerHTML = state.rows.map(function(r) {
+        var lvlCls = r.level==='ERROR'?'err-txt':(r.level==='WARNING'?'warn-txt':'dim');
+        return '<tr><td class="mono">'+h(r.timestamp)+'</td>'
+            +'<td>'+h(r.type)+'</td><td>'+h(r.method)+'</td>'
+            +'<td class="dim">'+h(r.tenant||'—')+'</td>'
+            +'<td class="mono"><span class="clip">'+h(r.uri)+'</span></td>'
+            +'<td class="mono">'+msFmt(r.ms)+'</td>'
+            +'<td class="'+lvlCls+'"><span class="clip">'+h(r.details)+'</span></td></tr>';
+    }).join('');
+}
+
+function appendOpsRow(row) {
+    var ops = document.getElementById('ops-list');
+    var el  = document.createElement('div');
+    el.className = 'ops-row';
+    var ts = new Date(row.ts * 1000).toLocaleTimeString();
+    el.innerHTML = '<span class="sev-'+row.severity+'">'+h(row.severity.toUpperCase())+'</span> '
+        +'<strong>'+h(row.op)+'</strong> — '+h(row.text)
+        +' <span class="dim mono">'+ts+'</span>';
+    ops.prepend(el);
+    document.getElementById('ops-section').style.display = '';
+}
+
+// ── Poll loops ────────────────────────────────────────────────────────────────
+function pollStats(cursor) {
+    var params = Object.assign({ entity: 'stats' }, cursor || {});
+    fetch('data?' + new URLSearchParams(params))
+        .then(function(res) {
+            if (res.status === 200) {
+                return res.json().then(function(body) {
+                    applyFull(body.full || {});
+                    applyIncrements(body.increments);
+                    // rows_truncated note
+                    if (body.full && body.full.rows_truncated) {
+                        document.getElementById('rows-truncated-note').style.display = '';
+                        document.getElementById('rows-truncated-n').textContent =
+                            (body.increments && body.increments.rows)
+                                ? body.increments.rows.length : '?';
+                    }
+                    renderStats();
+                    document.getElementById('live-dot').className = 'status-dot live';
+                    pollStats({ offset: body.offset });
+                });
+            } else if (res.status === 204) {
+                pollStats(cursor);
+            } else {
+                // STALE or error — reset accumulators before fresh start
+                state.requests = 0; state.errors = 0; state.warnings = 0;
+                state.by_hour = Array(24).fill(0);
+                state.rt = { '<1ms':0,'1-10ms':0,'10-100ms':0,'100ms-1s':0,'>1s':0 };
+                state.by_type = {};
+                state.timeline = {};
+                state.rows = [];
+                setTimeout(function() { pollStats(); }, 1000);
+            }
+        })
+        .catch(function(err) {
+            console.error('[statistic] stats poll error:', err);
+            setTimeout(function() { pollStats(cursor); }, 5000);
+        });
+}
+
+function pollOps(cursor) {
+    var params = Object.assign({ entity: 'ops' }, cursor || {});
+    fetch('data?' + new URLSearchParams(params))
+        .then(function(res) {
+            if (res.status === 200) {
+                return res.json().then(function(body) {
+                    (body.increments && body.increments.rows || []).forEach(appendOpsRow);
+                    pollOps({ ts: body.ts, msgid: body.msgid });
+                });
+            } else if (res.status === 204) {
+                pollOps(cursor);
+            } else {
+                setTimeout(function() { pollOps(); }, 1000);
+            }
+        })
+        .catch(function(err) {
+            console.error('[statistic] ops poll error:', err);
+            setTimeout(function() { pollOps(cursor); }, 5000);
+        });
+}
+
+pollStats();
+pollOps();
+
+}());
+</script>
+</body>
+</html>

@@ -1,0 +1,483 @@
+<title>Swipe indicator variants</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0D1117;
+  color: #E6EDF3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 28px 20px 48px;
+}
+
+.page { max-width: 1320px; margin: 0 auto; }
+
+#variants {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+h1 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #7D8590;
+  margin-bottom: 20px;
+}
+
+/* ── Scrubber ─────────────────────────────────────────────────── */
+.scrubber-wrap {
+  background: #161B22;
+  border: 1px solid #30363D;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.scrubber-label {
+  font-size: 12px;
+  color: #7D8590;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pval {
+  color: #3FB950;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5ch;
+  display: inline-block;
+}
+input[type=range] {
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 3px;
+  background: #30363D;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #3FB950;
+  border: 2px solid #0D1117;
+  cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #3FB950;
+  border: 2px solid #0D1117;
+  cursor: pointer;
+}
+
+/* ── Variant cards ────────────────────────────────────────────── */
+.variant {
+  background: #161B22;
+  border: 1px solid #30363D;
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+.variant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+.variant-name  { font-size: 13px; font-weight: 600; color: #E6EDF3; white-space: nowrap; }
+.variant-desc  { font-size: 11px; color: #7D8590; text-align: right; }
+
+.states {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.indicator-wrap {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pct {
+  font-size: 10px;
+  color: #484F58;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pct.full  { color: #3FB950; font-weight: 700; }
+.pct.live  { color: #3FB950; font-weight: 600; }
+
+.divider {
+  width: 1px;
+  height: 60px;
+  background: #30363D;
+  flex-shrink: 0;
+  margin: 0 10px;
+}
+</style>
+
+<div class="page">
+  <h1>Swipe indicator variants</h1>
+
+  <div class="scrubber-wrap">
+    <span class="scrubber-label">pull: <span class="pval" id="pval">0%</span></span>
+    <input type="range" id="slider" min="0" max="100" value="0">
+  </div>
+
+  <div id="variants"></div>
+</div>
+
+<script>
+const G  = '#3FB950';
+const C  = 100.53;          // circumference: 2π × r16
+const T  = 'M14 22.5 L19.5 27.5 L30 15.5';  // checkmark, 44×44 space
+
+// ── Renderers ──────────────────────────────────────────────────────────────
+
+// V1: Arc ring — single arc draws clockwise from 12 o'clock
+function v1(p) {
+  const off = (C * (1 - p)).toFixed(2);
+  const iop = (.18 + .82 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <circle cx="22" cy="22" r="16" fill="none" stroke="${G}" stroke-width="1.5" opacity=".11"/>
+    <circle cx="22" cy="22" r="16" fill="none" stroke="${G}" stroke-width="2.5"
+      stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"
+      transform="rotate(-90 22 22)"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V2: Pill → Circle — div border-radius morphs
+function v2(p) {
+  const h   = (8  + 36 * p).toFixed(1);
+  const br  = (4  + 18 * p).toFixed(1);
+  const iop = Math.max(0, (p - .45) / .55).toFixed(2);
+  return `<div style="width:44px;height:${h}px;border-radius:${br}px;
+    background:${G};display:flex;align-items:center;justify-content:center;overflow:hidden">
+    <svg viewBox="0 0 44 44" width="30" height="30" style="flex-shrink:0;opacity:${iop}">
+      <path d="${T}" fill="none" stroke="white" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>`;
+}
+
+// V3: Twin poles — stubs grow from 12 o'clock and 6 o'clock simultaneously
+function v3(p) {
+  const d   = Math.max(1.5, 50.27 * p).toFixed(2);
+  const g   = (C - d).toFixed(2);
+  const iop = (.15 + .85 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <circle cx="22" cy="22" r="16" fill="none" stroke="${G}" stroke-width="1.5" opacity=".1"/>
+    <circle cx="22" cy="22" r="16" fill="none" stroke="${G}" stroke-width="2.5"
+      stroke-linecap="round" stroke-dasharray="${d} ${g}" transform="rotate(-90 22 22)"/>
+    <circle cx="22" cy="22" r="16" fill="none" stroke="${G}" stroke-width="2.5"
+      stroke-linecap="round" stroke-dasharray="${d} ${g}" transform="rotate(90 22 22)"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V4: Sector fill — pie slice sweeps clockwise from 12 o'clock
+function v4(p) {
+  let fill = '';
+  if (p >= 1) {
+    fill = `<circle cx="22" cy="22" r="16" fill="${G}"/>`;
+  } else if (p > .005) {
+    const a  = p * 2 * Math.PI;
+    const x  = (22 + 16 * Math.sin(a)).toFixed(2);
+    const y  = (22 - 16 * Math.cos(a)).toFixed(2);
+    const lg = a > Math.PI ? 1 : 0;
+    fill = `<path d="M22 22 L22 6 A16 16 0 ${lg} 1 ${x} ${y}Z" fill="${G}"/>`;
+  }
+  const iStroke = p > .12 ? 'white' : G;
+  const iop = (.2 + .8 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <circle cx="22" cy="22" r="16" fill="none" stroke="${G}" stroke-width="1.5" opacity=".18"/>
+    ${fill}
+    <path d="${T}" fill="none" stroke="${iStroke}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V6: Square → circle (div, border-radius only)
+function v6(p) {
+  const br  = (22 * p).toFixed(1);
+  const iop = Math.max(0, (p - .35) / .65).toFixed(2);
+  return `<div style="width:44px;height:44px;border-radius:${br}px;
+    background:${G};display:flex;align-items:center;justify-content:center">
+    <svg viewBox="0 0 44 44" width="28" height="28" style="opacity:${iop}">
+      <path d="${T}" fill="none" stroke="white" stroke-width="2.6"
+        stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>`;
+}
+
+// V7: Square outline morphs to circle + twin pole stubs simultaneously
+function v7(p) {
+  const rx  = (16 * p).toFixed(2);
+  const d   = Math.max(1.5, 50.27 * p).toFixed(2);
+  const g   = (C - d).toFixed(2);
+  const iop = (.12 + .88 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <rect x="6" y="6" width="32" height="32" rx="${rx}" ry="${rx}"
+      fill="none" stroke="${G}" stroke-width="2" opacity=".28"/>
+    <circle cx="22" cy="22" r="16" fill="none" stroke="${G}" stroke-width="2.5"
+      stroke-linecap="round" stroke-dasharray="${d} ${g}" transform="rotate(-90 22 22)"/>
+    <circle cx="22" cy="22" r="16" fill="none" stroke="${G}" stroke-width="2.5"
+      stroke-linecap="round" stroke-dasharray="${d} ${g}" transform="rotate(90 22 22)"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// ── V8 variants: single compound path, no double edge ──────────────────────
+// Helper: rounded-rect→circle path (44×44 vb, L=16, corner radius rc)
+// Starts at (38-rc, 6) — top edge before NE corner — so dasharray "arcLen sideLen"
+// naturally highlights all 4 corner arcs and gaps all 4 straight sides.
+function _sp(rc) {
+  const s = (38 - rc).toFixed(2), e = (6 + rc).toFixed(2), r = rc.toFixed(2);
+  if (rc < 0.02) return 'M 38 6 L 38 38 L 6 38 L 6 6 Z';
+  return `M ${s} 6 A ${r} ${r} 0 0 1 38 ${e}`
+       + ` L 38 ${s} A ${r} ${r} 0 0 1 ${s} 38`
+       + ` L ${e} 38 A ${r} ${r} 0 0 1 6 ${s}`
+       + ` L 6 ${e} A ${r} ${r} 0 0 1 ${e} 6 Z`;
+}
+
+// V8a: Corners highlighted — dim full outline + bright corner-arc dashes
+// dasharray = "πrc/2  (32−2rc)": each corner arc lit, each straight side dark
+function v8a(p) {
+  const rc  = 16 * p;
+  const d   = _sp(rc);
+  const al  = (Math.PI * rc / 2).toFixed(2);   // arc length of one corner
+  const sl  = Math.max(0, 32 - 2 * rc).toFixed(2); // straight side length
+  const iop = (.12 + .88 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2" opacity=".22"/>
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2.5" stroke-linecap="round"
+      stroke-dasharray="${al} ${sl}"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V8b: sides-only light up, then cross-fade to full circle
+// Phase 1 (p=0→0.6): only the straight sides ramp from dark to bright — corners stay dark.
+//   dashoffset="${sl}" shifts the dash start past the corner arc, so dashes land exactly on sides.
+// Phase 2 (p=0.6→1): sides layer fades out, full-path layer fades in → bright circle at p=1.
+//   Corners are never lit until the cross-fade completes the shape into a circle.
+function v8b(p) {
+  const rc  = 16 * p;
+  const d   = _sp(rc);
+  const al  = (Math.PI * rc / 2).toFixed(2);
+  const sl  = Math.max(0, 32 - 2 * rc).toFixed(2);
+  const xf  = Math.max(0, (p - 0.6) / 0.4);                  // 0 at p≤0.6, 1 at p=1
+  const sop = (p < 0.6 ? p / 0.6 : 1 - xf).toFixed(2);       // sides: 0→1 then 1→0
+  const fop = xf.toFixed(2);                                    // full path: 0→1 in second half
+  const iop = (.12 + .88 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2"   opacity="${fop}"/>
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2.5"
+      stroke-dasharray="${sl} ${al}" stroke-dashoffset="${sl}" opacity="${sop}"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V8e: side-mids lit — same as V8a (corners lit) but bright arcs centered at side midpoints.
+// dashoffset = sl/2 + al/2 shifts each dash from the corner entry to the mid of each side.
+// At p=0: al=0, nothing visible (dim outline only). Brights grow outward from side midpoints.
+// At p=1: al=25.13, sl=0 → full bright circle.
+function v8e(p) {
+  const rc  = 16 * p;
+  const d   = _sp(rc);
+  const al  = Math.PI * rc / 2;
+  const sl  = Math.max(0, 32 - 2 * rc);
+  const off = (sl / 2 + al / 2).toFixed(2);
+  const iop = (.12 + .88 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2" opacity=".22"/>
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2.5" stroke-linecap="round"
+      stroke-dasharray="${al.toFixed(2)} ${sl.toFixed(2)}" stroke-dashoffset="${off}"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V8f: side-mids CW — 4 bright arcs anchored at side midpoints, each growing clockwise only.
+// dashoffset = sl/2 places each dash's start exactly at its side midpoint.
+// hl = per*p grows from 0 to per (one full period); gap = per*(1−p) shrinks from per to 0.
+// The gap sits counter-clockwise of the midpoint; bright extends clockwise from it.
+// At p=0.5: each bright covers half of the next clockwise segment (right→bottom→left→top).
+// At p=1: gap=0 → dasharray repeats with zero gap → full bright circle.
+function v8f(p) {
+  const rc  = 16 * p;
+  const d   = _sp(rc);
+  const al  = Math.PI * rc / 2;
+  const sl  = Math.max(0, 32 - 2 * rc);
+  const per = al + sl;
+  const hl  = (per * p).toFixed(2);
+  const gap = (per * (1 - p)).toFixed(2);
+  const off = (sl / 2).toFixed(2);          // anchors bright-start at each side midpoint
+  const iop = (.12 + .88 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2" opacity=".22"/>
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2.5" stroke-linecap="round"
+      stroke-dasharray="${hl} ${gap}" stroke-dashoffset="${off}"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V8g: top+btm CW — like V8f but only 2 arcs: top-mid and bottom-mid, each growing clockwise.
+// Period = 2*(al+sl) so the pattern repeats twice across the full path → 2 dashes, not 4.
+// dashoffset = sl/2 anchors: bottom-mid (path pos 2al+3sl/2) and top-mid (4al+7sl/2).
+// hl = 2*per*p: at p=1 each arc sweeps half the circle; together they close the ring.
+function v8g(p) {
+  const rc  = 16 * p;
+  const d   = _sp(rc);
+  const al  = Math.PI * rc / 2;
+  const sl  = Math.max(0, 32 - 2 * rc);
+  const per = al + sl;
+  const hl  = (2 * per * p).toFixed(2);
+  const gap = (2 * per * (1 - p)).toFixed(2);
+  const off = (sl / 2).toFixed(2);          // same offset as V8f; works for 2*per period too
+  const iop = (.12 + .88 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2" opacity=".22"/>
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2.5" stroke-linecap="round"
+      stroke-dasharray="${hl} ${gap}" stroke-dashoffset="${off}"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V8c: Full outline fades in uniformly — no dasharray, just the single compound path
+// Clean but less communicative; included for comparison
+function v8c(p) {
+  const rc  = 16 * p;
+  const d   = _sp(rc);
+  const iop = (.12 + .88 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2.5" opacity="${iop}"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V8d: dark rect → bright circle — single compound path, opacity only, no split
+// At p=0 the square is barely visible; as corners round the shape brightens
+// and arrives as a fully lit circle at p=1.
+function v8d(p) {
+  const rc  = 16 * p;
+  const d   = _sp(rc);
+  const op  = (.06 + .94 * p).toFixed(2);  // 6% → 100%
+  const iop = (.12 + .88 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <path d="${d}" fill="none" stroke="${G}" stroke-width="2.5" opacity="${op}"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// V5: Two lines → circle — cubic bezier morph; lines at ||, ends meeting at O
+function v5(p) {
+  const lx = (18 + 4  * p).toFixed(2);  // left  endpoint x:  18 → 22
+  const rx = (26 - 4  * p).toFixed(2);  // right endpoint x:  26 → 22
+  const lc = (18 - 18 * p).toFixed(2);  // left  control  x:  18 → 0
+  const rc = (26 + 18 * p).toFixed(2);  // right control  x:  26 → 44
+  const iop = (.12 + .88 * p).toFixed(2);
+  return `<svg viewBox="0 0 44 44" width="44" height="44">
+    <path d="M${lx} 6 C${lc} 6 ${lc} 38 ${lx} 38"
+      fill="none" stroke="${G}" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M${rx} 6 C${rc} 6 ${rc} 38 ${rx} 38"
+      fill="none" stroke="${G}" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="${T}" fill="none" stroke="${G}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${iop}"/>
+  </svg>`;
+}
+
+// ── Layout ─────────────────────────────────────────────────────────────────
+
+const VARIANTS = [
+  // ── Group 1: early approaches ─────────────────────────────────────────────
+  { id:'v1',  fn:v1,  name:'Arc ring',            desc:'single arc draws clockwise from 12 o\'clock' },
+  { id:'v2',  fn:v2,  name:'Pill → circle',       desc:'div: height + border-radius morph to circle' },
+  { id:'v3',  fn:v3,  name:'Twin stubs',          desc:'two arcs grow from top & bottom, close at equator' },
+  { id:'v4',  fn:v4,  name:'Sector fill',         desc:'pie slice sweeps clockwise into solid disc' },
+  { id:'v5',  fn:v5,  name:'Lines → circle',      desc:'two vertical lines bow outward and close' },
+  { id:'v6',  fn:v6,  name:'Square → circle',     desc:'div: border-radius 0 → 50%, fixed size' },
+  // ── Group 2: single compound path — no double edge ───────────────────────
+  { id:'v7',  fn:v7,  name:'Square + twin stubs', desc:'⚠ double edge: rect corners sit outside r=16 circle at diagonals' },
+  { id:'v8a', fn:v8a, name:'V8a corners lit',     desc:'single compound path — dim outline + bright corner arcs; double edge eliminated' },
+  { id:'v8b', fn:v8b, name:'V8b sides lit',       desc:'sides light up first (p 0→0.6), cross-fade to full circle (0.6→1) — corners dark until circle completes' },
+  { id:'v8e', fn:v8e, name:'V8e side-mids lit',  desc:'4 arcs centered at top/right/bottom/left midpoints — brights grow outward symmetrically from cardinal points' },
+  { id:'v8f', fn:v8f, name:'V8f 4-mids CW',      desc:'4 arcs from all side midpoints, each growing clockwise only — gap shrinks CCW until circle closes' },
+  { id:'v8g', fn:v8g, name:'V8g top+btm CW',     desc:'2 arcs from top-mid and bottom-mid only, each sweeping clockwise — meet at right & left to close the circle' },
+];
+
+const STEPS = [0, .25, .5, .75, 1];
+
+const container = document.getElementById('variants');
+
+VARIANTS.forEach((v, i) => {
+  if (i === 6) {
+    container.innerHTML += `<div style="grid-column:1/-1;margin:10px 0 2px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#484F58">Single compound path — no double edge</div>`;
+  }
+
+  const staticCells = STEPS.map(p => `
+    <div class="state">
+      <div class="indicator-wrap">${v.fn(p)}</div>
+      <div class="pct${p===1?' full':''}">${Math.round(p*100)}%</div>
+    </div>`).join('');
+
+  container.innerHTML += `
+  <div class="variant">
+    <div class="variant-header">
+      <span class="variant-name">${v.name}</span>
+      <span class="variant-desc">${v.desc}</span>
+    </div>
+    <div class="states" id="${v.id}">
+      ${staticCells}
+      <div class="divider"></div>
+      <div class="state">
+        <div class="indicator-wrap" id="${v.id}-live">${v.fn(0)}</div>
+        <div class="pct live">live</div>
+      </div>
+    </div>
+  </div>`;
+});
+
+// ── Scrubber ───────────────────────────────────────────────────────────────
+
+const slider = document.getElementById('slider');
+const pvalEl = document.getElementById('pval');
+
+slider.addEventListener('input', function() {
+  const p = this.value / 100;
+  pvalEl.textContent = Math.round(p * 100) + '%';
+  VARIANTS.forEach(v => {
+    document.getElementById(v.id + '-live').innerHTML = v.fn(p);
+  });
+});
+</script>

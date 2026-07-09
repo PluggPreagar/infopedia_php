@@ -90,6 +90,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         touchOutdated($outdated_file);
     }
 
+    // Build incr payload matching the /entries JSON response format.
+    $_pn  = parseEntry($entry);
+    $_pnd = [
+        'timestamp' => $_pn['display_ts'] ?? $timestamp,
+        'message'   => $_pn['content'],
+        'attrs'     => $_pn['attrs'],
+    ];
+    if (!empty($_pn['votes'])) { $_pnd['votes'] = $_pn['votes']; }
+    append_incr($tenant_id, ['type' => 'entries', 'data' => [$_pn['path'] => $_pnd]]);
+    unset($_pn, $_pnd);
+
     // 8. Respond.
     log_return('POST /entries ok');
     respond_json(['status' => 'ok', 'timestamp' => $timestamp], 201);
@@ -123,16 +134,7 @@ if (!$refresh && isCacheValid($cache_file, $cache_max_age, $outdated_file, $cach
     // $since set but nothing new in cache — fall through to long-poll.
 }
 
-// 5. Long-poll: hold until entries or votes file changes.
-//    Cross-watching votes releases the entries connection when votes update,
-//    keeping both client polls in sync.
-$poll_timeout = (int)($config['poll_timeout'] ?? 25);
-$now          = time();
-if ($since !== '' && $since_int > 0) {
-    long_poll($tenant_id, $now, $poll_timeout);
-}
-
-// 6. Fetch from source.
+// 5. Fetch from source.
 $raw = @file_get_contents($source_file);
 if ($raw === false) {
     // File doesn't exist yet — return an empty dataset.
@@ -163,13 +165,13 @@ if ($raw === false) {
     respond_error('INTERNAL_ERROR', 'Could not read data source.', 500);
 }
 
-// 7. Sort, dedup, cache.
+// 6. Sort, dedup, cache.
 $sorted = sortCsvData($raw);
 if ($sorted !== '' && $sorted !== "Timestamp,entry\n") {
     writeCache($cache_file, $sorted);
 }
 
-// 8. Delta filter for $since and respond.
+// 7. Delta filter for $since and respond.
 $out = _get_respond($sorted, $format, $since);
 
 // If delta filtering produced nothing, return 204.
