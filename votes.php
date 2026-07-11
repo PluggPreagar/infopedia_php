@@ -6,6 +6,7 @@ require_once 'util_format.php';
 require_once 'util_cache.php';
 require_once 'util_http.php';
 require_once 'util_throttle.php';
+require_once 'util_sumup.php';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,9 @@ if ($tenant_id !== '') {
     $localCsv = preg_replace('/\.cache$/', '.csv', $cacheFile);
 }
 
+// T09: SumUp file for incremental vote aggregation
+$sumupFile = preg_replace('/\.csv$/', '.sumup', $localCsv);
+
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -38,14 +42,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // refresh flag bypasses the disk cache (throttled).
     if ($refresh) {
         require_throttle('data', $throttle_key, $throttle_max, $throttle_window);
+        // T10: Forced refresh — invalidate SumUp
+        @unlink($sumupFile);
     }
 
-    // Load from local CSV.
-    $csv = @file_get_contents($localCsv) ?: "Timestamp,entry\n";
-    $csv = sortCsvData($csv);
+    // T09: Use SumUp for fast incremental aggregation (Story B: incremental votes).
+    $nodes = sumup_update($sumupFile, $localCsv,
+        'votes_sumup_merge_line',
+        fn() => []
+    );
 
-    // Aggregate votes — the key difference from entries.php.
-    $csv = aggregateVotes($csv, $session_id);
+    // Project the aggregated nodes for this session's view
+    $csv = votes_sumup_project($nodes, $session_id);
 
     if ($since !== '' && !_votes_has_since($csv, $since)) {
         http_response_code(204);

@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **`util_sumup.php`** (new): generic offset-based SumUp snapshot helper (`sumup_load()`,
+  `sumup_save()`, `sumup_read_tail()`, `sumup_update()`) — flock + newer-wins pattern
+  extracted from the stats aggregate cache in `util_data.php`.
+- `votes.php`: `GET /votes` now served from an offset-based SumUp snapshot
+  (`data/votes[_<tid>].sumup.json`) instead of re-reading and re-aggregating the full
+  vote history on every request — bootstrap cost scales with the appended tail, not
+  history size. No API change. Forced full rebuild via `?refresh=1` or `just sumup-clean`.
+- `justfile`: `sumup-clean` recipe — removes all `data/*.sumup.json` snapshots (chained
+  into `just clean`).
+- `entries.php`: optional incremental cache rebuild via the SumUp helper, config-gated
+  (`[entry] sumup_enabled`, **default off** during burn-in) — when enabled, a cache
+  rebuild after a POST parses only the appended CSV tail instead of re-sorting the full
+  entry history. Byte-identical output to the legacy `sortCsvData()` path in both modes
+  (golden tests: `test/util_sumup_test.php` T-D1…T-D4).
+
+### Fixed
+- `util_entry.php`: `sortCsvData()` gained a `$dedup_paths = false` mode — the votes read
+  pipeline no longer drops older vote rows from other sessions on the same path before
+  aggregation (previously only the newest row per path survived, undercounting votes).
+- `util_entry.php`: `csv_join_wrapped_lines()` extracted as a standalone pure function
+  (multiline/quoted CSV row joining), reused by both `sortCsvData()` and
+  `sumup_read_tail()`.
+
 ## [0.3.0] — 2026-06-23
 
 ### Added

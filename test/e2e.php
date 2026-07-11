@@ -58,7 +58,10 @@ function section(string $name): void { echo "\n── $name\n"; }
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 chdir(__DIR__ . '/..');
-foreach (['data/entries_e2e.csv', 'data/votes_e2e.csv', 'data/entries_e2e.cache'] as $f) {
+foreach ([
+    'data/entries_e2e.csv', 'data/votes_e2e.csv', 'data/entries_e2e.cache',
+    'data/entries_e2e.sumup.json', 'data/votes_e2e.sumup.json',
+] as $f) {
     if (file_exists($f)) unlink($f);
 }
 echo "E2E — PHP subprocess mode (" . PHP_BINARY . ")\n";
@@ -140,6 +143,15 @@ $r = get('/votes', "sid=$sid&tid=$tid&format=json&refresh");
 ok($r['status'] === 200,                       'GET /votes → 200');
 ok(isset($r['json']['/e2e/poll']),             '/e2e/poll in json');
 ok(isset($r['json']['/e2e/poll']['votes']),    'votes key present');
+
+// T03 (Story A, UC-A1): second session votes on the same path — both must be counted.
+$r = post('/votes', "sid={$sid}2&tid=$tid", "entry=/e2e/poll | votes:{$sid}2:1 | Good idea?");
+ok($r['status'] === 201, 'POST /votes second sid → 201');
+
+$r = get('/votes', "sid={$sid}3&tid=$tid&format=json&refresh");
+ok($r['status'] === 200, 'GET /votes (third sid) → 200');
+ok(($r['json']['/e2e/poll']['votes']['others'] ?? 0) === 2,
+   'both sessions counted in others (got ' . json_encode($r['json']['/e2e/poll'] ?? null) . ')');
 
 // ─── 7. Dumps ─────────────────────────────────────────────────────────────────
 

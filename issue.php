@@ -22,8 +22,11 @@ $filename = $_POST['filename'] ?? '';
 if ($filename !== '') {
     $base   = realpath($issueDir);
     $target = realpath($issueDir . '/' . $filename);
+    // DIRECTORY_SEPARATOR (not a hardcoded '/'): realpath() returns backslash-joined
+    // paths on Windows dev environments; a hardcoded '/' made this guard always
+    // reject valid files there (str_starts_with never matched).
     if ($base === false || $target === false
-        || !str_starts_with($target, $base . '/')
+        || !str_starts_with($target, $base . DIRECTORY_SEPARATOR)
         || !is_file($target)) {
         respond_error('NOT_FOUND', 'Issue not found', 404);
     }

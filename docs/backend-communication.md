@@ -194,3 +194,39 @@ Configured in `infopedia.cfg`. Read by `notify.php` as `(int)($config['poll_time
 | `votes.php` POST | Calls `append_notify()` after write |
 | `app2.html` → `startNotifyPoll()` | Frontend poll loop |
 | `data/notify_<tid>.jsonl` | Append-only event log, one JSON object per line |
+
+---
+
+## SumUp snapshots (votes)
+
+- File: `data/votes[_<tid>].sumup.json` — `{src, offset, nodes}`; nodes hold per-path
+  per-SID vote counts + signers + newest ts/content.
+- Read path: `sumup_update()` (`util_sumup.php`) merges only the CSV tail beyond
+  `offset` (lazy, on GET); the response projects per session:
+  `votes:<own-sid>:<n>` + `votes:others:<total−own>`.
+- Rebuild triggers: missing file, corrupt file, stale offset (source shrank/replaced),
+  `?refresh=1`.
+- Concurrency: `flock` + newer-wins save (see `util_sumup.php::sumup_save()`);
+  duplicate tail consumption is impossible by design — the offset only advances under
+  an exclusive lock.
+- Admin: `just sumup-clean` deletes all snapshots (forces a full rebuild for all
+  tenants on next request).
+- Byte-compatible: `votes_sumup_project()` output is identical to the legacy
+  `aggregateVotes(sortCsvData($csv, false), $sid)` chain — verified by golden tests in
+  `test/util_sumup_test.php` (T-C8/T-C9).
+
+## SumUp snapshots (entries, optional)
+
+- File: `data/entries[_<tid>].sumup.json` — `{src, offset, nodes}`; nodes hold, per path,
+  the newest row's timestamp + raw entry column + a `deleted` flag.
+- Config-gated: `[entry] sumup_enabled` in `infopedia.cfg` — **default `false`** (burn-in
+  phase). When off, `entries.php` uses the original full-read + `sortCsvData()` path.
+- When enabled, a cache rebuild (triggered by `touchOutdated()` after a POST, or a stale
+  `isCacheValid()`) parses only the CSV tail beyond the stored offset instead of
+  re-sorting the entire history; projected output is byte-identical to
+  `sortCsvData()`'s (verified by golden tests `test/util_sumup_test.php` T-D1…T-D4).
+- Delete markers (`--`) and path re-creation by a newer non-delete row behave exactly as
+  in `sortCsvData()`.
+- `?refresh=1` discards the snapshot and forces a full rebuild (throttled, same as the
+  legacy path). `just sumup-clean` removes snapshots for all tenants/entities.
+

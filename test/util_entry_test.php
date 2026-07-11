@@ -212,3 +212,42 @@ av($H2 . "2025-09-07 20:44:54,/climate/solutions | Solar panels.\n"
    $H2 . "2025-09-07 20:44:54,/climate/solutions | Solar panels.\n"
        . "2025-09-07 20:44:54,/poll/q1 | votes:sid_own:1 | Q?",
    'mixed entries and votes');
+
+// ─── votes read pipeline: sortCsvData → aggregateVotes (chain used by votes.php GET) ───
+// T01 (sumup-bootstrap epic, Story A): proves whether sortCsvData()'s per-path dedup
+// drops older vote rows of OTHER sessions before aggregateVotes() ever sees them.
+// UC-A1: two sessions vote on the same path — both must survive the pipeline.
+$pipe_in = $H2 . "2025-09-07 20:44:54,/poll/q1 | votes:sid_a:1 | Q?\n"
+               . "2025-09-07 20:45:00,/poll/q1 | votes:sid_b:1 | Q?";
+assert_eq($H2 . "2025-09-07 20:45:00,/poll/q1 | votes:others:2 | Q?",
+    aggregateVotes(sortCsvData($pipe_in), 'sid_view'),
+    'pipeline: two sids on one path both counted');
+
+// UC-A2: same sid votes twice — own total 2
+$pipe_in2 = $H2 . "2025-09-07 20:44:54,/poll/q1 | votes:sid_a:1 | Q?\n"
+                . "2025-09-07 20:45:00,/poll/q1 | votes:sid_a:1 | Q?";
+assert_eq($H2 . "2025-09-07 20:45:00,/poll/q1 | votes:sid_a:2 | Q?",
+    aggregateVotes(sortCsvData($pipe_in2), 'sid_a'),
+    'pipeline: same sid summed across rows');
+
+// ─── T02: no-dedup mode (sortCsvData($csv, false)) — keeps all rows per path ───
+function sd2(string $input, string $expect, string $msg): void {
+    assert_eq($expect, sortCsvData($input, false), "sortCsvData(no-dedup): $msg");
+}
+
+// no-dedup: both rows kept (chronological)
+sd2($H . "2025-09-07 20:45:00,/p | votes:b:1 | Q?\n2025-09-07 20:44:54,/p | votes:a:1 | Q?",
+    $H . "2025-09-07 20:44:54,/p | votes:a:1 | Q?\n2025-09-07 20:45:00,/p | votes:b:1 | Q?",
+    'no-dedup: both rows kept, chronological');
+
+// no-dedup: delete marker still removes path
+sd2($H . "2025-09-07 20:44:54,/p | votes:a:1 | Q?\n2025-09-07 20:45:00,/p | --",
+    $H,
+    'no-dedup: delete marker removes path');
+
+// ─── T04: csv_join_wrapped_lines ──────────────────────────────────────────────
+assert_eq(['a,b'],         csv_join_wrapped_lines(['a,b']),          'joiner: plain line untouched');
+assert_eq(['ts,"x\\ny"'],  csv_join_wrapped_lines(['ts,"x', 'y"']),  'joiner: quoted wrap joined with \\n');
+assert_eq(['a', 'b'],      csv_join_wrapped_lines(['a', 'b']),       'joiner: two complete lines stay separate');
+assert_eq(['ts,"x'],       csv_join_wrapped_lines(['ts,"x']),        'joiner: unbalanced tail kept as-is');
+assert_eq([],              csv_join_wrapped_lines([]),               'joiner: empty input');

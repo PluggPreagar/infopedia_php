@@ -74,31 +74,18 @@ function parseEntry(string $entry): array {
     return $result;
 }
 
-// ─── sortCsvData ─────────────────────────────────────────────────────────────
+// ─── csv_join_wrapped_lines ──────────────────────────────────────────────────────
 
 /**
- * Normalise, sort, and deduplicate a raw CSV string.
+ * Join physically wrapped CSV lines: a line with an odd number of double quotes
+ * continues on the next physical line; joined with a literal \n.
+ * Pure function — used by sortCsvData() and the SumUp tail reader.
  *
- * @param string $csv  Raw CSV string.
- * @return string      Normalised CSV, header + one line per surviving path.
+ * @param string[] $lines  Physical lines (no trailing \n each).
+ * @return string[]        Logical (quote-balanced) lines; a trailing unbalanced
+ *                         fragment is returned as-is as the last element.
  */
-function sortCsvData(string $csv): string {
-    $header = "Timestamp,entry\n";
-
-    // Normalise line endings.
-    $csv = str_replace("\r\n", "\n", $csv);
-    $lines = explode("\n", $csv);
-
-    // Consume the header (first non-empty line).
-    while ($lines && trim($lines[0]) === '') {
-        array_shift($lines);
-    }
-    if ($lines) {
-        array_shift($lines); // discard header row
-    }
-
-    // Aggregate wrapped quoted lines.
-    // A line that has an odd number of double-quotes continues on the next line.
+function csv_join_wrapped_lines(array $lines): array {
     $complete = [];
     $buf = '';
     foreach ($lines as $line) {
@@ -119,11 +106,44 @@ function sortCsvData(string $csv): string {
     if ($buf !== '') {
         $complete[] = $buf;
     }
+    return $complete;
+}
+
+// ─── sortCsvData ──────────────────────────────────────────────────────────────
+
+/**
+ * Normalise, sort, and optionally deduplicate a raw CSV string.
+ *
+ * @param string $csv          Raw CSV string.
+ * @param bool   $dedup_paths  If true (default), keep only newest row per path.
+ *                             If false, keep all rows per path (chronological).
+ *                             Delete markers still remove the path in both modes.
+ * @return string              Normalised CSV, header + one line per surviving path.
+ */
+function sortCsvData(string $csv, bool $dedup_paths = true): string {
+    $header = "Timestamp,entry\n";
+
+    // Normalise line endings.
+    $csv = str_replace("\r\n", "\n", $csv);
+    $lines = explode("\n", $csv);
+
+    // Consume the header (first non-empty line).
+    while ($lines && trim($lines[0]) === '') {
+        array_shift($lines);
+    }
+    if ($lines) {
+        array_shift($lines); // discard header row
+    }
+
+    // Aggregate wrapped quoted lines using extracted helper.
+    $complete = csv_join_wrapped_lines($lines);
 
     // groups[path] = ['ts' => normalised_ts, 'raw_entry_col' => string, 'deleted' => bool]
     // raw_entry_col is the entry portion of the CSV line exactly as it appeared
     // (including surrounding quotes if any), so we can round-trip it unchanged.
-    $groups = [];
+    // In no-dedup mode, groups[$path][] is an array of such rows (chronological).
+    // In dedup mode, groups[$path] is a single row (newest wins).
+    $groups = $dedup_paths ? [] : [];
 
     foreach ($complete as $line) {
         if (trim($line) === '') {
@@ -155,6 +175,9 @@ function sortCsvData(string $csv): string {
         $last_decoded = trim(end($entry_parts));
         $is_delete = ($last_decoded === '--');
 
+        // Vote detection: check for votes:* or signed:* attributes in entry.
+        $is_vote_row = preg_match('/\bvotes:[^:\s]+:-?\d+\b/', $entry) || preg_match('/\bsigned:[^:\s]+:\d+\b/', $entry);
+
         // Extract the raw entry column from the line, preserving original quoting.
         // The timestamp ends at the first comma not inside a quoted field.
         // Since the timestamp itself never contains commas or quotes, we can
@@ -162,25 +185,86 @@ function sortCsvData(string $csv): string {
         $first_comma = strpos($line, ',');
         $raw_entry_col = ($first_comma !== false) ? substr($line, $first_comma + 1) : $line;
 
-        if (!isset($groups[$path]) || $ts_norm > $groups[$path]['ts']) {
-            $groups[$path] = [
-                'ts'            => $ts_norm,
-                'raw_entry_col' => $raw_entry_col,
-                'deleted'       => $is_delete,
-            ];
+        if ($dedup_paths) {
+            // Dedup mode: keep only newest row per path for NON-VOTE rows.
+            // Vote rows are NEVER deduped (all kept chronological) so aggregateVotes() sees all votes.
+            if ($is_delete) {
+                unset($groups[$path]);
+            } elseif ($is_vote_row) {
+                // Vote rows: never dedup, keep all (chronological).
+                if (!isset($groups[$path])) {
+                    $groups[$path] = [];
+                }
+                $groups[$path][] = [
+                    'ts'            => $ts_norm,
+                    'raw_entry_col' => $raw_entry_col,
+                    'deleted'       => false,
+                ];
+            } elseif (!isset($groups[$path]) || $ts_norm > $groups[$path]['ts']) {
+                // Non-vote rows: dedup (keep only newest).
+                $groups[$path] = [
+                    'ts'            => $ts_norm,
+                    'raw_entry_col' => $raw_entry_col,
+                    'deleted'       => false,
+                ];
+            }
+        } else {
+            // No-dedup mode: keep all rows per path (chronological), but delete markers remove the path.
+            if ($is_delete) {
+                unset($groups[$path]);
+            } else {
+                if (!isset($groups[$path])) {
+                    $groups[$path] = [];
+                }
+                $groups[$path][] = [
+                    'ts'            => $ts_norm,
+                    'raw_entry_col' => $raw_entry_col,
+                    'deleted'       => false,
+                ];
+            }
         }
     }
 
     // Sort by path ascending.
     ksort($groups);
 
+    // For all rows within each path, sort by timestamp ascending (chronological).
+    // This applies to both dedup and no-dedup modes.
+    foreach ($groups as $path => &$group_data) {
+        if (isset($group_data[0])) {
+            // Array of rows — sort by timestamp
+            usort($group_data, function($a, $b) {
+                return strcmp($a['ts'], $b['ts']);
+            });
+        }
+        // Single row (dedup mode non-vote) — no sorting needed
+    }
+    unset($group_data);
+
     // Reconstruct output — emit the raw entry column as-is (already correctly quoted).
     $rows = [];
-    foreach ($groups as $path => $row) {
-        if ($row['deleted']) {
-            continue;
+    foreach ($groups as $path => $group_data) {
+        if ($dedup_paths) {
+            // Dedup mode: may have vote rows (array) or non-vote row (single object)
+            if (isset($group_data[0])) {
+                // It's an array of vote rows (is_list would be better in PHP 8.1+)
+                foreach ($group_data as $row) {
+                    if (!$row['deleted']) {
+                        $rows[] = $row['ts'] . ',' . $row['raw_entry_col'];
+                    }
+                }
+            } else {
+                // It's a single non-vote row
+                if (!$group_data['deleted']) {
+                    $rows[] = $group_data['ts'] . ',' . $group_data['raw_entry_col'];
+                }
+            }
+        } else {
+            // No-dedup mode: all rows per path (chronological)
+            foreach ($group_data as $row) {
+                $rows[] = $row['ts'] . ',' . $row['raw_entry_col'];
+            }
         }
-        $rows[] = $row['ts'] . ',' . $row['raw_entry_col'];
     }
 
     // Header always ends with \n. Data rows are joined by \n, no trailing \n.

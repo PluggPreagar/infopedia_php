@@ -1,7 +1,7 @@
 # InfoPedia PHP — task runner
 # Install: https://just.systems  |  run: just <recipe>  |  list: just
 
-php  := env_var_or_default("PHP",  "php")
+php  := env_var_or_default("PHP",  if os() == "windows" { "D:/_progs/xampp/php/php.exe" } else { "php" })
 port := env_var_or_default("PORT", "8080")
 base := "http://localhost:" + port
 
@@ -137,6 +137,10 @@ log-errors:
 clean-cache:
     rm -f data/*.cache data/*.cache.outdated
 
+# Remove all SumUp snapshots — next request per tenant does a full rebuild
+sumup-clean:
+    rm -f data/*.sumup.json
+
 # Remove throttle state files
 clean-throttle:
     rm -f data/throttle_*.dat
@@ -146,7 +150,7 @@ clean-test:
     rm -f data/*_e2e.* data/entries_e2e.* data/votes_e2e.*
 
 # Remove all generated runtime files
-clean: clean-cache clean-throttle clean-test
+clean: clean-cache clean-throttle clean-test sumup-clean
 
 # ── Code quality ─────────────────────────────────────────────────────────────
 

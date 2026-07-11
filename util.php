@@ -68,7 +68,7 @@
         if (isset($configGeneral['general'])) {
             $config = $configGeneral['general'];
         }
-        if (isset($configGeneral[$type])) {
+        if (isset($type) && isset($configGeneral[$type])) {
             $config = array_merge($config, $configGeneral[$type]);
         }
     } else {
@@ -137,7 +137,7 @@
     }
 
     // log import — skipped for data channel when log_requests is off (default false)
-    if ($type !== 'data' || !empty($config['log_requests'])) {
+    if ((empty($type) || $type !== 'data') || !empty($config['log_requests'])) {
         $log_message = '';
         if (!empty($_GET))  { $log_message .= json_encode($_GET);  }
         if (!empty($_POST)) { $log_message .= json_encode($_POST); }
