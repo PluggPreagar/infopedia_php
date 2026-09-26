@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Abstimmen — fayf</title>
+  <link rel="icon" href="assets/favicon.ico">
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <style>
+    body { display: flex; flex-direction: column; }
+
+    #vote-list {
+      flex: 1; padding: var(--space-3) var(--space-4);
+      display: flex; flex-direction: column; gap: var(--space-2);
+      max-width: 800px; width: 100%; margin: 0 auto;
+    }
+    .card-source { margin-top: var(--space-2); font-size: var(--text-sm); color: var(--color-neutral-600); }
+    .card-source a { color: var(--color-interactive-700); }
+    #vote-empty { color: var(--color-neutral-400); text-align: center; padding: var(--space-6); }
+
+    #toast-container { position: fixed; top: var(--space-4); right: var(--space-4); z-index: var(--z-toast);
+                       display: flex; flex-direction: column; gap: var(--space-2); }
+    #toast-container .toast { position: static; }
+
+    @media (max-width: 600px) { #vote-list { padding: var(--space-2); } }
+  </style>
+</head>
+<body>
+<nav class="nav">
+  <span class="nav-title" id="nav-title">Abstimmen</span>
+</nav>
+
+<div class="chip-bar" id="tab-bar">
+  <button class="chip chip-scope active" data-tab="!">Argumente</button>
+  <button class="chip chip-scope"        data-tab="??">Gegenfragen</button>
+</div>
+
+<div id="vote-list"></div>
+<div id="toast-container"></div>
+
+<script src="assets/entry-core.js"></script>
+<script src="assets/md-renderer.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let tenantId  = "";
+let topicRoot = "/";
+let sid       = "www";
+let entries   = {};   // { "/topic/node": { timestamp, message, attrs } } — as served by GET /entries
+let votesData = {};   // { "/topic/node": { votes: n, signed: n } }
+let activeTab = "!";  // suffix of the visible list: "!" Argumente · "??" Gegenfragen
+const TID_RE  = /^[a-zA-Z0-9_-]{1,30}$/;   // CC4 — same rule as the backend
+
+// ── Pure helpers (test/vote_test.js) ─────────────────────────────────────────
+function isUnderTopic(key, topic) {
+    const t = String(topic || "/").replace(/\/+$/, "");
+    if (t === "") return true;                         // root folder lists everything
+    return key === t || key.startsWith(t + "/");
+}
+
+function voteListFor(entries, topic, suffix) {
+    return Object.entries(entries || {})
+        .filter(([key, e]) => e && isUnderTopic(key, topic) && getTypeFromMessage(e.message) === suffix)
+        .map(([key, e]) => ({ key, message: e.message, timestamp: e.timestamp || "", attrs: e.attrs || {} }));
+}
+
+function sumVotes(votes) {
+    if (votes && typeof votes === "object") return Object.values(votes).reduce((a, b) => a + (Number(b) || 0), 0);
+    return typeof votes === "number" ? votes : 0;
+}
+function scoreOf(votesData, key)  { return (votesData && votesData[key] && votesData[key].votes)  || 0; }
+function signedOf(votesData, key) { return (votesData && votesData[key] && votesData[key].signed) || 0; }
+
+function sortByScore(list, votesData) {
+    return [...list].sort((a, b) =>
+        (scoreOf(votesData, b.key) - scoreOf(votesData, a.key)) ||
+        String(b.timestamp).localeCompare(String(a.timestamp)));
+}
+
+// A bare URL becomes "[host](url)"; markdown passes through; anything else stays plain text.
+function normaliseSourceMd(value) {
+    const v = String(value || "").trim();
+    if (!v || v.includes("](")) return v;
+    try {
+        const host = new URL(v).host.replace(/^www\./, "");
+        return `[${host || v}](${v})`;
+    } catch {
+        return v;
+    }
+}
+
+// renderMd() sanitises hrefs (javascript:/data: → "#"); we only strip its <p> wrapper
+// and make source links open in a new tab.
+function renderSourceHtml(srcMd) {
+    if (!srcMd) return "";
+    const inner = renderMd(srcMd).replace(/^<p>/, "").replace(/<\/p>\n?$/, "");
+    return inner.replace(/<a href=/g, '<a target="_blank" rel="noopener" href=');
+}
+
+// ── Toast (CA15: plain words for the user) ────────────────────────────────────
+function showToast(message, type = "info", duration = 3000) {
+    const el = document.createElement("div");
+    el.className = "toast toast-" + type;
+    el.textContent = message;
+    document.getElementById("toast-container").appendChild(el);
+    setTimeout(() => el.remove(), duration);
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+function buildVoteCard(item) {
+    const def      = getTypeDef(item.message);
+    const score    = scoreOf(votesData, item.key);
+    const signed   = signedOf(votesData, item.key);
+    const verified = signed >= 2 && def.suffix === "!";                        // AVC4.2
+    const label    = verified ? "Bewiesen ✓" : def.label;
+    const text     = escapeHtml(item.message.replace(/[.!?@>\-]+$/, "").trim() || item.message);
+    const scoreClass = score > 0 ? "pos" : score < 0 ? "neg" : "zero";
+    const scoreStr   = score > 0 ? "+" + score : String(score);
+    const srcHtml  = renderSourceHtml(normaliseSourceMd(item.attrs.src));
+    const key      = escapeHtml(item.key);
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.fullKey = item.key;
+    card.innerHTML = `
+        <div class="card-header">
+            <span class="badge badge-${def.cssClass}">${label}</span>
+            <span class="card-text">${text}</span>
+        </div>
+        ${srcHtml ? `<div class="card-source">Quelle: ${srcHtml}</div>` : ""}
+        <div class="card-footer">
+            <button class="vote-btn upvote-btn" data-key="${key}" aria-label="Dafür">▲</button>
+            <span class="vote-score ${scoreClass}">${scoreStr}</span>
+            <button class="vote-btn downvote-btn" data-key="${key}" aria-label="Dagegen">▼</button>
+            <span class="sign-count ${signed >= 2 ? "verified" : ""}">${signed > 0 ? "✓ " + signed : ""}</span>
+            <button class="sign-btn" data-key="${key}">Bestätigen</button>
+        </div>`;
+    return card;
+}
+
+function render() {
+    const list  = document.getElementById("vote-list");
+    const items = sortByScore(voteListFor(entries, topicRoot, activeTab), votesData);
+    list.innerHTML = "";
+    if (items.length === 0) {
+        list.innerHTML = '<div id="vote-empty">Noch keine Einträge.</div>';
+        return;
+    }
+    for (const item of items) list.appendChild(buildVoteCard(item));
+}
+
+// Update one card in place — no re-sort on vote, so the card the user just tapped stays put.
+function updateCardScore(key) {
+    const card = document.querySelector(`.card[data-full-key="${CSS.escape(key)}"]`);
+    if (!card) return;
+    const score = scoreOf(votesData, key), signed = signedOf(votesData, key);
+    const el = card.querySelector(".vote-score");
+    el.textContent = score > 0 ? "+" + score : String(score);
+    el.className   = "vote-score " + (score > 0 ? "pos" : score < 0 ? "neg" : "zero");
+    const sc = card.querySelector(".sign-count");
+    sc.textContent = signed > 0 ? "✓ " + signed : "";
+    sc.className   = "sign-count" + (signed >= 2 ? " verified" : "");
+    // Badge follows the same rule as buildVoteCard() so the 2nd confirmation flips it in place (AVC4.2).
+    const def = getTypeDef((entries[key] && entries[key].message) || "");
+    card.querySelector(".badge").textContent = (signed >= 2 && def.suffix === "!") ? "Bewiesen ✓" : def.label;
+}
+
+// ── Voting: optimistic update, then POST /votes ───────────────────────────────
+async function postVoteAttr(key, attr, failMsg) {
+    const entry = entries[key];
+    if (!entry) return false;
+    const body = new URLSearchParams({ entry: `${key} | ${attr} | ${entry.message}` });
+    try {
+        const res = await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("[vote] POST votes non-ok:", res.status, res.url, text.slice(0, 500));   // CA16
+            showToast(failMsg, "error");                                                           // CA15
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error("[vote] POST votes:", err);
+        showToast(failMsg, "error");
+        return false;
+    }
+}
+
+// Optimistic: apply locally first, then POST; on failure undo so the score never claims
+// something the server did not store.
+function handleVote(key, delta) {
+    if (!debounceKey("vote_" + key, 1000)) return;                       // AVC3.3
+    votesData[key] = votesData[key] || { votes: 0, signed: 0 };
+    votesData[key].votes += delta;                                       // AVC3.1 / AVC3.2
+    updateCardScore(key);
+    postVoteAttr(key, `votes:${sid}:${delta}`, "Bewertung konnte nicht gespeichert werden. Bitte erneut versuchen.")
+        .then(ok => { if (!ok) { votesData[key].votes -= delta; updateCardScore(key); } });
+}
+
+function handleSign(key) {
+    if (!debounceKey("sign_" + key, 1000)) return;
+    votesData[key] = votesData[key] || { votes: 0, signed: 0 };
+    votesData[key].signed += 1;                                          // AVC4.1
+    updateCardScore(key);
+    postVoteAttr(key, `signed:${sid}:1`, "Bestätigung konnte nicht gespeichert werden. Bitte erneut versuchen.")
+        .then(ok => {
+            if (ok) { showToast("Bestätigt!", "success", 1500); return; }
+            votesData[key].signed -= 1;
+            updateCardScore(key);
+        });
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────────
+function buildUrl(route) {
+    return route + "?" + new URLSearchParams({ sid, tid: tenantId, format: "json" });
+}
+async function jsonOrEmpty(res) {
+    const text = await res.text();
+    return text.trim() ? JSON.parse(text) : {};        // a fresh tenant answers with an empty body
+}
+function setVotesData(json) {
+    votesData = {};
+    Object.entries(json || {}).forEach(([key, e]) => {
+        votesData[key] = {
+            votes:  sumVotes(e.votes),
+            signed: parseInt((e.attrs && e.attrs.signed_count) || 0, 10),
+        };
+    });
+}
+async function loadData() {
+    try {
+        const [eRes, vRes] = await Promise.all([fetch(buildUrl("entries")), fetch(buildUrl("votes"))]);
+        if (!eRes.ok || !vRes.ok) throw new Error(`entries ${eRes.status} / votes ${vRes.status}`);
+        entries = await jsonOrEmpty(eRes);
+        setVotesData(await jsonOrEmpty(vRes));
+        render();
+    } catch (err) {
+        console.error("[vote] loadData:", err);                                                   // CA16
+        showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000);   // CA15
+    }
+}
+
+// ── Settings — same localStorage key as app2.html so the session id is shared ─
+function loadSettings() {
+    try { return JSON.parse(localStorage.getItem("fayf_settings") || "{}"); } catch { return {}; }
+}
+function ensureSid(settings) {
+    if (settings.sid) return settings.sid;
+    const fresh = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    try { localStorage.setItem("fayf_settings", JSON.stringify({ ...settings, sid: fresh })); } catch { /* private mode */ }
+    return fresh;
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+async function init() {
+    document.getElementById("tab-bar").addEventListener("click", e => {
+        const chip = e.target.closest(".chip");
+        if (!chip) return;
+        activeTab = chip.dataset.tab;
+        document.querySelectorAll("#tab-bar .chip").forEach(c => c.classList.toggle("active", c === chip));
+        render();
+    });
+    document.getElementById("vote-list").addEventListener("click", e => {
+        const up = e.target.closest(".upvote-btn");
+        const dn = e.target.closest(".downvote-btn");
+        const sg = e.target.closest(".sign-btn");
+        if (up) handleVote(up.dataset.key,  1);
+        if (dn) handleVote(dn.dataset.key, -1);
+        if (sg) handleSign(sg.dataset.key);
+    });
+
+    let cfg = {};
+    try { cfg = await (await fetch("config.php")).json(); } catch (err) { console.warn("[vote] config.php:", err); }
+    const params = new URLSearchParams(location.search);
+    tenantId  = params.get("tid")   || cfg.votePageTid   || "";          // AVC5.1 / AVC5.2
+    topicRoot = params.get("topic") || cfg.votePageTopic || "/";
+    sid       = ensureSid(loadSettings());
+    document.getElementById("nav-title").textContent = "Abstimmen · " + (topicRoot.replace(/^\//, "") || "Alles");
+
+    if (!TID_RE.test(tenantId)) {                                        // AVC5.3, CC4
+        console.error("[vote] invalid tid:", JSON.stringify(tenantId));
+        showToast("Kein gültiger Bereich angegeben. Bitte den Link prüfen.", "error", 8000);
+        return;
+    }
+    await loadData();
+}
+init();
+</script>
+</body>
+</html>
