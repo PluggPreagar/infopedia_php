@@ -23,6 +23,13 @@
                        display: flex; flex-direction: column; gap: var(--space-2); }
     #toast-container .toast { position: static; }
 
+    .fab[hidden] { display: none; }                 /* .fab sets display:flex, which would beat [hidden] */
+    .sheet-header { display: flex; align-items: center; gap: var(--space-2); }
+    .sheet-header h3 { flex: 1; margin: 0; font-size: var(--text-base); font-weight: var(--font-weight-bold); color: var(--color-neutral-900); }
+    .sheet-field { display: flex; flex-direction: column; }
+    .sheet-actions { display: flex; gap: var(--space-3); justify-content: flex-end; }
+    #sheet { max-height: 90dvh; overflow-y: auto; } /* soft keyboard: the sheet scrolls instead of clipping */
+
     @media (max-width: 600px) { #vote-list { padding: var(--space-2); } }
   </style>
 </head>
@@ -39,6 +46,39 @@
 <div id="vote-list"></div>
 <div id="toast-container"></div>
 
+<button id="fab" class="fab" aria-label="Eintrag hinzufügen" hidden>
+  <svg class="icon icon-lg"><use href="assets/icons.svg#icon-plus"/></svg>
+</button>
+
+<div id="sheet-backdrop" class="overlay-backdrop">
+  <div id="sheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-heading">
+    <div class="sheet-header">
+      <h3 id="sheet-heading">Neuer Eintrag</h3>
+      <span id="sheet-badge" class="badge badge-fakt">Fakt</span>
+      <button id="sheet-close" class="btn-icon" aria-label="Schließen">
+        <svg class="icon icon-md"><use href="assets/icons.svg#icon-close"/></svg>
+      </button>
+    </div>
+    <div class="sheet-field">
+      <label class="form-label" for="sheet-text">Text</label>
+      <textarea id="sheet-text" class="textarea" placeholder="Dein Beitrag…"></textarea>
+    </div>
+    <div class="sheet-field">
+      <label class="form-label" for="sheet-src-url">Quelle URL</label>
+      <input id="sheet-src-url" class="input" type="url" inputmode="url" placeholder="https://…" autocomplete="off">
+    </div>
+    <div class="sheet-field">
+      <label class="form-label" for="sheet-src-name">Quelle Name (optional)</label>
+      <input id="sheet-src-name" class="input" type="text" placeholder="z. B. DGE Ernährungsbericht 2021" autocomplete="off">
+    </div>
+    <div class="sheet-actions">
+      <button id="sheet-cancel" class="btn btn-ghost">Abbrechen</button>
+      <button id="sheet-submit" class="btn btn-primary">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/gesture.js"></script>
 <script src="assets/entry-core.js"></script>
 <script src="assets/md-renderer.js"></script>
 <script>
@@ -195,6 +235,9 @@ function buildVoteCard(item) {
             <button class="vote-btn downvote-btn" data-key="${key}" aria-label="Dagegen">▼</button>
             <span class="sign-count ${signed >= 2 ? "verified" : ""}">${signed > 0 ? "✓ " + signed : ""}</span>
             <button class="sign-btn" data-key="${key}">Bestätigen</button>
+            <button class="btn-icon edit-btn" data-key="${key}" aria-label="Bearbeiten" title="Bearbeiten">
+                <svg class="icon icon-sm"><use href="assets/icons.svg#icon-edit"/></svg>
+            </button>
         </div>`;
     return card;
 }
@@ -271,6 +314,109 @@ function handleSign(key) {
         });
 }
 
+// ── Mode switch: tabs ↔ ?type= (VUC8) ─────────────────────────────────────────
+function syncTabs() {
+    document.querySelectorAll("#tab-bar .chip").forEach(c => c.classList.toggle("active", c.dataset.tab === activeTab));
+}
+function applyMode(suffix) {
+    activeTab = suffix;
+    syncTabs();
+    const url = new URL(location.href);
+    url.searchParams.set("type", paramFromMode(suffix));
+    history.replaceState(null, "", url);                  // shareable link, no back-stack entry (D9)
+    render();
+}
+
+// ── Add / edit sheet (VUC6 / VUC7) ────────────────────────────────────────────
+let sheetKey = null;   // null → add mode · "/topic/node" → edit mode
+
+function sheetEls() {
+    const $ = id => document.getElementById(id);
+    return { backdrop: $("sheet-backdrop"), sheet: $("sheet"), heading: $("sheet-heading"), badge: $("sheet-badge"),
+             text: $("sheet-text"), url: $("sheet-src-url"), name: $("sheet-src-name"), submit: $("sheet-submit") };
+}
+function isSheetOpen() { return document.getElementById("sheet-backdrop").classList.contains("open"); }
+
+function openSheet(key = null) {
+    const entry = key ? entries[key] : null;
+    if (key && !entry) return;                            // stale card — nothing to edit
+    const el = sheetEls();
+    sheetKey = key;
+    const suffix = entry ? getTypeFromMessage(entry.message) : activeTab;   // edit keeps the type (AVC7.6)
+    const def    = TYPE_DEFS[suffix] || TYPE_DEF_DEFAULT;
+    el.heading.textContent = entry ? "Eintrag bearbeiten" : "Neuer Eintrag";
+    el.badge.textContent   = def.label;                   // CA18 — label from TYPE_DEFS only
+    el.badge.className     = "badge badge-" + def.cssClass;
+    el.submit.textContent  = entry ? "Speichern" : "Hinzufügen";
+    const src = parseSourceMd(entry && entry.attrs ? entry.attrs.src : "");
+    el.text.value = entry ? stripTypeSuffix(entry.message) : "";
+    el.url.value  = src.url;
+    el.name.value = src.name;
+    el.backdrop.classList.add("open");
+    el.sheet.classList.add("open");
+    el.text.focus();
+}
+function closeSheet() {
+    sheetKey = null;
+    const el = sheetEls();
+    el.backdrop.classList.remove("open");
+    el.sheet.classList.remove("open");
+}
+
+// Swappable so tests stub it (same pattern as postVoteAttr). Resolves { ok, timestamp }.
+async function postEntryLine(line) {
+    try {
+        const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }),
+                                { method: "POST", body: new URLSearchParams({ entry: line }) });
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("[vote] POST entries non-ok:", res.status, res.url, text.slice(0, 500), "line:", line);   // CA16
+            showToast(res.status === 429
+                ? "Zu viele Einträge in kurzer Zeit. Bitte kurz warten."
+                : "Eintrag konnte nicht gespeichert werden. Bitte erneut versuchen.", "error");                 // CA15
+            return { ok: false };
+        }
+        const json = await res.json().catch(() => ({}));
+        return { ok: true, timestamp: json.timestamp || "" };
+    } catch (err) {
+        console.error("[vote] POST entries:", err, "line:", line);
+        showToast("Verbindung unterbrochen. Bitte erneut versuchen.", "error");
+        return { ok: false };
+    }
+}
+
+function freshNodeId(topic) {
+    let id = generateNodeId();
+    while (entries[fullKey(topic, id)]) id = generateNodeId();        // collision guard, practically never loops
+    return id;
+}
+
+async function submitSheet() {
+    const el = sheetEls();
+    const text = el.text.value, url = el.url.value, name = el.name.value;
+    const problem = validateSheetInput(text, url, name);
+    if (problem) { showToast(problem, "error"); return false; }        // AVC6.3 — sheet stays open
+
+    const isEdit = sheetKey !== null;
+    const key    = isEdit ? sheetKey : fullKey(topicRoot, freshNodeId(topicRoot));
+    const prev   = (isEdit && entries[key]) || { attrs: {} };
+    const suffix = isEdit ? getTypeFromMessage(prev.message) : activeTab;
+    const line   = buildEntryLine(key, text, suffix, prev.attrs, url, name);
+
+    el.submit.disabled = true;                                          // no double submit while in flight
+    const res = await postEntryLine(line).finally(() => { el.submit.disabled = false; });
+    if (!res.ok) return false;                                          // AVC6.5 / AVC7.5 — text stays in the sheet
+
+    const attrs = Object.fromEntries(Object.entries(prev.attrs || {}).filter(([k]) => k !== "src"));
+    const src   = buildSourceMd(url, name);
+    if (src) attrs.src = src;
+    entries[key] = { timestamp: res.timestamp || prev.timestamp || "", message: matchType(text.trim(), suffix), attrs };
+    render();
+    showToast(isEdit ? "Eintrag aktualisiert!" : "Eintrag hinzugefügt!", "success", 1500);
+    closeSheet();
+    return true;
+}
+
 // ── Data loading ──────────────────────────────────────────────────────────────
 function buildUrl(route) {
     return route + "?" + new URLSearchParams({ sid, tid: tenantId, format: "json" });
@@ -295,6 +441,7 @@ async function loadData() {
         entries = await jsonOrEmpty(eRes);
         setVotesData(await jsonOrEmpty(vRes));
         render();
+        document.getElementById("fab").hidden = false;   // AVC6.6 — add only once the list is loaded
     } catch (err) {
         console.error("[vote] loadData:", err);                                                   // CA16
         showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000);   // CA15
@@ -315,26 +462,40 @@ function ensureSid(settings) {
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 async function init() {
     document.getElementById("tab-bar").addEventListener("click", e => {
-        const chip = e.target.closest(".chip");
-        if (!chip) return;
-        activeTab = chip.dataset.tab;
-        document.querySelectorAll("#tab-bar .chip").forEach(c => c.classList.toggle("active", c === chip));
-        render();
+        const chip = e.target.closest(".chip[data-tab]");
+        if (chip) applyMode(chip.dataset.tab);
     });
-    document.getElementById("vote-list").addEventListener("click", e => {
+    const list = document.getElementById("vote-list");
+    list.addEventListener("click", e => {
         const up = e.target.closest(".upvote-btn");
         const dn = e.target.closest(".downvote-btn");
         const sg = e.target.closest(".sign-btn");
+        const ed = e.target.closest(".edit-btn");
         if (up) handleVote(up.dataset.key,  1);
         if (dn) handleVote(dn.dataset.key, -1);
         if (sg) handleSign(sg.dataset.key);
+        if (ed) openSheet(ed.dataset.key);                              // AVC7.1
     });
+    initGestureDetector(list);                                          // AVC7.2 — long-press, no tap hint (D11)
+    list.addEventListener("gesture:longpress", e => {
+        if (e.target.closest("button, a")) return;                      // buttons and links keep their own meaning
+        const card = e.target.closest(".card");
+        if (card) openSheet(card.dataset.fullKey);
+    });
+    document.getElementById("fab").addEventListener("click", () => openSheet());
+    document.getElementById("sheet-submit").addEventListener("click", submitSheet);
+    document.getElementById("sheet-cancel").addEventListener("click", closeSheet);
+    document.getElementById("sheet-close").addEventListener("click", closeSheet);
+    document.getElementById("sheet-backdrop").addEventListener("click", e => { if (e.target.id === "sheet-backdrop") closeSheet(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && isSheetOpen()) closeSheet(); });
 
     let cfg = {};
     try { cfg = await (await fetch("config.php")).json(); } catch (err) { console.warn("[vote] config.php:", err); }
     const params = new URLSearchParams(location.search);
     tenantId  = params.get("tid")   || cfg.votePageTid   || "";          // AVC5.1 / AVC5.2
-    topicRoot = params.get("topic") || cfg.votePageTopic || "/";
+    topicRoot = ((params.get("topic") || cfg.votePageTopic || "/").replace(/\/+$/, "")) || "/";
+    activeTab = modeFromParam(params.get("type")) || modeFromParam(cfg.votePageType) || "!";   // AVC8.1 / AVC8.2
+    syncTabs();
     sid       = ensureSid(loadSettings());
     document.getElementById("nav-title").textContent = "Abstimmen · " + (topicRoot.replace(/^\//, "") || "Alles");
 
