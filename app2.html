@@ -372,13 +372,10 @@ function runtimeCheck(msg = "") {
     // hook point — intentionally empty; call sites kept for future instrumentation
 }
 
-// fullKey / splitKey / getTypeFromMessage / matchType / TYPE_DEFS / escapeHtml / debounceKey
-// live in assets/entry-core.js (shared with vote.html).
+// fullKey / splitKey / getTypeFromMessage / matchType / TYPE_DEFS / escapeHtml / debounceKey /
+// generateNodeId live in assets/entry-core.js (shared with vote.html).
 
 // ── Entry helpers ─────────────────────────────────────────────────────────────
-function generateNodeId() {
-    return Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
-}
 function formatTimestamp(ts) {
     if (!ts) return "";
     const d = new Date(ts.replace(" ", "T"));

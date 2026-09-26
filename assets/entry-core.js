@@ -62,3 +62,10 @@ function debounceKey(key, ms) {
     _debounceMap[key] = now;
     return true;
 }
+
+// ── Node id ───────────────────────────────────────────────────────────────────
+// Time-ordered prefix + 6 random chars. Callers that hold the entry map should still
+// re-roll on a hit (vote.html freshNodeId) — free defense-in-depth.
+function generateNodeId() {
+    return Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
+}
