@@ -41,18 +41,8 @@
       max-width: 800px; width: 100%; margin: 0 auto;
     }
 
-    /* ── Card internals ─────────────────────────────── */
-    .card-text { font-size: var(--text-base); line-height: 1.4; flex: 1; }
+    /* ── Card internals (shared rules live in components.css) ── */
     .drill-arrow { color: var(--color-neutral-400); margin-left: var(--space-1); flex-shrink: 0; }
-    .sign-count { font-size: var(--text-sm); color: var(--color-neutral-400); margin-left: auto; }
-    .sign-count.verified { color: var(--color-semantic-500); font-weight: var(--font-weight-bold); }
-    .sign-btn {
-      background: none; border: 1px solid var(--color-neutral-200);
-      border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2);
-      cursor: pointer; font-size: var(--text-xs); color: var(--color-neutral-600);
-    }
-    .sign-btn:hover { border-color: var(--color-interactive-400); color: var(--color-interactive-700); }
-    .ts-label { font-size: var(--text-xs); color: var(--color-neutral-300); }
 
     /* ── Bottom sheet overlay ───────────────────── */
     #bottom-sheet-overlay {
@@ -223,6 +213,7 @@
 <div id="toast-container"></div>
 
 <script src="assets/gesture.js"></script>
+<script src="assets/entry-core.js"></script>
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
 let tenantId = "";
@@ -381,32 +372,12 @@ function runtimeCheck(msg = "") {
     // hook point — intentionally empty; call sites kept for future instrumentation
 }
 
-// ── Key helpers ───────────────────────────────────────────────────────────────
-function fullKey(topic, nodeId) {
-    return topic + ("/" === topic ? "" : "/") + nodeId;
-}
-function splitKey(key) {
-    const lastSlash = key.lastIndexOf("/");
-    if (lastSlash <= 0) return ["/", key.replace(/^\//, "")];
-    return [key.substring(0, lastSlash), key.substring(lastSlash + 1)];
-}
+// fullKey / splitKey / getTypeFromMessage / matchType / TYPE_DEFS / escapeHtml / debounceKey
+// live in assets/entry-core.js (shared with vote.html).
 
 // ── Entry helpers ─────────────────────────────────────────────────────────────
 function generateNodeId() {
     return Date.now().toString(36).substring(2) + Math.random().toString(36).substring(2, 8);
-}
-function getTypeFromMessage(message) {
-    for (const t of [">", "!-", "??", "!", "?", ".", "@", "--"]) {
-        if (message && message.endsWith(t)) return t;
-    }
-    return "";
-}
-function matchType(message, type) {
-    const current = getTypeFromMessage(message);
-    if (current === type) return message;
-    if (!current) return message + type;
-    if (type === "--") return message + type;
-    return message.slice(0, -current.length).trim() + type;
 }
 function formatTimestamp(ts) {
     if (!ts) return "";
@@ -569,27 +540,7 @@ function saveSettings(patch) {
     localStorage.setItem("fayf_settings", JSON.stringify({ ...s, ...patch }));
 }
 
-// ── Type system ───────────────────────────────────────────────────────────────
-const TYPE_DEFS = {
-    "!-": { label: "Fake",       cssClass: "fake",       color: "#f44336", iconClass: "fa-circle-xmark"    },
-    "!":  { label: "Fakt",       cssClass: "fakt",       color: "#4CAF50", iconClass: "fa-circle-check"    },
-    "??": { label: "Gegenfrage", cssClass: "gegenfrage", color: "#2196F3", iconClass: "fa-right-left"      },
-    "?":  { label: "Unklar",     cssClass: "unklar",     color: "#FF9800", iconClass: "fa-circle-question" },
-    ".":  { label: "Meinung",    cssClass: "meinung",    color: "#888",    iconClass: "fa-comment"         },
-    "@":  { label: "Quelle",     cssClass: "meinung",    color: "#888",    iconClass: "fa-link"            },
-    ">":  { label: "Thema",      cssClass: "fakt",       color: "#4CAF50", iconClass: "fa-folder-open"     },
-};
-const TYPE_DEF_DEFAULT = { label: "Eintrag", cssClass: "meinung", color: "#888", iconClass: "fa-circle-dot" };
-
-function getTypeDef(message) {
-    const suffix = getTypeFromMessage(message);
-    const base = TYPE_DEFS[suffix] || TYPE_DEF_DEFAULT;
-    return { ...base, suffix };
-}
-
-function escapeHtml(s) {
-    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+// ── Type system: TYPE_DEFS / getTypeDef are in assets/entry-core.js (CA18: one definition) ──
 
 function getSignedCount(topic, nodeId) {
     const key = fullKey(topic, nodeId);
@@ -671,15 +622,6 @@ function handleVote(key, delta) {
         score.textContent = votes > 0 ? "+" + votes : String(votes);
         score.className = "vote-score " + (votes > 0 ? "pos" : votes < 0 ? "neg" : "zero");
     }
-}
-
-// ── Swipe voting ──────────────────────────────────────────────────────────────
-const _debounceMap = {};
-function debounceKey(key, ms) {
-    const now = Date.now();
-    if (_debounceMap[key] && now - _debounceMap[key] < ms) return false;
-    _debounceMap[key] = now;
-    return true;
 }
 
 // ── Render cards with IntersectionObserver batching ───────────────────────────

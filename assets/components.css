@@ -169,6 +169,26 @@ a { text-decoration: none; color: inherit; }
   margin-top: var(--space-3);
 }
 
+/* Card internals — shared by app2.html and vote.html */
+.card-text { font-size: var(--text-base); line-height: 1.4; flex: 1; }
+
+.sign-count { font-size: var(--text-sm); color: var(--color-neutral-400); margin-left: auto; }
+.sign-count.verified { color: var(--color-semantic-500); font-weight: var(--font-weight-bold); }
+
+.sign-btn {
+  background: none;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  min-height: 44px;   /* CG-DS5 — was missing while app2-local */
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--color-neutral-600);
+}
+.sign-btn:hover { border-color: var(--color-interactive-400); color: var(--color-interactive-700); }
+
+.ts-label { font-size: var(--text-xs); color: var(--color-neutral-300); }
+
 /* Swipe state classes — applied by card-swipe.js during drag */
 .card.swiping-right {
   border-left: 4px solid var(--color-semantic-500);
