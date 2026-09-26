@@ -49,6 +49,13 @@ pe('/climate/solutions | author:martin | priority:high | Solar panels.',
     ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>['author'=>'martin','priority'=>'high'],'votes'=>[],'signed'=>[]],
     'multiple attrs');
 
+// src: attribute holding markdown links — the value keeps its own colons, brackets, parens.
+// vote.html depends on this; the case guards against a future attr-parser change.
+pe('/frueher/x | src:[A](https://a.example.org/p?q=1) [B](https://b.example.org) | Text!',
+    ['path'=>'/frueher/x','content'=>'Text!','type'=>'!','display_ts'=>null,
+     'attrs'=>['src'=>'[A](https://a.example.org/p?q=1) [B](https://b.example.org)'],'votes'=>[],'signed'=>[]],
+    'src attr with two markdown links');
+
 // display timestamp
 pe('/climate/solutions | 2025-09-07 20:44:54 | Solar panels.',
     ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>'2025-09-07 20:44:54','attrs'=>[],'votes'=>[],'signed'=>[]],
