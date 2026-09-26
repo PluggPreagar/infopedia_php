@@ -10,9 +10,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 $ini   = file_exists(__DIR__ . '/infopedia.cfg') ? parse_ini_file(__DIR__ . '/infopedia.cfg', true) : [];
-$issue = $ini['issue'] ?? [];
+$issue = $ini['issue']     ?? [];
+$vote  = $ini['vote_page'] ?? [];
 
 echo json_encode([
     'issueGithubUrl' => $issue['github_url'] ?? '',
     'issueMailto'    => $issue['mailto']     ?? '',
+    'votePageTid'    => $vote['tid']         ?? '',
+    'votePageTopic'  => $vote['topic']       ?? '/',
 ]);

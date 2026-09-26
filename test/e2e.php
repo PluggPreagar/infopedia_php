@@ -447,6 +447,16 @@ foreach ([$ops_file_a, $ops_file_b] as $of) { if (file_exists($of)) unlink($of);
 // Restore cfg
 file_put_contents('infopedia.cfg', $orig_cfg3);
 
+// ─── config.php — vote page keys ─────────────────────────────────────────────
+
+section('config.php — vote page keys');
+$r = get('config.php');
+ok($r['status'] === 200,                                   'config: 200');
+ok(is_array($r['json']),                                   'config: json body');
+ok(array_key_exists('votePageTid',   $r['json'] ?? []),    'config: has votePageTid');
+ok(array_key_exists('votePageTopic', $r['json'] ?? []),    'config: has votePageTopic');
+ok(str_starts_with((string)($r['json']['votePageTopic'] ?? ''), '/'), 'config: votePageTopic starts with /');
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
 echo "\n";

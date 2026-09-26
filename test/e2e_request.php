@@ -50,7 +50,9 @@ function e2e_route(string $path): ?string {
         '/health'     => 'health.php',
         '/stats'      => 'statistic.php',
         '/issue'      => 'issue.php',
+        '/config'     => 'config.php',
         'issue.php'   => 'issue.php',
+        'config.php'  => 'config.php',
         'entries.php' => 'entries.php',
         'notify.php'  => 'notify.php',
     ][$path] ?? null;
