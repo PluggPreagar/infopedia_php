@@ -15,7 +15,7 @@ vote on them — and, in a second list, read and vote on the counter-questions
 (*Gegenfragen*) for the same folder. Sources are shown as links so a reader can check a
 claim before voting.
 
-Vote + confirm only. Adding and editing entries stays in `app2.html`.
+Vote, confirm, add and edit (add/edit added 2026-09-26, D9–D12). Delete stays in `app2.html`.
 
 ---
 
@@ -29,8 +29,12 @@ Vote + confirm only. Adding and editing entries stays in `app2.html`.
 | D4 | Use the **defined** design-system layout, badges and labels (`Fakt`, `Gegenfrage`) | No new vocabulary, no rename of `.`/`!` anywhere | CA18, CG-DS1 |
 | D5 | Source stored as `src:` attribute whose value is **markdown link(s)** `[Name](url)`; a bare URL is tolerated | Name + URL in one field; several sources per entry; `[ ]( )` are unambiguous where `:` is not; parses today | CC2, CD1, CA4 |
 | D6 | Markdown links inside the message are additionally rendered | `renderMd()` already exists and sanitises | CA7 |
-| D7 | Vote + confirm only; no add, no edit | Smallest surface for v1 | CA1, CA8 |
+| D7 | ~~Vote + confirm only; no add, no edit~~ superseded by D9–D12 | was: smallest surface for v1 | CA1, CA8 |
 | D8 | Tenant and topic come from config, overridable per URL | No hardcoding | CC2 |
+| D9 | Page mode via `?type=fakt\|gegenfrage`, default `[vote_page] type`; the tabs switch mode with `history.replaceState` | One list, one add type, shareable URL, no popstate logic | CC2, CA1 |
+| D10 | Add/edit sheet: text + "Quelle URL" + "Quelle Name (optional)"; one source per entry in the UI; `\|` in the URL → `%7C`, `\|` in text/name refused; an existing multi-link `src` is edited verbatim | Fields are unambiguous where free-form markdown is not; the column separator stays safe | CA4, CA15, CD1 |
+| D11 | Edit via pencil button (primary) and long-press (secondary), no tap-hint toast; the edit POST re-sends every attribute | Server keeps only the newest row per path — an omitted `src:` is a deleted source | CA7, CG-DS5 |
+| D12 | No delete on this page | `matchType(text,"--")` yields `text.--`, not the server's bare `--` marker | CA1 |
 
 ---
 
@@ -184,6 +188,28 @@ and accept the CA7 deviation. Say so and I will switch.
 - **AVC5.2** — Without them the configured defaults are used.
 - **AVC5.3** — An invalid `tid` shows a plain-language error, not a status code (CA15).
 
+### VUC6: Add an entry
+- **AVC6.1** — The FAB opens a sheet titled "Neuer Eintrag" showing the page type's badge (Fakt / Gegenfrage).
+- **AVC6.2** — Saving creates an entry of the page type under the configured folder and shows it at once.
+- **AVC6.3** — Fewer than 3 characters or a `|` show a plain message; nothing is sent.
+- **AVC6.4** — A source URL (with optional name) is stored as `src:` markdown and rendered as a link.
+- **AVC6.5** — A failed save shows a plain message; the sheet stays open with the text (CA15, CA16).
+- **AVC6.6** — The FAB is only offered once the list has loaded.
+
+### VUC7: Edit an entry
+- **AVC7.1** — The pencil on a card opens the sheet "Eintrag bearbeiten" pre-filled with text, source URL and name.
+- **AVC7.2** — Long-pressing a card does the same.
+- **AVC7.3** — The source survives an edit that only changes the text.
+- **AVC7.4** — Other attributes of the entry survive an edit.
+- **AVC7.5** — A failed save keeps the sheet open and the list unchanged.
+- **AVC7.6** — The entry keeps its type.
+
+### VUC8: Page mode
+- **AVC8.1** — `?type=gegenfrage` lists only `??` entries; `?type=fakt` only `!` entries.
+- **AVC8.2** — Without the parameter the configured default applies.
+- **AVC8.3** — The sheet creates entries of the current mode.
+- **AVC8.4** — Switching tabs updates the URL so the link can be shared.
+
 ---
 
 ## 7. Config keys (CC2, REQ-S2-4)
@@ -194,14 +220,16 @@ New `infopedia.cfg` section:
 [vote_page]
 tid   = frueher
 topic = /frueher
+type  = fakt        ; default page mode: fakt | gegenfrage (D9)
 ```
 
-`config.php` — which already serves frontend config as JSON — gains two keys:
+`config.php` — which already serves frontend config as JSON — gains three keys:
 
 ```php
 $vote = $ini['vote_page'] ?? [];
 'votePageTid'   => $vote['tid']   ?? '',
 'votePageTopic' => $vote['topic'] ?? '/',
+'votePageType'  => $vote['type']  ?? 'fakt',
 ```
 
 Same two keys go into `infopedia_template.cfg` with empty values.
@@ -224,6 +252,12 @@ Pure, side-effect-free, all in `vote.html`, all directly unit-testable:
 | `sortByScore(list, votesData)` | score desc, timestamp desc as tiebreak, stable; does not mutate |
 | `normaliseSourceMd(value)` | markdown passes through unchanged; a bare URL becomes `[host](url)`; `'https://www.example.org/a'` → `'[example.org](https://www.example.org/a)'`; empty/missing → `''` |
 | `scoreOf(votesData, key)` | sums the vote object, missing key → `0` |
+| `modeFromParam(v)` / `paramFromMode(s)` | `fakt`↔`!`, `gegenfrage`↔`??` (case-insensitive); unknown → `""` |
+| `stripTypeSuffix(m)` | strips exactly the suffix `getTypeFromMessage` finds — `Ist das so?!` → `Ist das so?` |
+| `parseSourceMd(v)` | `[N](u)` → `{url:u, name:N}`; bare URL → `{url, name:""}`; several links / plain text → verbatim in `url` |
+| `buildSourceMd(url, name)` | `[name](url)` or bare url; `\|` → `%7C`; `[`/`]` dropped from the name; markdown passes verbatim |
+| `validateSheetInput(t, u, n)` | `""` or the user message: `< 3` chars, `\|` in text/name, URL not `https?://` (unless markdown) |
+| `buildEntryLine(key, text, suffix, attrs, url, name)` | `key \| <other attrs> \| src:… \| matchType(text, suffix)` — re-emits every non-src attr |
 
 Rendering the normalised value goes through `renderMd()` unchanged, so the
 `javascript:` / `data:` scheme guard in `safeUrl()` (`assets/md-renderer.js`) applies to
@@ -278,7 +312,8 @@ feat(cfg): vote_page tid and topic defaults
 
 ## 12. Out of scope for v1
 
-- Adding or editing arguments from this page (D7)
+- Deleting entries from this page (D12)
+- Several sources per entry in the sheet — an existing multi-link `src` is preserved verbatim (D10)
 - Live updates via the notify channel — v2; v1 loads on open and updates optimistically
 - Swipe-to-vote (`assets/card-swipe.js`) — v2
 - Voting on source quality

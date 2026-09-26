@@ -27,8 +27,15 @@
 - `justfile`: `seed-vote` recipe seeds the vote tenant with demo arguments; `serve` lists
   the vote page.
 - `.gitattributes`: LF line endings enforced repo-wide (`* text=auto eol=lf`).
+- `vote.html`: **add and edit entries** — a FAB opens a bottom sheet (text, Quelle URL,
+  Quelle Name) creating an entry of the page type; pencil button or long-press opens the
+  edit sheet pre-filled from the entry and re-sends every attribute, so `src:` survives the
+  server's newest-row-wins read path. `?type=fakt|gegenfrage` page mode, default
+  `[vote_page] type` (`votePageType` in `config.php`); the tabs rewrite the URL.
+  No delete (the `--` marker needs its own design).
 
 ### Changed
+- `generateNodeId()` moved from `app2.html` to `assets/entry-core.js`.
 - **`assets/entry-core.js`** (new): `fullKey`, `splitKey`, `getTypeFromMessage`,
   `matchType`, `TYPE_DEFS`, `getTypeDef`, `escapeHtml`, `debounceKey` moved out of
   `app2.html` so `vote.html` shares one definition (CA7, CA18). Card-internal CSS
