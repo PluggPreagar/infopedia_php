@@ -18,4 +18,5 @@ echo json_encode([
     'issueMailto'    => $issue['mailto']     ?? '',
     'votePageTid'    => $vote['tid']         ?? '',
     'votePageTopic'  => $vote['topic']       ?? '/',
+    'votePageType'   => $vote['type']        ?? 'fakt',
 ]);

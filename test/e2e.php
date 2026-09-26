@@ -456,6 +456,8 @@ ok(is_array($r['json']),                                   'config: json body');
 ok(array_key_exists('votePageTid',   $r['json'] ?? []),    'config: has votePageTid');
 ok(array_key_exists('votePageTopic', $r['json'] ?? []),    'config: has votePageTopic');
 ok(str_starts_with((string)($r['json']['votePageTopic'] ?? ''), '/'), 'config: votePageTopic starts with /');
+ok(array_key_exists('votePageType', $r['json'] ?? []),                         'config: has votePageType');
+ok(in_array($r['json']['votePageType'] ?? '', ['fakt', 'gegenfrage'], true), 'config: votePageType is fakt|gegenfrage');
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
