@@ -200,8 +200,9 @@ function sortCsvData(string $csv, bool $dedup_paths = true): string {
                     'raw_entry_col' => $raw_entry_col,
                     'deleted'       => false,
                 ];
-            } elseif (!isset($groups[$path]) || $ts_norm > $groups[$path]['ts']) {
-                // Non-vote rows: dedup (keep only newest).
+            } elseif (!isset($groups[$path]) || $ts_norm >= $groups[$path]['ts']) {
+                // Non-vote rows: dedup (keep only newest). '>=' — on equal timestamps the
+                // row appended later is the newer one (add + edit within one second).
                 $groups[$path] = [
                     'ts'            => $ts_norm,
                     'raw_entry_col' => $raw_entry_col,

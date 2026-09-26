@@ -134,6 +134,18 @@ sd($H . "2025-09-08 10:00:00,/climate/solutions | New.\n2025-09-07 20:44:54,/cli
    $H . "2025-09-08 10:00:00,/climate/solutions | New.",
    'dedup keeps newest regardless of input order');
 
+// dedup — same outer timestamp (add + edit within one second): the row written later
+// in the append-only log is the newer one and must win. Regression: strict '>' kept the
+// first row, so a fast edit on vote.html/app2.html was silently lost after reload.
+sd($H . "2025-09-08 10:00:00,/climate/solutions | First write.\n2025-09-08 10:00:00,/climate/solutions | Edited within the same second.",
+   $H . "2025-09-08 10:00:00,/climate/solutions | Edited within the same second.",
+   'dedup same second: later row wins');
+
+// delete marker — same second as the row it deletes → entry removed
+sd($H . "2025-09-08 10:00:00,/climate/solutions | Solar panels.\n2025-09-08 10:00:00,/climate/solutions | --",
+   $H,
+   'delete marker same second removes entry');
+
 // delete marker — newest row is delete → entry removed
 sd($H . "2025-09-07 20:44:54,/climate/solutions | Solar panels.\n2025-09-08 10:00:00,/climate/solutions | --",
    $H,

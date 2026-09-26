@@ -44,7 +44,8 @@ function entries_sumup_merge_line(array $nodes, string $line): array {
     $first_comma = strpos($line, ',');
     $raw_entry_col = ($first_comma !== false) ? substr($line, $first_comma + 1) : $line;
 
-    if (!isset($nodes[$path]) || $ts_norm > $nodes[$path]['ts']) {
+    // '>=' — on equal timestamps the line appended later wins, matching sortCsvData().
+    if (!isset($nodes[$path]) || $ts_norm >= $nodes[$path]['ts']) {
         $nodes[$path] = [
             'ts'      => $ts_norm,
             'raw'     => $raw_entry_col,

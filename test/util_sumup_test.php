@@ -259,6 +259,24 @@ assert_eq(
     'T-D1: entries projection byte-identical to sortCsvData (incl. delete + multiline)'
 );
 
+// T-D1b: same-second rows — the later line wins (edit) / deletes (marker). Regression:
+// strict '>' in entries_sumup_merge_line kept the first row of a same-second pair.
+$same_sec_fixture = "Timestamp,entry\n"
+    . "2025-09-08 10:00:00,/climate/solutions | First write.\n"
+    . "2025-09-08 10:00:00,/climate/solutions | Edited within the same second.\n"
+    . "2025-09-08 10:00:00,/climate/gone | Solar panels.\n"
+    . "2025-09-08 10:00:00,/climate/gone | --";
+assert_eq(
+    "Timestamp,entry\n2025-09-08 10:00:00,/climate/solutions | Edited within the same second.",
+    entries_sumup_project(_entries_nodes_from_csv($same_sec_fixture)),
+    'T-D1b: same-second edit wins and same-second delete removes (merge_line)'
+);
+assert_eq(
+    sortCsvData($same_sec_fixture),
+    entries_sumup_project(_entries_nodes_from_csv($same_sec_fixture)),
+    'T-D1b: projection still byte-identical to sortCsvData for same-second rows'
+);
+
 // T-D2: incremental via sumup_update == full rebuild via sortCsvData
 $src_d2   = tempnam(sys_get_temp_dir(), 'entries_src_');
 $sumup_d2 = tempnam(sys_get_temp_dir(), 'entries_sumup_');

@@ -44,6 +44,11 @@
 - `test/e2e_request.php`: route table knows `config.php` / `/config`.
 
 ### Fixed
+- `util_entry.php` / `util_sumup_entries.php`: an entry edited within the **same second** as
+  its previous write was lost after reload — both dedup paths kept a newer row only on a
+  strictly greater timestamp, so on a tie the first-written row won. Now `>=`: the line
+  appended later wins (and a same-second `--` delete applies in the SumUp path too).
+  Regression tests: `util_entry_test.php` "dedup same second", `util_sumup_test.php` T-D1b.
 - `util_entry.php`: `sortCsvData()` gained a `$dedup_paths = false` mode — the votes read
   pipeline no longer drops older vote rows from other sessions on the same path before
   aggregation (previously only the newest row per path survived, undercounting votes).
