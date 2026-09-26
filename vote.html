@@ -97,6 +97,67 @@ function renderSourceHtml(srcMd) {
     return inner.replace(/<a href=/g, '<a target="_blank" rel="noopener" href=');
 }
 
+// ── Page mode: ?type= ↔ list suffix (VUC8) ────────────────────────────────────
+const MODE_SUFFIX = { fakt: "!", gegenfrage: "??" };     // labels stay in TYPE_DEFS (CA18)
+function modeFromParam(value) {
+    return MODE_SUFFIX[String(value || "").trim().toLowerCase()] || "";
+}
+function paramFromMode(suffix) {
+    return Object.keys(MODE_SUFFIX).find(k => MODE_SUFFIX[k] === suffix) || "";
+}
+
+// Strip exactly the suffix getTypeFromMessage() recognises — "Ist das so?!" edits as
+// "Ist das so?" (the /[.!?@>\-]+$/ regex in buildVoteCard would eat both characters).
+function stripTypeSuffix(message) {
+    const s = getTypeFromMessage(message);
+    return (s ? message.slice(0, -s.length) : String(message || "")).trim();
+}
+
+// Inverse of normaliseSourceMd(): one markdown link → { url, name }; a bare URL → { url };
+// anything else (several links, plain text) goes verbatim into url — v1: one source per entry.
+function parseSourceMd(value) {
+    const v = String(value || "").trim();
+    const m = /^\[([^\]]*)\]\(([^()\s]*)\)$/.exec(v);
+    if (m) return { url: m[2], name: m[1].trim() };
+    return { url: v, name: "" };
+}
+
+// { url, name } → src: value. "|" is the column separator (util_entry.php) so it is
+// percent-encoded in the URL; "[" "]" leave the name so the markdown link stays well-formed.
+function buildSourceMd(url, name) {
+    const u = String(url || "").trim();
+    if (!u) return "";
+    if (u.includes("](")) return u;                       // already markdown (several links) — verbatim
+    const n    = String(name || "").trim().replace(/[\[\]]/g, "");
+    const safe = u.replace(/\|/g, "%7C");
+    return n ? `[${n}](${safe})` : safe;
+}
+
+// "" when the sheet input can be sent, otherwise the message for the user (CA15).
+function validateSheetInput(text, url, name) {
+    if (String(text || "").trim().length < 3) return "Zu kurz (mind. 3 Zeichen).";
+    if (/\|/.test(text || "") || /\|/.test(name || "")) return "Das Zeichen | ist nicht erlaubt.";
+    const u = String(url || "").trim();
+    if (u && !u.includes("](") && !/^https?:\/\/\S+$/i.test(u)) {
+        return "Quelle: bitte eine vollständige Adresse eingeben (https://…).";
+    }
+    return "";
+}
+
+// One POST /entries line. Every attr the entry already carries is re-sent: the server keeps
+// only the newest row per path (util_entry.php sortCsvData, "newest wins"), so an omitted
+// column is a deleted column. src is rebuilt from the two sheet fields.
+function buildEntryLine(key, text, suffix, attrs, url, name) {
+    const cols = [key];
+    for (const [k, v] of Object.entries(attrs || {})) {
+        if (k !== "src" && v !== undefined && v !== null && String(v) !== "") cols.push(`${k}:${v}`);
+    }
+    const src = buildSourceMd(url, name);
+    if (src) cols.push(`src:${src}`);
+    cols.push(matchType(String(text || "").trim(), suffix));
+    return cols.join(" | ");
+}
+
 // ── Toast (CA15: plain words for the user) ────────────────────────────────────
 function showToast(message, type = "info", duration = 3000) {
     const el = document.createElement("div");
