@@ -90,6 +90,81 @@ function testRenderSourceHtml() {
 }
 testRenderSourceHtml();
 
+function testModeHelpers() {
+    suite('modeFromParam / paramFromMode');
+    assert('fakt → !',            modeFromParam('fakt'),       '!');
+    assert('gegenfrage → ??',     modeFromParam('gegenfrage'), '??');
+    assert('case-insensitive',    modeFromParam('Fakt'),       '!');
+    assert('unknown → ""',        modeFromParam('meinung'),    '');
+    assert('null → ""',           modeFromParam(null),         '');
+    assert('! → fakt',            paramFromMode('!'),          'fakt');
+    assert('?? → gegenfrage',     paramFromMode('??'),         'gegenfrage');
+    assert('unknown suffix → ""', paramFromMode('.'),          '');
+}
+testModeHelpers();
+
+function testStripTypeSuffix() {
+    suite('stripTypeSuffix');
+    assert('! stripped',          stripTypeSuffix('Fakt A!'),      'Fakt A');
+    assert('?? stripped',         stripTypeSuffix('Warum??'),      'Warum');
+    assert('only the suffix',     stripTypeSuffix('Ist das so?!'), 'Ist das so?');
+    assert('!- stripped',         stripTypeSuffix('Falsch!-'),     'Falsch');
+    assert('no suffix untouched', stripTypeSuffix('Ohne Ende'),    'Ohne Ende');
+    assert('empty',               stripTypeSuffix(''),             '');
+}
+testStripTypeSuffix();
+
+function testParseSourceMd() {
+    suite('parseSourceMd');
+    assert('markdown link',      parseSourceMd('[DGE](https://www.dge.de/b21)'), { url: 'https://www.dge.de/b21', name: 'DGE' });
+    assert('bare url',           parseSourceMd('https://www.dge.de/b21'),        { url: 'https://www.dge.de/b21', name: '' });
+    assert('two links verbatim', parseSourceMd('[A](https://a.org) [B](https://b.org)'), { url: '[A](https://a.org) [B](https://b.org)', name: '' });
+    assert('name trimmed',       parseSourceMd('[ DGE ](https://x.org)'),        { url: 'https://x.org', name: 'DGE' });
+    assert('empty',              parseSourceMd(''),                              { url: '', name: '' });
+    assert('undefined',          parseSourceMd(undefined),                       { url: '', name: '' });
+}
+testParseSourceMd();
+
+function testBuildSourceMd() {
+    suite('buildSourceMd');
+    assert('url + name',                 buildSourceMd('https://x.org/a', 'X'),  '[X](https://x.org/a)');
+    assert('url only',                   buildSourceMd('https://x.org/a', ''),   'https://x.org/a');
+    assert('empty url → ""',             buildSourceMd('', 'X'),                 '');
+    assert('| encoded in url',           buildSourceMd('https://x.org/a|b', ''), 'https://x.org/a%7Cb');
+    assert('brackets dropped from name', buildSourceMd('https://x.org', 'A[1]'), '[A1](https://x.org)');
+    assert('markdown passes verbatim',   buildSourceMd('[A](https://a.org) [B](https://b.org)', 'ignored'), '[A](https://a.org) [B](https://b.org)');
+    const p = parseSourceMd('[DGE](https://www.dge.de/b21)');
+    assert('round-trip',                 buildSourceMd(p.url, p.name), '[DGE](https://www.dge.de/b21)');
+}
+testBuildSourceMd();
+
+function testValidateSheetInput() {
+    suite('validateSheetInput');
+    assert('ok',                    validateSheetInput('Drei', 'https://x.org', 'X'), '');
+    assert('ok without source',     validateSheetInput('Drei', '', ''), '');
+    assert('too short',             validateSheetInput('ab', '', ''), 'Zu kurz (mind. 3 Zeichen).');
+    assert('whitespace only',       validateSheetInput('   ', '', ''), 'Zu kurz (mind. 3 Zeichen).');
+    assert('| in text',             validateSheetInput('a | b', '', ''), 'Das Zeichen | ist nicht erlaubt.');
+    assert('| in name',             validateSheetInput('Drei', 'https://x.org', 'a|b'), 'Das Zeichen | ist nicht erlaubt.');
+    assert('url without scheme',    validateSheetInput('Drei', 'dge.de', ''), 'Quelle: bitte eine vollständige Adresse eingeben (https://…).');
+    assert('markdown src accepted', validateSheetInput('Drei', '[A](https://a.org) [B](https://b.org)', ''), '');
+}
+testValidateSheetInput();
+
+function testBuildEntryLine() {
+    suite('buildEntryLine');
+    assert('add with src',       buildEntryLine('/frueher/n1', 'Neu', '!', {}, 'https://x.org', 'X'), '/frueher/n1 | src:[X](https://x.org) | Neu!');
+    assert('add without src',    buildEntryLine('/frueher/n1', 'Neu', '!', {}, '', ''),               '/frueher/n1 | Neu!');
+    assert('gegenfrage suffix',  buildEntryLine('/frueher/n1', 'Warum', '??', {}, '', ''),            '/frueher/n1 | Warum??');
+    assert('other attrs kept, src rebuilt',
+           buildEntryLine('/frueher/a', 'Fakt A', '!', { author: 'mh', src: 'old' }, 'https://new.org', ''),
+           '/frueher/a | author:mh | src:https://new.org | Fakt A!');
+    assert('src dropped when url emptied', buildEntryLine('/frueher/a', 'Fakt A', '!', { src: 'https://old.org' }, '', ''), '/frueher/a | Fakt A!');
+    assert('text trimmed',       buildEntryLine('/k', '  Neu  ', '!', {}, '', ''), '/k | Neu!');
+    assert('typed suffix kept once', buildEntryLine('/k', 'Neu!', '!', {}, '', ''), '/k | Neu!');
+}
+testBuildEntryLine();
+
 function testRender() {
     suite('render (DOM)');
     entries = FIX; topicRoot = '/frueher'; activeTab = '!';
@@ -170,5 +245,113 @@ async function testRollbackOnFailure() {
     }
 }
 
+function testSheetOpen() {
+    suite('sheet — FAB opens add mode, pencil opens edit mode (AVC6.1 / AVC7.1)');
+    entries = JSON.parse(JSON.stringify(FIX)); topicRoot = '/frueher'; activeTab = '!'; votesData = {};
+    render();
+    try {
+        document.getElementById('fab').click();
+        assert('backdrop open',              isSheetOpen(), true);
+        assert('heading add',                document.getElementById('sheet-heading').textContent, 'Neuer Eintrag');
+        assert('badge label from TYPE_DEFS', document.getElementById('sheet-badge').textContent, TYPE_DEFS['!'].label);
+        assert('badge class',                document.getElementById('sheet-badge').className, 'badge badge-fakt');
+        assert('text empty',                 document.getElementById('sheet-text').value, '');
+        assert('url empty',                  document.getElementById('sheet-src-url').value, '');
+        assert('name empty',                 document.getElementById('sheet-src-name').value, '');
+        assert('submit label add',           document.getElementById('sheet-submit').textContent, 'Hinzufügen');
+        closeSheet();
+        assert('closed',                     isSheetOpen(), false);
+
+        const pencil = document.querySelector('.card[data-full-key="/frueher/a"] .edit-btn');
+        assert('pencil ≥ 44px (CG-DS5)',     pencil.offsetHeight >= 44 && pencil.offsetWidth >= 44, true);
+        pencil.click();
+        assert('heading edit',               document.getElementById('sheet-heading').textContent, 'Eintrag bearbeiten');
+        assert('text pre-filled, no suffix', document.getElementById('sheet-text').value, 'Fakt A');
+        assert('url pre-filled',             document.getElementById('sheet-src-url').value, 'https://www.dge.de/b21');
+        assert('name empty for bare url',    document.getElementById('sheet-src-name').value, '');
+        assert('submit label edit',          document.getElementById('sheet-submit').textContent, 'Speichern');
+        closeSheet();
+
+        entries['/frueher/a'].attrs.src = '[DGE](https://www.dge.de/b21)';
+        openSheet('/frueher/a');
+        assert('name from markdown',         document.getElementById('sheet-src-name').value, 'DGE');
+        assert('url from markdown',          document.getElementById('sheet-src-url').value, 'https://www.dge.de/b21');
+        openSheet('/frueher/does-not-exist');
+        assert('unknown key ignored',        document.getElementById('sheet-heading').textContent, 'Eintrag bearbeiten');
+    } finally { closeSheet(); }
+}
+testSheetOpen();
+
+async function testSheetSubmit() {
+    suite('sheet — submit (postEntryLine stubbed)');
+    const realPost = postEntryLine;
+    let sent = [];
+    postEntryLine = async line => { sent.push(line); return { ok: true, timestamp: '2026-09-26 12:00:00' }; };
+    try {
+        entries = JSON.parse(JSON.stringify(FIX)); topicRoot = '/frueher'; activeTab = '!'; votesData = {};
+        render();
+        const before = Object.keys(entries).length;
+
+        openSheet();                                                   // AVC6.3 — too short
+        document.getElementById('sheet-text').value = 'ab';
+        assert('short → false',         await submitSheet(), false);
+        assert('short → sheet open',    isSheetOpen(), true);
+        assert('short → nothing sent',  sent.length, 0);
+        assert('short → no entry',      Object.keys(entries).length, before);
+
+        document.getElementById('sheet-text').value     = 'Neuer Fakt';   // AVC6.2 / AVC6.4
+        document.getElementById('sheet-src-url').value  = 'https://www.dge.de/x';
+        document.getElementById('sheet-src-name').value = 'DGE';
+        assert('add → true',            await submitSheet(), true);
+        assert('add → sheet closed',    isSheetOpen(), false);
+        assert('add → one entry more',  Object.keys(entries).length, before + 1);
+        const newKey = Object.keys(entries).find(k => entries[k].message === 'Neuer Fakt!');
+        assert('add → key under topic', !!newKey && newKey.startsWith('/frueher/'), true);
+        assert('add → src stored',      entries[newKey].attrs.src, '[DGE](https://www.dge.de/x)');
+        assert('add → server timestamp', entries[newKey].timestamp, '2026-09-26 12:00:00');
+        assert('add → line sent',       sent[0], `${newKey} | src:[DGE](https://www.dge.de/x) | Neuer Fakt!`);
+        assert('add → card rendered',   !!document.querySelector(`.card[data-full-key="${CSS.escape(newKey)}"]`), true);
+        assert('add → card source',     document.querySelector(`.card[data-full-key="${CSS.escape(newKey)}"] .card-source a`).textContent, 'DGE');
+
+        sent = [];                                                     // AVC7.3 / AVC7.4 — edit round-trip
+        entries['/frueher/a'].attrs = { author: 'mh', src: 'https://www.dge.de/b21' };
+        render();
+        openSheet('/frueher/a');
+        document.getElementById('sheet-text').value     = 'Fakt A neu';
+        document.getElementById('sheet-src-name').value = 'DGE';
+        assert('edit → true',           await submitSheet(), true);
+        assert('edit → line keeps author, rebuilds src', sent[0], '/frueher/a | author:mh | src:[DGE](https://www.dge.de/b21) | Fakt A neu!');
+        assert('edit → message',        entries['/frueher/a'].message, 'Fakt A neu!');
+        assert('edit → attrs',          entries['/frueher/a'].attrs, { author: 'mh', src: '[DGE](https://www.dge.de/b21)' });
+        assert('edit → no new key',     Object.keys(entries).length, before + 1);
+        assert('edit → card text',      document.querySelector('.card[data-full-key="/frueher/a"] .card-text').textContent, 'Fakt A neu');
+
+        postEntryLine = async () => ({ ok: false });                    // AVC6.5 / AVC7.5 — failure
+        openSheet('/frueher/a');
+        document.getElementById('sheet-text').value = 'Verworfen';
+        assert('fail → false',          await submitSheet(), false);
+        assert('fail → sheet open',     isSheetOpen(), true);
+        assert('fail → text kept',      document.getElementById('sheet-text').value, 'Verworfen');
+        assert('fail → entry unchanged', entries['/frueher/a'].message, 'Fakt A neu!');
+        closeSheet();
+
+        postEntryLine = async line => { sent.push(line); return { ok: true, timestamp: '' }; };   // AVC8.x — mode
+        applyMode('??');
+        assert('mode → tab active',     document.querySelector('#tab-bar .chip.active').dataset.tab, '??');
+        assert('mode → url param',      new URLSearchParams(location.search).get('type'), 'gegenfrage');
+        assert('mode → only ?? cards',  [...document.querySelectorAll('#vote-list .card')].map(c => c.dataset.fullKey), ['/frueher/q1']);
+        openSheet();
+        assert('mode → badge',          document.getElementById('sheet-badge').textContent, TYPE_DEFS['??'].label);
+        document.getElementById('sheet-text').value = 'Neue Frage';
+        assert('mode → submit ok',      await submitSheet(), true);
+        assert('mode → ?? entry',       Object.values(entries).some(e => e.message === 'Neue Frage??'), true);
+        assert('mode → listed',         document.querySelectorAll('#vote-list .card').length, 2);
+    } finally {
+        postEntryLine = realPost;
+        closeSheet();
+        applyMode('!');
+    }
+}
+
 // ── Done ─────────────────────────────────────────────────────────────────────
-testRollbackOnFailure().then(harnessFinish);
+testSheetSubmit().then(testRollbackOnFailure).then(harnessFinish);
