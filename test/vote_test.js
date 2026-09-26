@@ -148,6 +148,7 @@ function testValidateSheetInput() {
     assert('| in name',             validateSheetInput('Drei', 'https://x.org', 'a|b'), 'Das Zeichen | ist nicht erlaubt.');
     assert('url without scheme',    validateSheetInput('Drei', 'dge.de', ''), 'Quelle: bitte eine vollständige Adresse eingeben (https://…).');
     assert('markdown src accepted', validateSheetInput('Drei', '[A](https://a.org) [B](https://b.org)', ''), '');
+    assert('| in markdown url refused', validateSheetInput('Drei', '[A](https://a.org/x|y)', ''), 'Das Zeichen | ist nicht erlaubt.');
 }
 testValidateSheetInput();
 
