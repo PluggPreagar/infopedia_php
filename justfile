@@ -1,8 +1,8 @@
 # InfoPedia PHP — task runner
 # Install: https://just.systems  |  run: just <recipe>  |  list: just
 
-php  := env_var_or_default("PHP",  if os() == "windows" { "D:/_progs/xampp/php/php.exe" } else { "php" })
 port := env_var_or_default("PORT", "8080")
+php  := env_var_or_default("PHP",  if os() == "windows" { "D:/_progs/xampp/php/php.exe" } else { "php" })
 base := "http://localhost:" + port
 
 # List all recipes
@@ -37,6 +37,7 @@ ci: unit e2e
 serve:
     @echo "  App:       {{base}}/infopedia.html"
     @echo "  App2:      {{base}}/app2.html"
+    @echo "  Vote:      {{base}}/vote.html"
     @echo "  Statistic: {{base}}/statistic.php"
     @echo "  Stat+excl: {{base}}/statistic.php?exclude_e2e=1"
     @echo "  Stat+err:  {{base}}/statistic.php?errors_only=1"
@@ -85,6 +86,15 @@ e2e-add-entry entry="/demo/hello | Hello from just." tid="demo":
 e2e-add-vote entry="/demo/poll | votes:just:1 | Good idea?" tid="demo":
     {{php}} test/e2e_run.php POST /votes "sid=just&tid={{tid}}" "entry={{entry}}"
     just e2e-read "{{tid}}"
+
+# Seed the vote page tenant: two arguments (one with sources) and one Gegenfrage
+# just seed-vote
+# just seed-vote mytenant
+seed-vote tid="frueher":
+    {{php}} test/e2e_run.php POST /entries 'sid=just&tid={{tid}}' 'entry=/frueher/zucker | src:[DGE 2021](https://www.dge.de) [Destatis](https://www.destatis.de) | Der Zuckerkonsum ist seit 1970 um 40% gestiegen!'
+    {{php}} test/e2e_run.php POST /entries 'sid=just&tid={{tid}}' 'entry=/frueher/arbeit | Die Wochenarbeitszeit war 1970 hoeher als heute!'
+    {{php}} test/e2e_run.php POST /entries 'sid=just&tid={{tid}}' 'entry=/frueher/zucker-frage | War die Messmethode 1970 vergleichbar??'
+    {{php}} test/e2e_run.php GET /entries 'sid=just&tid={{tid}}&format=txt.0.2&refresh'
 
 # Read entries + votes for a tenant
 # just read

@@ -17,6 +17,24 @@
   rebuild after a POST parses only the appended CSV tail instead of re-sorting the full
   entry history. Byte-identical output to the legacy `sortCsvData()` path in both modes
   (golden tests: `test/util_sumup_test.php` T-D1…T-D4).
+- **`vote.html`** (new): standalone voting page — tab *Argumente* lists the `!` (Fakt)
+  entries and tab *Gegenfragen* the `??` entries under one configured topic folder of one
+  configured tenant, sorted by score; ▲/▼ vote and *Bestätigen* post to `/votes` with
+  optimistic update; a `src:` attribute holding markdown link(s) (`src:[Name](url) …`, bare
+  URL accepted) renders as source links via `renderMd()`. No backend change.
+- `infopedia.cfg` `[vote_page]` (`tid`, `topic`) — surfaced to the frontend by `config.php`
+  as `votePageTid` / `votePageTopic`; `?tid=` / `?topic=` override per URL.
+- `justfile`: `seed-vote` recipe seeds the vote tenant with demo arguments; `serve` lists
+  the vote page.
+- `.gitattributes`: LF line endings enforced repo-wide (`* text=auto eol=lf`).
+
+### Changed
+- **`assets/entry-core.js`** (new): `fullKey`, `splitKey`, `getTypeFromMessage`,
+  `matchType`, `TYPE_DEFS`, `getTypeDef`, `escapeHtml`, `debounceKey` moved out of
+  `app2.html` so `vote.html` shares one definition (CA7, CA18). Card-internal CSS
+  (`.card-text`, `.sign-count`, `.sign-btn`, `.ts-label`) moved from app2's inline style to
+  `assets/components.css`; `.sign-btn` gained the CG-DS5 44 px minimum height.
+- `test/e2e_request.php`: route table knows `config.php` / `/config`.
 
 ### Fixed
 - `util_entry.php`: `sortCsvData()` gained a `$dedup_paths = false` mode — the votes read
