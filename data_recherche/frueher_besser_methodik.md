@@ -14,7 +14,7 @@ Das Projekt stellt die These „früher war alles besser“ faktenbasiert auf de
 | Epochen | Steinzeit, Mittelalter, Spätmittelalter, Frühe Neuzeit, 1800, 1850, 1900, 1950, 2000, heute |
 | Kategorien | Gesundheit, Medizin / Todesursachen, Pandemien, Arbeit, Ernährung, Alltag, Umwelt, Gewalt, Krieg |
 | Bezug | bevorzugt je Kopf, je 100.000, je Arbeitsminute oder je Mann bzw. Kind |
-| Umfang | 185 Zeilen, 48 Indikatoren |
+| Umfang | 258 Zeilen, 53 Indikatoren (Stand 27.09.2026, nach Ergänzung um 73 Zeilen) |
 
 ## 3. Non-Scope
 
@@ -35,6 +35,7 @@ Das Projekt stellt die These „früher war alles besser“ faktenbasiert auf de
 4. **Quellen belegen**: Zeilengenaue URL, Erstnennung suchen, `url_status` vergeben.
 5. **Werte korrigieren**: Wenn die Quellenprüfung einen Wert widerlegt, wird er angepasst und in `anmerkung` dokumentiert (z. B. Verkehrstote 1970, Wohnfläche 1956, Fleisch Spätmittelalter).
 6. **Plausibilitätschecks**: Fragwürdige Werte werden gegengerechnet, z. B. Fleischkonsum über die Arbeitsminuten je kg.
+7. **Lücken schließen (27.09.2026)**: Epochen 1800/1850 für Sterblichkeit, Lebenserwartung, Landwirtschaft, Milch, Weizen, Wohnfläche, Verkehrs- und Arbeitsunfälle ergänzt; Todesursachen 1900 und heute nachgetragen (bpb „Deutschland in Daten“, Destatis Todesursachen 2023); neue Indikatoren Masern, Diphtherie, Scharlach, Keuchhusten, Typhus (Sterbeziffern 1850..heute, Quellen: Pöhn/Rasch bga-Schriften 5/1993, Heimann DMW 1896/1901, RKI-Jahrbuch 2024). Preußische Werte je 10.000 wurden ×10 umgerechnet, Vermerk in `anmerkung`. Korrektur: Verkehrstote 21332 von Epoche 1950 nach 1970 verschoben.
 
 ## 5. Kriterien
 
@@ -61,7 +62,7 @@ Das Projekt stellt die These „früher war alles besser“ faktenbasiert auf de
 | teilweise | nur gegenüber einzelnen Epochen besser |
 | nein | sonst |
 
-Aktuell sind 7× `ja`, 7× `teilweise` und 1× `ja (roh)` markiert. Beispiele: Körpergröße im Mittelalter, Kalorienangebot und Fleischkonsum im Spätmittelalter, Brot-Arbeitsminuten im Spätmittelalter, Wochenarbeitszeit vor 1850.
+Aktuell sind 8× `ja`, 15× `teilweise` und 3× `ja (roh)` markiert. Beispiele: Körpergröße im Mittelalter, Kalorienangebot und Fleischkonsum im Spätmittelalter, Brot-Arbeitsminuten im Spätmittelalter, Wochenarbeitszeit vor 1850.
 
 ### 5.4 Quellen
 
@@ -82,7 +83,7 @@ In `erstnennung` steht `ja` (die URL ist die Erstnennung), `nein: <Erstnennung>`
 - Bei widersprüchlichen Quellen enthält die Spanne beide Werte, und `anmerkung` nennt beide Quellen (z. B. Fleisch 1950: 14–40 kg).
 
 ### 5.6 Kennzeichnung `PRÜFEN`
-Die Markierung `PRÜFEN` in `anmerkung` bedeutet: Der Wert ist unsicher und vor der Publikation zu verifizieren. Aktuell betrifft das 16 Zeilen.
+Die Markierung `PRÜFEN` in `anmerkung` bedeutet: Der Wert ist unsicher und vor der Publikation zu verifizieren. Aktuell betrifft das 38 Zeilen (16 vor, 22 aus der Ergänzung vom 27.09.2026).
 
 ## 6. Datenmodell (CSV)
 
@@ -112,7 +113,10 @@ Trennzeichen `;`, Dezimalpunkt `.`, UTF-8.
 - **Mittelalterliche Löhne**: teils mit Kost bezahlt. Die berechneten Arbeitsminuten sind dort eher überschätzt.
 - **Museumsangaben** (Historisches Museum Frankfurt): Die Primärquelle dahinter ist unklar.
 - **Gebietsstand**: wechselt zwischen Reich, BRD und DE. Vermerk in `anmerkung`.
-- **Portal-Zeilen**: 36 Zeilen haben noch keine zeilengenaue URL.
+- **Portal-Zeilen**: 39 Zeilen haben noch keine zeilengenaue URL.
+- **Preußen statt Reich**: Masern, Scharlach, Keuchhusten, Diphtherie und Pocken vor 1900 sowie Müttersterblichkeit 1850 beruhen auf preußischer Statistik (Vermerk in `anmerkung`).
+- **Nicht-DE-Zeilen**: Tuberkulose 1800 (Wien) und Bayern 1870 stehen als Näherung mit `PRÜFEN`.
+- **Doppelte Epochen**: Wo eine Epoche zwei Zeilen hat (z. B. Pocken 1850: Normaljahre und Epidemie 1871/72, Verkehrstote 1900: Kfz 1907..13 und Straßenverkehr 1937..39), unterscheidet `jahr`.
 
 ## 8. Offene Punkte
 
@@ -121,6 +125,9 @@ Trennzeichen `;`, Dezimalpunkt `.`, UTF-8.
 - Autor und Region der Lohn-Getreide-Tabelle (kpbc) klären
 - Meschede-Pocken: Datierung 1970 vs. 1961/62 klären
 - Zeilen mit „heute = 0“: Status `trivial (0)` einführen
+- Scharlach heute und 2000 (GBE-Bund Tabelle A38 ab 1998) nachschlagen
+- Schwefeldioxid 1950/1970 inkl. DDR, Tödliche Arbeitsunfälle 1950 (Statistisches Jahrbuch BRD 1952/53), Spulwurm 1900
+- Wohnfläche 1850/1900: nur Berliner Raumzahlen, m²-Umrechnung ist Annahme
 
 ## 9. Glossar
 
