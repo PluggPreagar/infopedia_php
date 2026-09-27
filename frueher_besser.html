@@ -9,13 +9,24 @@
 <link rel="stylesheet" href="assets/components.css">
 <style>
 :root {
-  /* Chart roles — dataviz reference palette, validated on #FFFFFF (light).
+  /* Page theme: greenish (teal) interactive scale — same override as vote.html.
+     UI chrome is teal; truth states keep the semantic green (#16A34A), CG-DS1. */
+  --color-interactive-50:     #F0FDFA;
+  --color-interactive-100:    #CCFBF1;
+  --color-interactive-400:    #2DD4BF;
+  --color-interactive-600:    #0F766E;   /* buttons — 5.5:1 on white ✓ AA  */
+  --color-interactive-700:    #115E59;   /* nav bg  — 7.2:1 on white ✓ AAA */
+  --color-interactive-accent: #14B8A6;   /* decoration only */
+  --color-focus:              #0F766E;
+
+  /* Chart roles — dataviz reference palette (aqua slot, dark step), validated on #FFFFFF:
+     #199e70 ↔ #eb6834 CVD ΔE 8.4, contrast ≥ 3:1; ordinal ramp light end 2.38:1.
      Series colors are for marks only; text always uses neutral tokens. */
-  --viz-series-1: #2a78d6;   /* Spanne / Verlauf */
+  --viz-series-1: #199e70;   /* Spanne / Verlauf */
   --viz-series-2: #eb6834;   /* „früher besser“ */
-  --viz-q-1: #86b6ef;        /* Rekonstruktion  (ordinal ramp, one hue) */
-  --viz-q-2: #2a78d6;        /* Schätzung */
-  --viz-q-3: #104281;        /* Statistik */
+  --viz-q-1: #4dbb8f;        /* Rekonstruktion  (ordinal ramp, one hue) */
+  --viz-q-2: #199e70;        /* Schätzung */
+  --viz-q-3: #0a5a3e;        /* Statistik */
   --viz-grid: #E5E7EB;
   --viz-axis: #C3C2B7;
 }
@@ -82,7 +93,7 @@ body { margin:0; font-family:var(--font-family); font-size:var(--text-sm);
 .chart .grid { stroke:var(--viz-grid); stroke-width:1; }
 .chart .axis { stroke:var(--viz-axis); stroke-width:1; }
 .chart .lbl  { font-size:9px; fill:var(--color-neutral-600); }
-.chart .band { fill:var(--viz-series-1); fill-opacity:.12; }
+.chart .band { fill:var(--viz-series-1); fill-opacity:.14; }
 .chart .mid  { fill:none; stroke:var(--viz-series-1); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
 .chart .mark { fill:var(--viz-series-1); stroke:#fff; stroke-width:2; transition:r var(--duration-fast); }
 .chart .mark.fb-ja { fill:var(--viz-series-2); }
