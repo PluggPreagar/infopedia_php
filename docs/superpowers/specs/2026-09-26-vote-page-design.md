@@ -157,6 +157,11 @@ and accept the CA7 deviation. Say so and I will switch.
 - **Touch targets** — ▲ ▼ and *Bestätigen* get `min-height: 44px` (CG-DS5).
 - **Focus** — `:focus-visible` + `var(--focus-ring)`, never `outline: none` (CG-DS4).
 - **Spacing / type** — `--space-*` and `--text-*` tokens only (CG-DS2, CG-DS3).
+- **Theme (2026-09-27)** — greenish page theme: `vote.html` overrides the `--color-interactive-*`
+  tokens with a teal scale (`50 #F0FDFA · 100 #CCFBF1 · 400 #2DD4BF · 600 #0F766E · 700 #115E59`,
+  focus `#0F766E`), page-scoped so `app2.html` keeps indigo. Teal rather than green so UI chrome
+  stays distinguishable from the semantic green reserved for truth states (CG-DS1). Contrast:
+  600 on white 5.5:1 (AA), 700 on white 7.2:1 (AAA).
 
 ---
 
