@@ -300,7 +300,9 @@ function jahrStart(s) {
 // ── data ───────────────────────────────────────────────────────────────────
 function parseCsv(text) {
     const lines = text.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.trim() !== '');
-    const head = lines.shift().split(';');
+    const head = (lines.shift() || '').split(';');
+    if (!head.includes('indikator') || !head.includes('wert_min'))
+        throw new Error('Antwort ist kein Indikatoren-CSV (fehlt die Datei auf dem Server?)');
     return lines.map(line => {
         const cells = line.split(';');
         const r = {};
