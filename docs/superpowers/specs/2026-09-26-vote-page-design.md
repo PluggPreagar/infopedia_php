@@ -226,6 +226,7 @@ New `infopedia.cfg` section:
 tid   = frueher
 topic = /frueher
 type  = fakt        ; default page mode: fakt | gegenfrage (D9)
+title = "Früher war alles besser !?"   ; nav bar + browser tab; empty = "Abstimmen · <folder>"
 ```
 
 `config.php` — which already serves frontend config as JSON — gains three keys:

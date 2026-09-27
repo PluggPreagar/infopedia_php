@@ -159,6 +159,13 @@ function paramFromMode(suffix) {
     return Object.keys(MODE_SUFFIX).find(k => MODE_SUFFIX[k] === suffix) || "";
 }
 
+// Configured title wins; otherwise "Abstimmen · <folder>" so a tenant without config still reads.
+function pageTitle(configured, topic) {
+    const t = String(configured || "").trim();
+    if (t) return t;
+    return "Abstimmen · " + (String(topic || "/").replace(/^\//, "") || "Alles");
+}
+
 // Strip exactly the suffix getTypeFromMessage() recognises — "Ist das so?!" edits as
 // "Ist das so?" (the /[.!?@>\-]+$/ regex in buildVoteCard would eat both characters).
 function stripTypeSuffix(message) {
@@ -513,7 +520,9 @@ async function init() {
     activeTab = modeFromParam(params.get("type")) || modeFromParam(cfg.votePageType) || "!";   // AVC8.1 / AVC8.2
     syncTabs();
     sid       = ensureSid(loadSettings());
-    document.getElementById("nav-title").textContent = "Abstimmen · " + (topicRoot.replace(/^\//, "") || "Alles");
+    const title = pageTitle(cfg.votePageTitle, topicRoot);
+    document.getElementById("nav-title").textContent = title;
+    document.title = title + " — fayf";
 
     if (!TID_RE.test(tenantId)) {                                        // AVC5.3, CC4
         console.error("[vote] invalid tid:", JSON.stringify(tenantId));

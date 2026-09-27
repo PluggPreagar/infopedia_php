@@ -458,6 +458,7 @@ ok(array_key_exists('votePageTopic', $r['json'] ?? []),    'config: has votePage
 ok(str_starts_with((string)($r['json']['votePageTopic'] ?? ''), '/'), 'config: votePageTopic starts with /');
 ok(array_key_exists('votePageType', $r['json'] ?? []),                         'config: has votePageType');
 ok(in_array($r['json']['votePageType'] ?? '', ['fakt', 'gegenfrage'], true), 'config: votePageType is fakt|gegenfrage');
+ok(array_key_exists('votePageTitle', $r['json'] ?? []),                        'config: has votePageTitle');
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 

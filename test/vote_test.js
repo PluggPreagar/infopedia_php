@@ -103,6 +103,16 @@ function testModeHelpers() {
 }
 testModeHelpers();
 
+function testPageTitle() {
+    suite('pageTitle');
+    assert('configured title wins',   pageTitle('Früher war alles besser !?', '/frueher'), 'Früher war alles besser !?');
+    assert('fallback from topic',     pageTitle('', '/frueher'),        'Abstimmen · frueher');
+    assert('fallback trims',          pageTitle('   ', '/frueher'),     'Abstimmen · frueher');
+    assert('undefined → fallback',    pageTitle(undefined, '/frueher'), 'Abstimmen · frueher');
+    assert('root topic → Alles',      pageTitle('', '/'),               'Abstimmen · Alles');
+}
+testPageTitle();
+
 function testStripTypeSuffix() {
     suite('stripTypeSuffix');
     assert('! stripped',          stripTypeSuffix('Fakt A!'),      'Fakt A');

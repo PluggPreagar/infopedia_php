@@ -19,4 +19,5 @@ echo json_encode([
     'votePageTid'    => $vote['tid']         ?? '',
     'votePageTopic'  => $vote['topic']       ?? '/',
     'votePageType'   => $vote['type']        ?? 'fakt',
+    'votePageTitle'  => $vote['title']       ?? '',
 ]);
