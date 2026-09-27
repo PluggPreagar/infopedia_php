@@ -38,6 +38,7 @@ serve:
     @echo "  App:       {{base}}/infopedia.html"
     @echo "  App2:      {{base}}/app2.html"
     @echo "  Vote:      {{base}}/vote.html"
+    @echo "  Recherche: {{base}}/frueher_besser.html"
     @echo "  Statistic: {{base}}/statistic.php"
     @echo "  Stat+excl: {{base}}/statistic.php?exclude_e2e=1"
     @echo "  Stat+err:  {{base}}/statistic.php?errors_only=1"
