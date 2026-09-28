@@ -14,7 +14,7 @@ Das Projekt stellt die These „früher war alles besser“ faktenbasiert auf de
 | Epochen | Steinzeit, Mittelalter, Spätmittelalter, Frühe Neuzeit, 1800, 1850, 1900, 1950, 2000, heute |
 | Kategorien | Gesundheit, Medizin / Todesursachen, Pandemien, Arbeit, Ernährung, Alltag, Umwelt, Gewalt, Krieg |
 | Bezug | bevorzugt je Kopf, je 100.000, je Arbeitsminute oder je Mann bzw. Kind |
-| Umfang | 267 Zeilen, 53 Indikatoren (Stand 28.09.2026, nach Ergänzung um 82 Zeilen) |
+| Umfang | 268 Zeilen, 53 Indikatoren (Stand 28.09.2026, nach Ergänzung um 83 Zeilen) |
 
 ## 3. Non-Scope
 
@@ -124,6 +124,7 @@ Trennzeichen `;`, Dezimalpunkt `.`, UTF-8.
 - **Portal-Zeilen**: 39 Zeilen haben noch keine zeilengenaue URL.
 - **Preußen statt Reich**: Masern, Scharlach, Keuchhusten, Diphtherie und Pocken vor 1900 sowie Müttersterblichkeit 1850 beruhen auf preußischer Statistik (Vermerk in `anmerkung`).
 - **Nicht-DE-Zeilen**: Tuberkulose 1800 (Wien) und Bayern 1870 stehen als Näherung mit `PRÜFEN`.
+- **Freie Werktage vor 1900**: zählt gebotene kirchliche Feiertage (ohne Sonntage). Sie waren unbezahlt und erzwungen, und die saisonale Unterbeschäftigung im Winter ist nicht enthalten. Der Vergleich mit bezahltem Urlaub heute ist daher nur `teilweise` belastbar; Schors Obergrenze (bis 100 Tage) wurde am 28.09.2026 auf 60 gesenkt.
 - **Doppelte Epochen**: Wo eine Epoche zwei Zeilen hat (z. B. Pocken 1850: Normaljahre und Epidemie 1871/72, Verkehrstote 1900: Kfz 1907..13 und Straßenverkehr 1937..39), unterscheidet `jahr`.
 
 ## 8. Offene Punkte
