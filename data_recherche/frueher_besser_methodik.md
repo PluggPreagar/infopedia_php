@@ -14,7 +14,7 @@ Das Projekt stellt die These „früher war alles besser“ faktenbasiert auf de
 | Epochen | Steinzeit, Mittelalter, Spätmittelalter, Frühe Neuzeit, 1800, 1850, 1900, 1950, 2000, heute |
 | Kategorien | Gesundheit, Medizin / Todesursachen, Pandemien, Arbeit, Ernährung, Alltag, Umwelt, Gewalt, Krieg |
 | Bezug | bevorzugt je Kopf, je 100.000, je Arbeitsminute oder je Mann bzw. Kind |
-| Umfang | 258 Zeilen, 53 Indikatoren (Stand 27.09.2026, nach Ergänzung um 73 Zeilen) |
+| Umfang | 262 Zeilen, 53 Indikatoren (Stand 28.09.2026, nach Ergänzung um 77 Zeilen) |
 
 ## 3. Non-Scope
 
@@ -36,6 +36,7 @@ Das Projekt stellt die These „früher war alles besser“ faktenbasiert auf de
 5. **Werte korrigieren**: Wenn die Quellenprüfung einen Wert widerlegt, wird er angepasst und in `anmerkung` dokumentiert (z. B. Verkehrstote 1970, Wohnfläche 1956, Fleisch Spätmittelalter).
 6. **Plausibilitätschecks**: Fragwürdige Werte werden gegengerechnet, z. B. Fleischkonsum über die Arbeitsminuten je kg.
 7. **Lücken schließen (27.09.2026)**: Epochen 1800/1850 für Sterblichkeit, Lebenserwartung, Landwirtschaft, Milch, Weizen, Wohnfläche, Verkehrs- und Arbeitsunfälle ergänzt; Todesursachen 1900 und heute nachgetragen (bpb „Deutschland in Daten“, Destatis Todesursachen 2023); neue Indikatoren Masern, Diphtherie, Scharlach, Keuchhusten, Typhus (Sterbeziffern 1850..heute, Quellen: Pöhn/Rasch bga-Schriften 5/1993, Heimann DMW 1896/1901, RKI-Jahrbuch 2024). Preußische Werte je 10.000 wurden ×10 umgerechnet, Vermerk in `anmerkung`. Korrektur: Verkehrstote 21332 von Epoche 1950 nach 1970 verschoben.
+8. **Arbeitsminuten 1 kg Fleisch 1900..heute (28.09.2026)**: 1960/1991/2011 aus Destatis „Kaufkraft der Lohnminute“ (Westdeutschland, Nettolohn je Stunde; Spanne = Rindfleisch zum Kochen bis Schweinekotelett), heute aus IW Köln (Schweinekotelett 2020/21). Der Wert 1900 wurde von 120..430 auf 220..530 min korrigiert, weil die alte Rechnung einen Stundenlohn bis 60 Pf ansetzte; belegt sind 0.27 M/h (834 M/Jahr) bis 0.37 M/h.
 
 ## 5. Kriterien
 
