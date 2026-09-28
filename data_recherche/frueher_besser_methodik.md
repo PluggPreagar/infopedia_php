@@ -14,7 +14,7 @@ Das Projekt stellt die These „früher war alles besser“ faktenbasiert auf de
 | Epochen | Steinzeit, Mittelalter, Spätmittelalter, Frühe Neuzeit, 1800, 1850, 1900, 1950, 2000, heute |
 | Kategorien | Gesundheit, Medizin / Todesursachen, Pandemien, Arbeit, Ernährung, Alltag, Umwelt, Gewalt, Krieg |
 | Bezug | bevorzugt je Kopf, je 100.000, je Arbeitsminute oder je Mann bzw. Kind |
-| Umfang | 262 Zeilen, 53 Indikatoren (Stand 28.09.2026, nach Ergänzung um 77 Zeilen) |
+| Umfang | 267 Zeilen, 53 Indikatoren (Stand 28.09.2026, nach Ergänzung um 82 Zeilen) |
 
 ## 3. Non-Scope
 
@@ -136,6 +136,7 @@ Trennzeichen `;`, Dezimalpunkt `.`, UTF-8.
 - Scharlach heute und 2000 (GBE-Bund Tabelle A38 ab 1998) nachschlagen
 - Schwefeldioxid 1950/1970 inkl. DDR, Tödliche Arbeitsunfälle 1950 (Statistisches Jahrbuch BRD 1952/53), Spulwurm 1900
 - Wohnfläche 1850/1900: nur Berliner Raumzahlen, m²-Umrechnung ist Annahme
+- Krieg 2000/heute: Bundeswehr-Auslandseinsätze (Balkan, Afghanistan) stehen als Teilnahmen bzw. Einsatztote in den Slots; Kriegerwitwen heute nur als Obergrenze, Bestand der WK-II-Hinterbliebenen (BMAS Kriegsopferversorgung) fehlt
 
 ## 9. Glossar
 
