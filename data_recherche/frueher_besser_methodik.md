@@ -14,7 +14,7 @@ Das Projekt stellt die These „früher war alles besser“ faktenbasiert auf de
 | Epochen | Steinzeit, Mittelalter, Spätmittelalter, Frühe Neuzeit, 1800, 1850, 1900, 1950, 2000, heute |
 | Kategorien | Gesundheit, Medizin / Todesursachen, Pandemien, Arbeit, Ernährung, Alltag, Umwelt, Gewalt, Krieg |
 | Bezug | bevorzugt je Kopf, je 100.000, je Arbeitsminute oder je Mann bzw. Kind |
-| Umfang | 279 Zeilen, 53 Indikatoren (Stand 28.09.2026, nach Ergänzung um 94 Zeilen) |
+| Umfang | 281 Zeilen, 53 Indikatoren (Stand 28.09.2026, nach Ergänzung um 96 Zeilen) |
 
 ## 3. Non-Scope
 
