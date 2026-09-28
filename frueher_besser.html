@@ -134,6 +134,7 @@ body { margin:0; font-family:var(--font-family); font-size:var(--text-sm);
 .chart .bar-hit:focus-visible { stroke:var(--color-focus); stroke-width:2; }
 .chart .bar-max.lift { fill-opacity:.55; }
 .chart .zero { font-size:8px; fill:var(--color-neutral-400); }
+.chart .dir-lbl { font-size:8px; fill:var(--color-neutral-600); letter-spacing:.02em; }
 
 /* tile (single value) */
 .tile .val { font-size:1.6em; font-weight:var(--font-weight-bold); color:var(--color-neutral-900); line-height:1.2; margin-top:var(--space-2); }
@@ -265,6 +266,7 @@ footer.foot a { color:var(--color-neutral-600); }
     <span class="key"><svg viewBox="0 0 26 14"><circle cx="13" cy="7" r="4.5" fill="var(--viz-series-1)" stroke="#fff" stroke-width="2"/></svg> Epoche</span>
     <span class="key"><svg viewBox="0 0 26 14"><circle cx="13" cy="7" r="4.5" fill="var(--viz-series-2)" stroke="#fff" stroke-width="2"/></svg> früher besser: ja</span>
     <span class="key"><svg viewBox="0 0 26 14"><circle cx="13" cy="7" r="4.5" fill="#fff" stroke="var(--viz-series-2)" stroke-width="2.5"/></svg> teilweise</span>
+    <span class="key"><svg viewBox="0 0 26 14"><rect x="0" y="0" width="26" height="7" fill="#0ca30c" fill-opacity=".18"/><rect x="0" y="7" width="26" height="7" fill="#d03b3b" fill-opacity=".18"/></svg> Hintergrund: grün = bessere, rot = schlechtere Werte</span>
     <span class="note">Epochen sind gleichabständig gesetzt, nicht zeitproportional. Details per Hover, Tastatur oder „Tabelle“.</span>
   </div>
 
@@ -546,6 +548,17 @@ function renderChart(card) {
     const sc = makeScale(rows, state.log, H - m.b, m.t);
     const xs = rows.map((_, i) => n === 1 ? (m.l + W - m.r) / 2 : m.l + i * (W - m.l - m.r) / (n - 1));
     const s = svg('svg', { class:'chart', viewBox:`0 0 ${W} ${H}`, role:'group', 'aria-label': card.groups[0].ind });
+
+    // direction wash: green at the "better" end of the value axis, red at the "worse" end
+    const richtung = card.groups[0].rows[0].richtung;
+    if (richtung !== 'neutral') {
+        const gid = 'grad-' + card.id, goodTop = richtung === 'mehr';
+        const stop = (off, good) => svg('stop', { offset:off, 'stop-color': good ? '#0ca30c' : '#d03b3b', 'stop-opacity': '0.10' });
+        s.appendChild(svg('defs', null, [svg('linearGradient', { id:gid, x1:0, y1:0, x2:0, y2:1 },
+            [stop('0%', goodTop), stop('100%', !goodTop)])]));
+        s.appendChild(svg('rect', { class:'wash', x:m.l, y:m.t, width:W - m.l - m.r, height:H - m.t - m.b, fill:`url(#${gid})` }));
+        s.appendChild(svg('text', { class:'dir-lbl', x:W - m.r, y: goodTop ? m.t + 9 : H - m.b - 4, 'text-anchor':'end', text:'besser ' + (goodTop ? '▲' : '▼') }));
+    }
 
     // grid + y ticks
     sc.ticks.forEach(t => {
