@@ -14,7 +14,7 @@ Das Projekt stellt die These „früher war alles besser“ faktenbasiert auf de
 | Epochen | Steinzeit, Mittelalter, Spätmittelalter, Frühe Neuzeit, 1800, 1850, 1900, 1950, 2000, heute |
 | Kategorien | Gesundheit, Medizin / Todesursachen, Pandemien, Arbeit, Ernährung, Alltag, Umwelt, Gewalt, Krieg |
 | Bezug | bevorzugt je Kopf, je 100.000, je Arbeitsminute oder je Mann bzw. Kind |
-| Umfang | 268 Zeilen, 53 Indikatoren (Stand 28.09.2026, nach Ergänzung um 83 Zeilen) |
+| Umfang | 279 Zeilen, 53 Indikatoren (Stand 28.09.2026, nach Ergänzung um 94 Zeilen) |
 
 ## 3. Non-Scope
 
@@ -132,7 +132,7 @@ Trennzeichen `;`, Dezimalpunkt `.`, UTF-8.
 - Portal-Zeilen auflösen: Tötungsrate, Krieg (Waisen, Witwen, Wehrdienst), Kalorien 1950
 - Altersbereinigte Todesursachen-Raten ergänzen
 - Autor und Region der Lohn-Getreide-Tabelle (kpbc) klären
-- Meschede-Pocken: Datierung 1970 vs. 1961/62 klären
+- ~~Meschede-Pocken: Datierung 1970 vs. 1961/62 klären~~ geklärt: Meschede 1970 (20 Erkrankungen, 4 Tote), Düsseldorf/Monschau 1961/62 sind eigene Einschleppungen (bga-Schriften 5/1993, Tab. 3.6.4)
 - Zeilen mit „heute = 0“: Status `trivial (0)` einführen
 - Scharlach heute und 2000 (GBE-Bund Tabelle A38 ab 1998) nachschlagen
 - Schwefeldioxid 1950/1970 inkl. DDR, Tödliche Arbeitsunfälle 1950 (Statistisches Jahrbuch BRD 1952/53), Spulwurm 1900
