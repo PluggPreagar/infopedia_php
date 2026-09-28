@@ -557,7 +557,8 @@ function renderChart(card) {
         s.appendChild(svg('defs', null, [svg('linearGradient', { id:gid, x1:0, y1:0, x2:0, y2:1 },
             [stop('0%', goodTop), stop('100%', !goodTop)])]));
         s.appendChild(svg('rect', { class:'wash', x:m.l, y:m.t, width:W - m.l - m.r, height:H - m.t - m.b, fill:`url(#${gid})` }));
-        s.appendChild(svg('text', { class:'dir-lbl', x:W - m.r, y: goodTop ? m.t + 9 : H - m.b - 4, 'text-anchor':'end', text:'besser ' + (goodTop ? '▲' : '▼') }));
+        // left edge: rising series crowd the top-right, falling series the bottom-right
+        s.appendChild(svg('text', { class:'dir-lbl', x:m.l + 4, y: goodTop ? m.t + 9 : H - m.b - 4, text:(goodTop ? '▲' : '▼') + ' besser' }));
     }
 
     // grid + y ticks
