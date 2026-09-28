@@ -85,7 +85,34 @@ body { margin:0; font-family:var(--font-family); font-size:var(--text-sm);
 .vcard-unit  { font-size:var(--text-xs); color:var(--color-neutral-600); }
 .vcard svg.chart { width:100%; height:auto; display:block; margin-top:var(--space-2); }
 .vcard.bars svg.chart { max-width:640px; }
+.vcard-meta { display:flex; flex-wrap:wrap; gap:var(--space-1) var(--space-2); align-items:center; margin-top:var(--space-2); font-size:var(--text-xs); }
+.dir { color:var(--color-neutral-600); }
+.verdict { display:inline-flex; align-items:center; gap:4px; padding:2px var(--space-2); border-radius:var(--radius-full);
+           font-weight:var(--font-weight-medium); cursor:default; }
+.verdict .d { font-weight:var(--font-weight-normal); opacity:.85; }
+.v-besser     { background:var(--color-semantic-50); color:#006300; }
+.v-schlechter { background:#FEF2F2; color:var(--color-error); }
+.v-gleich     { background:#F3F4F6; color:var(--color-neutral-600); }
+.v-unklar     { background:#FFFBEB; color:#92400E; }
+.v-neutral    { background:#F3F4F6; color:var(--color-neutral-600); }
 .tbl-btn { min-height:28px; padding:0 var(--space-2); font-size:var(--text-xs); flex-shrink:0; }
+
+/* ── Bilanz (diverging bars) ──────────────────────────────────────────── */
+.bilanz svg { width:100%; height:auto; display:block; }
+.bilanz text { font-family:var(--font-family); font-size:10px; fill:var(--color-neutral-600); }
+.bilanz .grid { stroke:var(--viz-grid); stroke-width:1; }
+.bilanz .mid  { stroke:var(--viz-axis); stroke-width:1; }
+.bilanz .b-besser     { fill:#0ca30c; }
+.bilanz .b-schlechter { fill:#d03b3b; }
+.bilanz .b-gleich     { fill:#9CA3AF; }
+.bilanz .b-unklar     { fill-opacity:.4; }
+.bilanz .row-hit { fill:transparent; cursor:pointer; outline:none; }
+.bilanz .row-hit:hover + .bar, .bilanz .row-hit:focus-visible + .bar { filter:brightness(.85); }
+.bilanz .row-hit:focus-visible { stroke:var(--color-focus); stroke-width:2; }
+.bilanz .name { fill:var(--color-neutral-900); }
+.bilanz .val  { fill:var(--color-neutral-600); font-variant-numeric:tabular-nums; }
+.bilanz .note { color:var(--color-neutral-600); font-size:var(--text-xs); margin-top:var(--space-2); }
+.sw { display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:middle; }
 .tbl-btn.active { background:var(--color-interactive-50); color:var(--color-interactive-700); }
 
 /* svg furniture */
@@ -208,6 +235,19 @@ footer.foot a { color:var(--color-neutral-600); }
 
   <div id="error" class="section err" hidden></div>
 
+  <div class="section bilanz" id="bilanz-section">
+    <h2>Bilanz: heute gegenüber der frühesten belegten Epoche</h2>
+    <div class="legend">
+      <span class="key"><span class="sw" style="background:#0ca30c"></span> ✓ besser</span>
+      <span class="key"><span class="sw" style="background:#d03b3b"></span> ✗ schlechter</span>
+      <span class="key"><span class="sw" style="background:#9CA3AF"></span> ≈ unverändert (±5 %)</span>
+      <span class="key"><span class="sw" style="background:#0ca30c;opacity:.4"></span> blass = unklar, Spannen überlappen</span>
+      <span class="note">Balken = Faktor der Verbesserung (Mitte der Spanne, log-Achse), rechts ist immer „besser“. Klick springt zur Grafik.</span>
+    </div>
+    <div id="bilanz"></div>
+    <div class="note" id="bilanz-note"></div>
+  </div>
+
   <div class="section" id="matrix-section">
     <h2>Abdeckung: welcher Indikator ist in welcher Epoche belegt?</h2>
     <div class="legend">
@@ -328,6 +368,7 @@ function parseCsv(text) {
         const fb = r.frueher_besser.toLowerCase();
         r.fb = fb.startsWith('ja') ? 'ja' : fb.startsWith('teil') ? 'teilweise' : 'nein';
         r.check = /PRÜFEN/.test(r.anmerkung) || /PRÜFEN/.test(r.url_status) || /PRÜFEN/.test(r.erstnennung);
+        r.richtung = ['weniger', 'mehr'].includes(r.richtung) ? r.richtung : 'neutral';
         r.unitKey = UNIT_ALIAS[r.einheit] || r.einheit;
         return r;
     }).filter(r => r.id !== '' && !EXCLUDE_INDIKATOREN.includes(r.indikator));
@@ -385,6 +426,47 @@ function groupVisible(g) {
     if (state.onlyCheck && !g.rows.some(r => r.check)) return false;
     if (state.q) { const q = state.q.toLowerCase(); if (!(g.ind.toLowerCase().includes(q) || g.unit.toLowerCase().includes(q))) return false; }
     return true;
+}
+
+// ── verdict: latest epoch vs. earliest epoch, read through the indicator's richtung ─
+const DIR_LABEL = { weniger:'↓ weniger ist besser', mehr:'↑ mehr ist besser', neutral:'○ ohne Richtung' };
+const KIND_LABEL = { besser:'✓ besser', schlechter:'✗ schlechter', gleich:'≈ unverändert', unklar:'? unklar', neutral:'○ Veränderung' };
+function verdict(rows, richtung) {
+    const eps = [...new Set(rows.map(r => r.epochIdx))].sort((a, b) => a - b);
+    if (eps.length < 2) return null;
+    const span = idx => {
+        const rs = rows.filter(r => r.epochIdx === idx);
+        return { min:Math.min(...rs.map(r => r.min)), max:Math.max(...rs.map(r => r.max)),
+                 epoche:rs[0].epoche, jahr:[...new Set(rs.map(r => r.jahr))].join(' / ') };
+    };
+    const a = span(eps[0]), b = span(eps[eps.length - 1]);
+    const am = (a.min + a.max) / 2, bm = (b.min + b.max) / 2;
+    const overlap = b.max >= a.min && b.min <= a.max;
+    let ratio;                                    // change of the raw value, latest / earliest
+    if (am > 0 && bm > 0) ratio = bm / am;
+    else if (am > 0 && bm === 0) ratio = 0;
+    else if (am === 0 && bm > 0) ratio = Infinity;
+    else ratio = 1;
+    const factor = richtung === 'weniger' ? 1 / ratio : ratio;   // ≥ 1 means better
+    let kind;
+    if (richtung === 'neutral') kind = 'neutral';
+    else if (overlap) kind = 'unklar';
+    else if (factor >= 1.05) kind = 'besser';
+    else if (factor <= 1 / 1.05) kind = 'schlechter';
+    else kind = 'gleich';
+    const change = ratio === 0 ? '→ 0' : ratio === Infinity ? 'von 0' : ratio === 1 ? '±0 %'
+        : ratio >= 2 ? '×' + fmtNum(+ratio.toPrecision(2)) : ratio <= 0.5 ? '÷' + fmtNum(+(1 / ratio).toPrecision(2))
+        : (ratio > 1 ? '+' : '−') + Math.round(Math.abs(ratio - 1) * 100) + ' %';
+    return { a, b, am, bm, ratio, factor, kind, change };
+}
+function verdictTitle(v, unit) {
+    return `${v.a.epoche} (${v.a.jahr}): ${fmtRange(v.a)} ${unit} → ${v.b.epoche} (${v.b.jahr}): ${fmtRange(v.b)} ${unit}`
+        + (v.kind === 'unklar' ? ' — Spannen überlappen, kein eindeutiger Trend' : '');
+}
+function verdictChip(v, unit) {
+    const chip = el('span', { class:'verdict v-' + v.kind, title: verdictTitle(v, unit) },
+        [KIND_LABEL[v.kind] + ' ', el('span', { class:'d', text: v.b.epoche + ' vs. ' + v.a.epoche + ': ' + v.change })]);
+    return chip;
 }
 
 // ── tooltip ────────────────────────────────────────────────────────────────
@@ -609,6 +691,16 @@ function renderCard(card) {
     head.appendChild(btn);
     wrap.appendChild(head);
 
+    if (card.type !== 'bars') {
+        const meta = el('div', { class:'vcard-meta' }, [el('span', { class:'dir', text: DIR_LABEL[g.rows[0].richtung] })]);
+        if (card.type === 'chart') {
+            const v = verdict(card.rows, g.rows[0].richtung);
+            card.verdict = v;
+            if (v) meta.appendChild(verdictChip(v, unit));
+        }
+        wrap.appendChild(meta);
+    }
+
     if (card.type === 'tile') {
         const r = card.rows[0];
         wrap.appendChild(el('div', { class:'val' }, [fmtRange(r) + ' ', el('small', { text:r.einheit })]));
@@ -640,6 +732,56 @@ function renderCards() {
 }
 function rerenderCharts() {
     CARDS.forEach(c => { if (c.holder) c.holder.replaceChildren(c.type === 'bars' ? renderBars(c) : renderChart(c)); });
+}
+
+// ── Bilanz: one diverging bar per indicator, right = better ───────────────
+function renderBilanz() {
+    const root = document.getElementById('bilanz');
+    const items = CARDS.filter(c => c.type === 'chart' && c.verdict && c.verdict.kind !== 'neutral' && !document.getElementById(c.id).hidden)
+        .map(c => ({ c, v:c.verdict, g:c.groups[0] }))
+        .sort((x, y) => (Math.min(y.v.factor, 1e9) - Math.min(x.v.factor, 1e9)));
+    const neutral = CARDS.filter(c => c.type === 'chart' && c.verdict && c.verdict.kind === 'neutral' && !document.getElementById(c.id).hidden);
+    root.replaceChildren();
+    if (!items.length) { root.appendChild(el('div', { class:'empty', text:'Kein Indikator im Filter.' })); return; }
+    const W = 720, rowH = 20, m = { t:22, r:70, b:8, l:230 };
+    const H = m.t + items.length * rowH + m.b;
+    const LO = -3, HI = 3;                                    // log10 factor, ÷1000 .. ×1000
+    const x = f => m.l + (Math.max(LO, Math.min(HI, f)) - LO) / (HI - LO) * (W - m.l - m.r);
+    const lg = f => f === Infinity ? HI : f === 0 ? LO : Math.log10(f);
+    const s = svg('svg', { viewBox:`0 0 ${W} ${H}`, role:'group', 'aria-label':'Bilanz aller Indikatoren' });
+    [-2, -1, 0, 1, 2, 3].forEach(t => {
+        const xx = x(t);
+        s.appendChild(svg('line', { class: t === 0 ? 'mid' : 'grid', x1:xx, x2:xx, y1:m.t - 4, y2:H - m.b }));
+        s.appendChild(svg('text', { x:xx, y:m.t - 8, 'text-anchor':'middle', text: t === 0 ? '×1' : t < 0 ? '÷' + fmtNum(Math.pow(10, -t)) : '×' + fmtNum(Math.pow(10, t)) }));
+    });
+    s.appendChild(svg('text', { x:m.l - 6, y:m.t - 8, 'text-anchor':'end', text:'← schlechter' }));
+    s.appendChild(svg('text', { x:W - m.r + 6, y:m.t - 8, text:'besser →' }));
+    items.forEach(({ c, v, g }, i) => {
+        const y = m.t + i * rowH + 4, f = v.factor, xf = x(lg(f)), x0 = x(0);
+        const label = f === Infinity ? '→ 0' : f === 0 ? 'von 0' : f >= 1 ? '×' + fmtNum(+f.toPrecision(2)) : '÷' + fmtNum(+(1 / f).toPrecision(2));
+        s.appendChild(svg('text', { class:'name', x:m.l - 8, y:y + 10, 'text-anchor':'end', text: g.ind + (g.unit.length <= 14 ? ' (' + g.unit + ')' : '') }));
+        const bar = svg('path', { class:'bar b-' + v.kind + (v.kind === 'unklar' ? ' b-' + (f >= 1 ? 'besser' : 'schlechter') : ''),
+                                  d: f >= 1 ? barPath(x0, Math.max(xf, x0 + 1), y, 12, 4) : barPathLeft(Math.min(xf, x0 - 1), x0, y, 12, 4) });
+        s.appendChild(svg('text', { class:'val', x: f >= 1 ? xf + 5 : xf - 5, y:y + 10, 'text-anchor': f >= 1 ? 'start' : 'end', text:label }));
+        const hit = svg('rect', { class:'row-hit', x:0, y:y - 4, width:W, height:rowH, tabindex:'0', role:'link',
+                                  'aria-label': g.ind + ': ' + KIND_LABEL[v.kind] + ', ' + label });
+        hit.addEventListener('click', () => { const n = document.getElementById(c.id); n.hidden = false; n.scrollIntoView({ behavior:'smooth', block:'start' }); });
+        hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hit.click(); } });
+        const tipRow = { indikator:g.ind, epoche:v.b.epoche, jahr:v.b.jahr, min:v.b.min, max:v.b.max, einheit:g.unit,
+                         datenqualitaet: KIND_LABEL[v.kind] + ' · ' + DIR_LABEL[g.rows[0].richtung], fb:'nein', frueher_besser:'',
+                         anmerkung: 'Basis ' + v.a.epoche + ' (' + v.a.jahr + '): ' + fmtRange(v.a) + ' ' + g.unit, check:false, quelle:'', url_status:'' };
+        attachTip(hit, tipRow, g.ind);
+        s.appendChild(hit); s.appendChild(bar);
+    });
+    root.appendChild(s);
+    const counts = items.reduce((acc, it) => (acc[it.v.kind] = (acc[it.v.kind] || 0) + 1, acc), {});
+    document.getElementById('bilanz-note').textContent =
+        `${items.length} Indikatoren: ${counts.besser || 0} besser, ${counts.schlechter || 0} schlechter, ${counts.gleich || 0} unverändert, ${counts.unklar || 0} unklar.`
+        + (neutral.length ? ` Ohne Richtung und daher nicht bewertet: ${neutral.map(c => c.groups[0].ind).join(', ')}.` : '');
+}
+function barPathLeft(x0, x1, y, h, rad) {                  // rounded data-end on the left
+    const r = Math.min(rad, (x1 - x0) / 2, h / 2);
+    return `M${x1},${y} H${x0 + r} a${r},${r} 0 0 0 -${r},${r} V${y + h - r} a${r},${r} 0 0 0 ${r},${r} H${x1} Z`;
 }
 
 // ── coverage matrix ────────────────────────────────────────────────────────
@@ -686,9 +828,12 @@ function renderStats() {
     const ja = ROWS.filter(r => r.fb === 'ja').length, tw = ROWS.filter(r => r.fb === 'teilweise').length;
     const check = ROWS.filter(r => r.check).length;
     const verified = ROWS.filter(r => /^verifiziert/.test(r.url_status)).length;
+    const vs = CARDS.map(c => c.type === 'chart' ? verdict(c.rows, c.groups[0].rows[0].richtung) : null).filter(Boolean);
+    const cnt = k => vs.filter(v => v.kind === k).length;
     const items = [
         [ROWS.length, 'Zeilen'], [distinct('indikator'), 'Indikatoren'], [distinct('kategorie'), 'Kategorien'],
         [distinct('epoche'), 'Epochen'], [ja + ' + ' + tw, '„früher besser“ ja + teilweise'],
+        [cnt('besser') + ' / ' + cnt('schlechter') + ' / ' + cnt('unklar'), 'Bilanz: besser / schlechter / unklar'],
         [check, 'Zeilen PRÜFEN'], [Math.round(verified / ROWS.length * 100) + ' %', 'Zeilen mit verifizierter URL'],
     ];
     strip.replaceChildren(...items.map(([v, l]) => el('div', { class:'stat-box' }, [
@@ -713,6 +858,7 @@ function applyFilters() {
     document.querySelectorAll('#matrix tr.cat-row').forEach(tr => tr.hidden = !visibleKats.has(tr.dataset.kat));
     const active = state.cats.size || state.onlyFb || state.onlyCheck || state.q;
     document.getElementById('f-clear').style.display = active ? '' : 'none';
+    renderBilanz();
     hideTip();
 }
 function renderFilters() {

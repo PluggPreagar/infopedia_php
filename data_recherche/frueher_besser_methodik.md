@@ -86,6 +86,12 @@ In `erstnennung` steht `ja` (die URL ist die Erstnennung), `nein: <Erstnennung>`
 ### 5.6 Kennzeichnung `PRÜFEN`
 Die Markierung `PRÜFEN` in `anmerkung` bedeutet: Der Wert ist unsicher und vor der Publikation zu verifizieren. Aktuell betrifft das 38 Zeilen (16 vor, 22 aus der Ergänzung vom 27.09.2026).
 
+### 5.7 Richtung (`richtung`)
+
+Jeder Indikator trägt die Leserichtung, die 5.1 verlangt: `weniger` (Sterblichkeit, Arbeitsminuten, Kriegstote …), `mehr` (Lebenserwartung, Erträge, Wohnfläche, freie Tage …) oder `neutral`, wenn keine Richtung ohne Werturteil möglich ist (Fleischkonsum, Kirchliche Fastentage) oder die Rate nicht vergleichbar ist (Herz-Kreislauf und Krebs als rohe Raten). Grenzfälle: Anteil Landwirtschaft und Nahrungsanteil am Konsum sind als `weniger` gesetzt (Produktivität, Engelsches Gesetz), Kalorienangebot und Milch je Kuh als `mehr`.
+
+Die Bilanz auf der Seite vergleicht die jüngste mit der frühesten belegten Epoche eines Indikators (Mitte der Spanne, alle Zeilen der Epoche zusammengefasst) und liest das Ergebnis über `richtung`: „besser“, „schlechter“, „unverändert“ (±5 %) oder „unklar“, wenn sich die Spannen überlappen.
+
 ## 6. Datenmodell (CSV)
 
 Trennzeichen `;`, Dezimalpunkt `.`, UTF-8.
@@ -101,6 +107,7 @@ Trennzeichen `;`, Dezimalpunkt `.`, UTF-8.
 | wert_min / wert_max | Spanne |
 | datenqualitaet | siehe 5.2 |
 | frueher_besser | siehe 5.3 |
+| richtung | `weniger` (weniger ist besser), `mehr` (mehr ist besser) oder `neutral`; gilt je Indikator, siehe 5.7 |
 | anmerkung | Kontext, Annahmen, `PRÜFEN` |
 | quelle | Kurzname |
 | quelle_url | URL(s), mehrere mit ` \| ` getrennt |
