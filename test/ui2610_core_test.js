@@ -155,6 +155,10 @@ eq('seed: argument row', sl[2], '/b/s/r/s01 | src:[DRV 2026](https://x.de/a) | i
 const { argLines } = require('../tools/ui2610-seed.js');
 eq('seed: bt21 row with prefix + quote', argLines('/b', [{ path: 's/r', text: 'Option: Haltelinie verlängern.', source: { name: 'Plenarprotokoll 21/48 · A (SPD)', url: 'https://dserver.bundestag.de/btp/21/21048.pdf' }, quote: 'Wir halten | das Niveau', ind: { kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 1, sIp: 1 } }], 'b')[0],
    '/b/s/r/b001 | src:[Plenarprotokoll 21/48 · A (SPD)](https://dserver.bundestag.de/btp/21/21048.pdf) | ind_default:2,2,1,1,1,1 | quote:Wir halten / das Niveau | Option: Haltelinie verlängern.');
+const { progressLine } = require('../tools/ui2610-seed.js');
+eq('progress line', progressLine(45, 906, 0, 9000, 44, 1, '/ui2610/soziales/pflege/b123'),
+   '[ 45/906]   5% · ok 44 · fail 1 · 0:09 elapsed · ~2:52 left · /ui2610/soziales/pflege/b123');
+eq('progress line done', progressLine(906, 906, 0, 150000, 906, 0, '/x'), '[906/906] 100% · ok 906 · fail 0 · 2:30 elapsed · ~0:00 left · /x');
 const pe = require('../assets/ui2610-core.js');
 eq('seed src parses back', pe.parseSrc('[DRV 2026](https://x.de/a)'), { name: 'DRV 2026', url: 'https://x.de/a' });
 

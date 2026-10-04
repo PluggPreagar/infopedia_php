@@ -43,13 +43,29 @@ function seedLines(base, topics, args) {
     return topicLines(base, topics).concat(argLines(base, args, 's'));
 }
 
+const mmss = sec => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+/** Pure: one progress line — count, percent, ok/fail, elapsed, estimated time left, current key. */
+function progressLine(done, total, startMs, nowMs, ok, fail, key) {
+    const el = (nowMs - startMs) / 1000;
+    const left = done ? el / done * (total - done) : 0;
+    const w = String(total).length;
+    return `[${String(done).padStart(w)}/${total}] ${String(Math.round(done / total * 100)).padStart(3)}% · ok ${ok} · fail ${fail} · ${mmss(el)} elapsed · ~${mmss(left)} left · ${key}`;
+}
+
 async function post(line) {
     for (let attempt = 0; attempt < 5; attempt++) {
-        const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/entries?` + new URLSearchParams({ sid: 'seed-ui2610', tid }),
-            { method: 'POST', body: new URLSearchParams({ entry: line }) });
+        let res;
+        try {
+            res = await fetch(`${baseUrl.replace(/\/+$/, '')}/entries?` + new URLSearchParams({ sid: 'seed-ui2610', tid }),
+                { method: 'POST', body: new URLSearchParams({ entry: line }) });
+        } catch (err) {   // network error (offline, DNS, reset): wait and retry, then count as failed
+            if (attempt === 4) { console.error(`\nFAIL network: ${err.cause ? err.cause.code || err.cause.message : err.message}\n   ${line.split(' | ')[0]}`); return false; }
+            await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            continue;
+        }
         if (res.status === 201) return true;
-        if (res.status === 429) { await new Promise(r => setTimeout(r, 5000 * (attempt + 1))); continue; }
-        console.error('FAIL', res.status, (await res.text()).slice(0, 200), '\n  ', line);
+        if (res.status === 429 || res.status >= 500) { await new Promise(r => setTimeout(r, 5000 * (attempt + 1))); continue; }
+        console.error('\nFAIL', res.status, (await res.text()).slice(0, 200), '\n  ', line.split(' | ')[0]);
         return false;
     }
     return false;
@@ -62,10 +78,22 @@ if (require.main === module) (async () => {
     }
     const lines = seedLines(base, topics, args).concat(argLines(base, bt21, 'b'));
     if (dry) { lines.forEach(l => console.log(l)); console.error(`${lines.length} lines (dry run)`); return; }
-    let ok = 0;
-    for (const l of lines) { if (await post(l)) ok++; await new Promise(r => setTimeout(r, 150)); }
-    console.log(`${ok}/${lines.length} rows posted to ${baseUrl} tid=${tid} base=${base}`);
+    const tty = process.stdout.isTTY, start = Date.now(), failed = [];
+    console.log(`seeding ${lines.length} rows → ${baseUrl} tid=${tid} base=${base} (${topics.length} topics, ${args.length} web, ${bt21.length} Bundestag)`);
+    let ok = 0, streak = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const l = lines[i], key = l.split(' | ')[0];
+        if (await post(l)) { ok++; streak = 0; } else { failed.push(key); streak++; }
+        if (streak >= 5) { console.error(`\nstopping: 5 failures in a row (server unreachable or rejecting). ${ok} rows posted; re-run is safe.`); process.exit(1); }
+        const msg = progressLine(i + 1, lines.length, start, Date.now(), ok, failed.length, key);
+        if (tty) process.stdout.write('\r\x1b[K' + msg.slice(0, (process.stdout.columns || 120) - 1));   // one live line
+        else if ((i + 1) % 25 === 0 || i + 1 === lines.length) console.log(msg);                          // log every 25 rows
+        await new Promise(r => setTimeout(r, 150));
+    }
+    if (tty) process.stdout.write('\n');
+    console.log(`${ok}/${lines.length} rows posted to ${baseUrl} tid=${tid} base=${base} in ${mmss((Date.now() - start) / 1000)}`);
+    if (failed.length) console.log('failed keys (re-run is safe, latest wins):\n  ' + failed.join('\n  '));
     process.exit(ok === lines.length ? 0 : 1);
 })();
 
-module.exports = { seedLines, topicLines, argLines };
+module.exports = { seedLines, topicLines, argLines, progressLine };
