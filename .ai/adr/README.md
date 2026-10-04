@@ -43,3 +43,4 @@ A log of **significant, hard-to-reverse** decisions. Template adapted from
 | UI2610-ADR-6 | Magnitude area: grey rectangle 0,0 … core | accepted |
 | UI2610-ADR-7 | Topics: one folder per topic, `kind:topic` | accepted; extended by UI2610-ADR-8 |
 | UI2610-ADR-8 | Nested topics, `see:` refs, seeded arguments with default indicator | accepted |
+| UI2610-ADR-9 | Entries from Bundestag protocols (21st term), 20 per leaf | accepted |

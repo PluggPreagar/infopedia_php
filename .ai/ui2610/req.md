@@ -48,6 +48,7 @@ These are product requirements, separate from the process requirements `REQ-S<st
 - **REQ-UI2610-36 (MUST):** `ind_default:` on an Item is the Voter's indicator until they set their own (labelled "Start"; counts in the group value; pre-fills the editor). -- ADR-8
 - **REQ-UI2610-37 (MUST):** sub-topics are large cards in a top-down list, like Items (title · n Unterthemen · m Einträge · k offen · ↔ refs · ›). A level without own Items shows only the cards; otherwise Items come first, then the "Unterthemen" section. Counts cover the whole subtree. -- user 2026-10-04
 - **REQ-UI2610-38 (MUST):** browser back/forward (Zurück/Vor, Android back gesture) navigates topic + step: each change is one history entry (`?topic=…&step=…`, deep links work). An open sheet adds one entry, so back closes it first; navigating from inside a sheet reuses that entry (no ghost entries). -- user 2026-10-04
+- **REQ-UI2610-39 (MUST):** each leaf topic holds 20 entries from the 21st-term Bundestag protocols (claims, and options starting "Option: "), each with `src:` (protocol link + speaker + faction/office) and `quote:` (verbatim, shown in the Item sheet); pipeline in `tools/ui2610-bt21-extract.py`. -- ADR-9
 
 UI labels (German): Triage = "Sichten" · Rate = "Bewerten" · Fine-tune = "Feinschliff" · In / Open / Out = "Relevant / Offen / Raus" · Sign = "signieren".
 

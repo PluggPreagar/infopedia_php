@@ -39,6 +39,7 @@
     .topic-card .chev { font-size: 24px; color: var(--color-interactive-600); flex: none; }
     .section-head { margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--color-neutral-600); font-weight: var(--font-weight-bold); }
     .src { font-size: var(--text-xs); color: var(--color-neutral-600); }
+    .quote { margin: 0 0 var(--space-1); padding-left: var(--space-2); border-left: 3px solid var(--color-interactive-100); font-size: var(--text-sm); color: var(--color-neutral-600); font-style: italic; }
     .src a { color: var(--color-interactive-700); }
     .nav .seg { border-color: rgba(255,255,255,.55); background: transparent; flex: none; }
     .nav .seg > button { flex: none; width: 36px; min-height: 34px; padding: 0; background: transparent; color: #fff; border-left-color: rgba(255,255,255,.55);
@@ -473,7 +474,8 @@ const sheetHead = t => `<div class="sheet-header"><h3>${esc(t)}</h3><button clas
 
 function openItem(id) {
     const p = itemKey(id), t = own(p, "tri");
-    openSheet(sheetHead(titleOf(id)) + `
+    const quote = ((entries[p] || {}).attrs || {}).quote;
+    openSheet(sheetHead(titleOf(id)) + (quote ? `<blockquote class="quote">„${esc(quote)}“</blockquote>` : "") + srcHtml(id) + `
         <p class="form-label">Sichten</p><div class="seg" role="group" aria-label="Sichten">${["out", "open", "in"].map(v =>
             `<button class="${t === v ? "active" : ""}" data-tri="${id}" data-v="${v}" data-stay="1">${TRI_LABEL[v]}</button>`).join("")}</div>
         <p class="form-label">Bewerten</p><div class="row">${rateChips(id)}${signBtn(id)}</div>

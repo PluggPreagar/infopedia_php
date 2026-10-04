@@ -36,6 +36,10 @@ ui2610-core:
 ui2610-seed url tid base='/ui2610':
     node tools/ui2610-seed.js {{url}} {{tid}} {{base}}
 
+# UI2610: candidate passages per leaf from Open Discourse (21st Bundestag) → out dir (input for entry writing, ADR-9)
+ui2610-bt21-extract data out:
+    python3 tools/ui2610-bt21-extract.py {{data}} {{out}} 40
+
 # Full suite: unit + e2e  (CI entry point — exits non-zero on failure)
 ci: unit e2e
 

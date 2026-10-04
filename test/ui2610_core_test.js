@@ -152,6 +152,9 @@ const sl = seedLines('/b', [{ path: 's/r', title: 'Rente' }, { path: 's', title:
 eq('seed: parent topic first, see attr', sl[0], '/b/s | kind:topic | see:g/x,w | Soziales.');
 eq('seed: child topic', sl[1], '/b/s/r | kind:topic | Rente.');
 eq('seed: argument row', sl[2], '/b/s/r/s01 | src:[DRV 2026](https://x.de/a) | ind_default:3,2,1,0,1,1 | Rentenniveau sinkt / stark.');
+const { argLines } = require('../tools/ui2610-seed.js');
+eq('seed: bt21 row with prefix + quote', argLines('/b', [{ path: 's/r', text: 'Option: Haltelinie verlängern.', source: { name: 'Plenarprotokoll 21/48 · A (SPD)', url: 'https://dserver.bundestag.de/btp/21/21048.pdf' }, quote: 'Wir halten | das Niveau', ind: { kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 1, sIp: 1 } }], 'b')[0],
+   '/b/s/r/b001 | src:[Plenarprotokoll 21/48 · A (SPD)](https://dserver.bundestag.de/btp/21/21048.pdf) | ind_default:2,2,1,1,1,1 | quote:Wir halten / das Niveau | Option: Haltelinie verlängern.');
 const pe = require('../assets/ui2610-core.js');
 eq('seed src parses back', pe.parseSrc('[DRV 2026](https://x.de/a)'), { name: 'DRV 2026', url: 'https://x.de/a' });
 
