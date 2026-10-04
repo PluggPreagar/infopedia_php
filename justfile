@@ -28,6 +28,10 @@ e2e-debug:
 test-file file:
     {{php}} {{file}}
 
+# UI2610 frontend core (pure JS, node)
+ui2610-core:
+    node test/ui2610_core_test.js
+
 # Full suite: unit + e2e  (CI entry point — exits non-zero on failure)
 ci: unit e2e
 

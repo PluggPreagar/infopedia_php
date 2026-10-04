@@ -63,6 +63,13 @@ function debounceKey(key, ms) {
     return true;
 }
 
+// Strip exactly the suffix getTypeFromMessage() recognises — "Ist das so?!" edits as "Ist das so?".
+// Moved from vote.html 2026-10-04, shared with vote-mobile.html (CA7).
+function stripTypeSuffix(message) {
+    const s = getTypeFromMessage(message);
+    return (s ? message.slice(0, -s.length) : String(message || "")).trim();
+}
+
 // ── Node id ───────────────────────────────────────────────────────────────────
 // Time-ordered prefix + 6 random chars. Callers that hold the entry map should still
 // re-roll on a hit (vote.html freshNodeId) — free defense-in-depth.
