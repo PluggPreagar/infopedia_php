@@ -41,6 +41,24 @@ function touchOutdated(string $file): void {
     touch($file);
 }
 
+// General: watch any list of files by mtime.
+function long_poll_files(array $files, int $now, int $timeout = 25): bool {
+    if ($timeout <= 0 || empty($files)) return false;
+    $stop_at = $now + $timeout;
+    clearstatcache();
+    foreach ($files as $f) {
+        if (file_exists($f) && filemtime($f) > $now) return true;
+    }
+    while (time() < $stop_at) {
+        sleep(2);
+        clearstatcache();
+        foreach ($files as $f) {
+            if (file_exists($f) && filemtime($f) > $now) return true;
+        }
+    }
+    return false;
+}
+
 /**
  * Hold the connection until the entries or votes CSV for tenant $tid is
  * modified after $now, or until $timeout seconds have elapsed.
@@ -55,26 +73,10 @@ function touchOutdated(string $file): void {
  * @return bool  true = at least one file changed; false = timeout (no change).
  */
 function long_poll(string $tid, int $now, int $timeout = 25): bool {
-    if ($timeout <= 0) {
-        return false;
-    }
     $suffix = $tid !== '' ? '_' . $tid : '';
     $files  = array_values(array_filter([
         'data/entries' . $suffix . '.csv',
         'data/votes'   . $suffix . '.csv',
     ], 'file_exists'));
-    if (empty($files)) {
-        return false;
-    }
-    $stop_at = $now + $timeout;
-    while (time() < $stop_at) {
-        clearstatcache();
-        foreach ($files as $f) {
-            if (filemtime($f) > $now) {
-                return true;
-            }
-        }
-        sleep(2);
-    }
-    return false;
+    return long_poll_files($files, $now, $timeout);
 }

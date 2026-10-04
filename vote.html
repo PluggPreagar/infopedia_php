@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Abstimmen — fayf</title>
+  <link rel="icon" href="assets/favicon.ico">
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <style>
+    /* Page theme: greenish (teal) interactive scale — overrides the indigo tokens for this page only.
+       Teal keeps CG-DS1 readable: UI chrome is teal, truth states stay the semantic green (#16A34A). */
+    :root {
+      --color-interactive-50:     #F0FDFA;
+      --color-interactive-100:    #CCFBF1;
+      --color-interactive-400:    #2DD4BF;
+      --color-interactive-600:    #0F766E;   /* buttons — 5.5:1 on white ✓ AA  */
+      --color-interactive-700:    #115E59;   /* nav bg  — 7.2:1 on white ✓ AAA */
+      --color-interactive-accent: #14B8A6;   /* decoration only */
+      --color-focus:              #0F766E;
+    }
+
+    body { display: flex; flex-direction: column; }
+
+    #vote-list {
+      flex: 1; padding: var(--space-3) var(--space-4);
+      display: flex; flex-direction: column; gap: var(--space-2);
+      max-width: 800px; width: 100%; margin: 0 auto;
+    }
+    #vote-list .card { touch-action: pan-y; }        /* no swipe here: let a vertical drag scroll the list */
+    .card-source { margin-top: var(--space-2); font-size: var(--text-sm); color: var(--color-neutral-600); }
+    .card-source a { color: var(--color-interactive-700); }
+    #vote-empty { color: var(--color-neutral-400); text-align: center; padding: var(--space-6); }
+
+    #toast-container { position: fixed; top: var(--space-4); right: var(--space-4); z-index: var(--z-toast);
+                       display: flex; flex-direction: column; gap: var(--space-2); }
+    #toast-container .toast { position: static; }
+
+    .fab[hidden] { display: none; }                 /* .fab sets display:flex, which would beat [hidden] */
+    .sheet-header { display: flex; align-items: center; gap: var(--space-2); }
+    .sheet-header h3 { flex: 1; margin: 0; font-size: var(--text-base); font-weight: var(--font-weight-bold); color: var(--color-neutral-900); }
+    .sheet-field { display: flex; flex-direction: column; }
+    .sheet-actions { display: flex; gap: var(--space-3); justify-content: flex-end; }
+    #sheet { max-height: 90dvh; overflow-y: auto; } /* soft keyboard: the sheet scrolls instead of clipping */
+
+    @media (max-width: 600px) { #vote-list { padding: var(--space-2); } }
+  </style>
+</head>
+<body>
+<nav class="nav">
+  <span class="nav-title" id="nav-title">Abstimmen</span>
+</nav>
+
+<div class="chip-bar" id="tab-bar">
+  <button class="chip chip-scope active" data-tab="!">Argumente</button>
+  <button class="chip chip-scope"        data-tab="??">Gegenfragen</button>
+</div>
+
+<div id="vote-list"></div>
+<div id="toast-container"></div>
+
+<button id="fab" class="fab" aria-label="Eintrag hinzufügen" hidden>
+  <svg class="icon icon-lg"><use href="assets/icons.svg#icon-plus"/></svg>
+</button>
+
+<div id="sheet-backdrop" class="overlay-backdrop">
+  <div id="sheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-heading">
+    <div class="sheet-header">
+      <h3 id="sheet-heading">Neuer Eintrag</h3>
+      <span id="sheet-badge" class="badge badge-fakt">Fakt</span>
+      <button id="sheet-close" class="btn-icon" aria-label="Schließen">
+        <svg class="icon icon-md"><use href="assets/icons.svg#icon-close"/></svg>
+      </button>
+    </div>
+    <div class="sheet-field">
+      <label class="form-label" for="sheet-text">Text</label>
+      <textarea id="sheet-text" class="textarea" placeholder="Dein Beitrag…"></textarea>
+    </div>
+    <div class="sheet-field">
+      <label class="form-label" for="sheet-src-url">Quelle URL</label>
+      <input id="sheet-src-url" class="input" type="url" inputmode="url" placeholder="https://…" autocomplete="off">
+    </div>
+    <div class="sheet-field">
+      <label class="form-label" for="sheet-src-name">Quelle Name (optional)</label>
+      <input id="sheet-src-name" class="input" type="text" placeholder="z. B. DGE Ernährungsbericht 2021" autocomplete="off">
+    </div>
+    <div class="sheet-actions">
+      <button id="sheet-cancel" class="btn btn-ghost">Abbrechen</button>
+      <button id="sheet-submit" class="btn btn-primary">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/gesture.js"></script>
+<script src="assets/entry-core.js"></script>
+<script src="assets/md-renderer.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let tenantId  = "";
+let topicRoot = "/";
+let sid       = "www";
+let entries   = {};   // { "/topic/node": { timestamp, message, attrs } } — as served by GET /entries
+let votesData = {};   // { "/topic/node": { votes: n, signed: n } }
+let activeTab = "!";  // suffix of the visible list: "!" Argumente · "??" Gegenfragen
+const TID_RE  = /^[a-zA-Z0-9_-]{1,30}$/;   // CC4 — same rule as the backend
+
+// ── Pure helpers (test/vote_test.js) ─────────────────────────────────────────
+function isUnderTopic(key, topic) {
+    const t = String(topic || "/").replace(/\/+$/, "");
+    if (t === "") return true;                         // root folder lists everything
+    return key === t || key.startsWith(t + "/");
+}
+
+function voteListFor(entries, topic, suffix) {
+    return Object.entries(entries || {})
+        .filter(([key, e]) => e && isUnderTopic(key, topic) && getTypeFromMessage(e.message) === suffix)
+        .map(([key, e]) => ({ key, message: e.message, timestamp: e.timestamp || "", attrs: e.attrs || {} }));
+}
+
+function sumVotes(votes) {
+    if (votes && typeof votes === "object") return Object.values(votes).reduce((a, b) => a + (Number(b) || 0), 0);
+    return typeof votes === "number" ? votes : 0;
+}
+function scoreOf(votesData, key)  { return (votesData && votesData[key] && votesData[key].votes)  || 0; }
+function signedOf(votesData, key) { return (votesData && votesData[key] && votesData[key].signed) || 0; }
+
+function sortByScore(list, votesData) {
+    return [...list].sort((a, b) =>
+        (scoreOf(votesData, b.key) - scoreOf(votesData, a.key)) ||
+        String(b.timestamp).localeCompare(String(a.timestamp)));
+}
+
+// A bare URL becomes "[host](url)"; markdown passes through; anything else stays plain text.
+function normaliseSourceMd(value) {
+    const v = String(value || "").trim();
+    if (!v || v.includes("](")) return v;
+    try {
+        const host = new URL(v).host.replace(/^www\./, "");
+        return `[${host || v}](${v})`;
+    } catch {
+        return v;
+    }
+}
+
+// renderMd() sanitises hrefs (javascript:/data: → "#"); we only strip its <p> wrapper
+// and make source links open in a new tab.
+function renderSourceHtml(srcMd) {
+    if (!srcMd) return "";
+    const inner = renderMd(srcMd).replace(/^<p>/, "").replace(/<\/p>\n?$/, "");
+    return inner.replace(/<a href=/g, '<a target="_blank" rel="noopener" href=');
+}
+
+// ── Page mode: ?type= ↔ list suffix (VUC8) ────────────────────────────────────
+const MODE_SUFFIX = { fakt: "!", gegenfrage: "??" };     // labels stay in TYPE_DEFS (CA18)
+function modeFromParam(value) {
+    return MODE_SUFFIX[String(value || "").trim().toLowerCase()] || "";
+}
+function paramFromMode(suffix) {
+    return Object.keys(MODE_SUFFIX).find(k => MODE_SUFFIX[k] === suffix) || "";
+}
+
+// Configured title wins; otherwise "Abstimmen · <folder>" so a tenant without config still reads.
+function pageTitle(configured, topic) {
+    const t = String(configured || "").trim();
+    if (t) return t;
+    return "Abstimmen · " + (String(topic || "/").replace(/^\//, "") || "Alles");
+}
+
+// Inverse of normaliseSourceMd(): one markdown link → { url, name }; a bare URL → { url };
+// anything else (several links, plain text) goes verbatim into url — v1: one source per entry.
+function parseSourceMd(value) {
+    const v = String(value || "").trim();
+    const m = /^\[([^\]]*)\]\(([^()\s]*)\)$/.exec(v);
+    if (m) return { url: m[2], name: m[1].trim() };
+    return { url: v, name: "" };
+}
+
+// { url, name } → src: value. "|" is the column separator (util_entry.php) so it is
+// percent-encoded in the URL; "[" "]" leave the name so the markdown link stays well-formed.
+function buildSourceMd(url, name) {
+    const u = String(url || "").trim();
+    if (!u) return "";
+    if (u.includes("](")) return u;                       // already markdown (several links) — verbatim
+    const n    = String(name || "").trim().replace(/[\[\]]/g, "");
+    const safe = u.replace(/\|/g, "%7C");
+    return n ? `[${n}](${safe})` : safe;
+}
+
+// "" when the sheet input can be sent, otherwise the message for the user (CA15).
+function validateSheetInput(text, url, name) {
+    if (String(text || "").trim().length < 3) return "Zu kurz (mind. 3 Zeichen).";
+    const u = String(url || "").trim();
+    // A bare URL gets its "|" encoded by buildSourceMd; markdown passes verbatim, so refuse it there.
+    if (/\|/.test(text || "") || /\|/.test(name || "") || (u.includes("](") && u.includes("|"))) {
+        return "Das Zeichen | ist nicht erlaubt.";
+    }
+    if (u && !u.includes("](") && !/^https?:\/\/\S+$/i.test(u)) {
+        return "Quelle: bitte eine vollständige Adresse eingeben (https://…).";
+    }
+    return "";
+}
+
+// One POST /entries line. Every attr the entry already carries is re-sent: the server keeps
+// only the newest row per path (util_entry.php sortCsvData, "newest wins"), so an omitted
+// column is a deleted column. src is rebuilt from the two sheet fields.
+function buildEntryLine(key, text, suffix, attrs, url, name) {
+    const cols = [key];
+    for (const [k, v] of Object.entries(attrs || {})) {
+        if (k !== "src" && v !== undefined && v !== null && String(v) !== "") cols.push(`${k}:${v}`);
+    }
+    const src = buildSourceMd(url, name);
+    if (src) cols.push(`src:${src}`);
+    cols.push(matchType(String(text || "").trim(), suffix));
+    return cols.join(" | ");
+}
+
+// ── Toast (CA15: plain words for the user) ────────────────────────────────────
+function showToast(message, type = "info", duration = 3000) {
+    const el = document.createElement("div");
+    el.className = "toast toast-" + type;
+    el.textContent = message;
+    document.getElementById("toast-container").appendChild(el);
+    setTimeout(() => el.remove(), duration);
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+function buildVoteCard(item) {
+    const def      = getTypeDef(item.message);
+    const score    = scoreOf(votesData, item.key);
+    const signed   = signedOf(votesData, item.key);
+    const verified = signed >= 2 && def.suffix === "!";                        // AVC4.2
+    const label    = verified ? "Bewiesen ✓" : def.label;
+    const text     = escapeHtml(item.message.replace(/[.!?@>\-]+$/, "").trim() || item.message);
+    const scoreClass = score > 0 ? "pos" : score < 0 ? "neg" : "zero";
+    const scoreStr   = score > 0 ? "+" + score : String(score);
+    const srcHtml  = renderSourceHtml(normaliseSourceMd(item.attrs.src));
+    const key      = escapeHtml(item.key);
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.fullKey = item.key;
+    card.innerHTML = `
+        <div class="card-header">
+            <span class="badge badge-${def.cssClass}">${label}</span>
+            <span class="card-text">${text}</span>
+        </div>
+        ${srcHtml ? `<div class="card-source">Quelle: ${srcHtml}</div>` : ""}
+        <div class="card-footer">
+            <button class="vote-btn upvote-btn" data-key="${key}" aria-label="Dafür">▲</button>
+            <span class="vote-score ${scoreClass}">${scoreStr}</span>
+            <button class="vote-btn downvote-btn" data-key="${key}" aria-label="Dagegen">▼</button>
+            <span class="sign-count ${signed >= 2 ? "verified" : ""}">${signed > 0 ? "✓ " + signed : ""}</span>
+            <button class="sign-btn" data-key="${key}">Bestätigen</button>
+            <button class="btn-icon edit-btn" data-key="${key}" aria-label="Bearbeiten" title="Bearbeiten">
+                <svg class="icon icon-sm"><use href="assets/icons.svg#icon-edit"/></svg>
+            </button>
+        </div>`;
+    return card;
+}
+
+function render() {
+    const list  = document.getElementById("vote-list");
+    const items = sortByScore(voteListFor(entries, topicRoot, activeTab), votesData);
+    list.innerHTML = "";
+    if (items.length === 0) {
+        list.innerHTML = '<div id="vote-empty">Noch keine Einträge.</div>';
+        return;
+    }
+    for (const item of items) list.appendChild(buildVoteCard(item));
+}
+
+// Update one card in place — no re-sort on vote, so the card the user just tapped stays put.
+function updateCardScore(key) {
+    const card = document.querySelector(`.card[data-full-key="${CSS.escape(key)}"]`);
+    if (!card) return;
+    const score = scoreOf(votesData, key), signed = signedOf(votesData, key);
+    const el = card.querySelector(".vote-score");
+    el.textContent = score > 0 ? "+" + score : String(score);
+    el.className   = "vote-score " + (score > 0 ? "pos" : score < 0 ? "neg" : "zero");
+    const sc = card.querySelector(".sign-count");
+    sc.textContent = signed > 0 ? "✓ " + signed : "";
+    sc.className   = "sign-count" + (signed >= 2 ? " verified" : "");
+    // Badge follows the same rule as buildVoteCard() so the 2nd confirmation flips it in place (AVC4.2).
+    const def = getTypeDef((entries[key] && entries[key].message) || "");
+    card.querySelector(".badge").textContent = (signed >= 2 && def.suffix === "!") ? "Bewiesen ✓" : def.label;
+}
+
+// ── Voting: optimistic update, then POST /votes ───────────────────────────────
+async function postVoteAttr(key, attr, failMsg) {
+    const entry = entries[key];
+    if (!entry) return false;
+    const body = new URLSearchParams({ entry: `${key} | ${attr} | ${entry.message}` });
+    try {
+        const res = await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body });
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("[vote] POST votes non-ok:", res.status, res.url, text.slice(0, 500));   // CA16
+            showToast(failMsg, "error");                                                           // CA15
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error("[vote] POST votes:", err);
+        showToast(failMsg, "error");
+        return false;
+    }
+}
+
+// Optimistic: apply locally first, then POST; on failure undo so the score never claims
+// something the server did not store.
+function handleVote(key, delta) {
+    if (!debounceKey("vote_" + key, 1000)) return;                       // AVC3.3
+    votesData[key] = votesData[key] || { votes: 0, signed: 0 };
+    votesData[key].votes += delta;                                       // AVC3.1 / AVC3.2
+    updateCardScore(key);
+    postVoteAttr(key, `votes:${sid}:${delta}`, "Bewertung konnte nicht gespeichert werden. Bitte erneut versuchen.")
+        .then(ok => { if (!ok) { votesData[key].votes -= delta; updateCardScore(key); } });
+}
+
+function handleSign(key) {
+    if (!debounceKey("sign_" + key, 1000)) return;
+    votesData[key] = votesData[key] || { votes: 0, signed: 0 };
+    votesData[key].signed += 1;                                          // AVC4.1
+    updateCardScore(key);
+    postVoteAttr(key, `signed:${sid}:1`, "Bestätigung konnte nicht gespeichert werden. Bitte erneut versuchen.")
+        .then(ok => {
+            if (ok) { showToast("Bestätigt!", "success", 1500); return; }
+            votesData[key].signed -= 1;
+            updateCardScore(key);
+        });
+}
+
+// ── Mode switch: tabs ↔ ?type= (VUC8) ─────────────────────────────────────────
+function syncTabs() {
+    document.querySelectorAll("#tab-bar .chip").forEach(c => c.classList.toggle("active", c.dataset.tab === activeTab));
+}
+function applyMode(suffix) {
+    activeTab = suffix;
+    syncTabs();
+    const url = new URL(location.href);
+    url.searchParams.set("type", paramFromMode(suffix));
+    history.replaceState(null, "", url);                  // shareable link, no back-stack entry (D9)
+    render();
+}
+
+// ── Add / edit sheet (VUC6 / VUC7) ────────────────────────────────────────────
+let sheetKey = null;   // null → add mode · "/topic/node" → edit mode
+
+function sheetEls() {
+    const $ = id => document.getElementById(id);
+    return { backdrop: $("sheet-backdrop"), sheet: $("sheet"), heading: $("sheet-heading"), badge: $("sheet-badge"),
+             text: $("sheet-text"), url: $("sheet-src-url"), name: $("sheet-src-name"), submit: $("sheet-submit") };
+}
+function isSheetOpen() { return document.getElementById("sheet-backdrop").classList.contains("open"); }
+
+function openSheet(key = null) {
+    const entry = key ? entries[key] : null;
+    if (key && !entry) return;                            // stale card — nothing to edit
+    const el = sheetEls();
+    sheetKey = key;
+    const suffix = entry ? getTypeFromMessage(entry.message) : activeTab;   // edit keeps the type (AVC7.6)
+    const def    = TYPE_DEFS[suffix] || TYPE_DEF_DEFAULT;
+    el.heading.textContent = entry ? "Eintrag bearbeiten" : "Neuer Eintrag";
+    el.badge.textContent   = def.label;                   // CA18 — label from TYPE_DEFS only
+    el.badge.className     = "badge badge-" + def.cssClass;
+    el.submit.textContent  = entry ? "Speichern" : "Hinzufügen";
+    const src = parseSourceMd(entry && entry.attrs ? entry.attrs.src : "");
+    el.text.value = entry ? stripTypeSuffix(entry.message) : "";
+    el.url.value  = src.url;
+    el.name.value = src.name;
+    el.backdrop.classList.add("open");
+    el.sheet.classList.add("open");
+    el.text.focus();
+}
+function closeSheet() {
+    sheetKey = null;
+    const el = sheetEls();
+    el.backdrop.classList.remove("open");
+    el.sheet.classList.remove("open");
+}
+
+// Swappable so tests stub it (same pattern as postVoteAttr). Resolves { ok, timestamp }.
+async function postEntryLine(line) {
+    try {
+        const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }),
+                                { method: "POST", body: new URLSearchParams({ entry: line }) });
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("[vote] POST entries non-ok:", res.status, res.url, text.slice(0, 500), "line:", line);   // CA16
+            showToast(res.status === 429
+                ? "Zu viele Einträge in kurzer Zeit. Bitte kurz warten."
+                : "Eintrag konnte nicht gespeichert werden. Bitte erneut versuchen.", "error");                 // CA15
+            return { ok: false };
+        }
+        const json = await res.json().catch(() => ({}));
+        return { ok: true, timestamp: json.timestamp || "" };
+    } catch (err) {
+        console.error("[vote] POST entries:", err, "line:", line);
+        showToast("Verbindung unterbrochen. Bitte erneut versuchen.", "error");
+        return { ok: false };
+    }
+}
+
+function freshNodeId(topic) {
+    let id = generateNodeId();
+    while (entries[fullKey(topic, id)]) id = generateNodeId();        // collision guard, practically never loops
+    return id;
+}
+
+async function submitSheet() {
+    const el = sheetEls();
+    const text = el.text.value, url = el.url.value, name = el.name.value;
+    const problem = validateSheetInput(text, url, name);
+    if (problem) { showToast(problem, "error"); return false; }        // AVC6.3 — sheet stays open
+
+    const isEdit = sheetKey !== null;
+    const key    = isEdit ? sheetKey : fullKey(topicRoot, freshNodeId(topicRoot));
+    const prev   = (isEdit && entries[key]) || { attrs: {} };
+    const suffix = isEdit ? getTypeFromMessage(prev.message) : activeTab;
+    const line   = buildEntryLine(key, text, suffix, prev.attrs, url, name);
+
+    el.submit.disabled = true;                                          // no double submit while in flight
+    const res = await postEntryLine(line).finally(() => { el.submit.disabled = false; });
+    if (!res.ok) return false;                                          // AVC6.5 / AVC7.5 — text stays in the sheet
+
+    const attrs = Object.fromEntries(Object.entries(prev.attrs || {}).filter(([k]) => k !== "src"));
+    const src   = buildSourceMd(url, name);
+    if (src) attrs.src = src;
+    entries[key] = { timestamp: res.timestamp || prev.timestamp || "", message: matchType(text.trim(), suffix), attrs };
+    render();
+    showToast(isEdit ? "Eintrag aktualisiert!" : "Eintrag hinzugefügt!", "success", 1500);
+    closeSheet();
+    return true;
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────────
+function buildUrl(route) {
+    return route + "?" + new URLSearchParams({ sid, tid: tenantId, format: "json" });
+}
+async function jsonOrEmpty(res) {
+    const text = await res.text();
+    return text.trim() ? JSON.parse(text) : {};        // a fresh tenant answers with an empty body
+}
+function setVotesData(json) {
+    votesData = {};
+    Object.entries(json || {}).forEach(([key, e]) => {
+        votesData[key] = {
+            votes:  sumVotes(e.votes),
+            signed: parseInt((e.attrs && e.attrs.signed_count) || 0, 10),
+        };
+    });
+}
+async function loadData() {
+    try {
+        const [eRes, vRes] = await Promise.all([fetch(buildUrl("entries")), fetch(buildUrl("votes"))]);
+        if (!eRes.ok || !vRes.ok) throw new Error(`entries ${eRes.status} / votes ${vRes.status}`);
+        entries = await jsonOrEmpty(eRes);
+        setVotesData(await jsonOrEmpty(vRes));
+        render();
+        document.getElementById("fab").hidden = false;   // AVC6.6 — add only once the list is loaded
+    } catch (err) {
+        console.error("[vote] loadData:", err);                                                   // CA16
+        showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000);   // CA15
+    }
+}
+
+// ── Settings — same localStorage key as app2.html so the session id is shared ─
+function loadSettings() {
+    try { return JSON.parse(localStorage.getItem("fayf_settings") || "{}"); } catch { return {}; }
+}
+function ensureSid(settings) {
+    if (settings.sid) return settings.sid;
+    const fresh = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    try { localStorage.setItem("fayf_settings", JSON.stringify({ ...settings, sid: fresh })); } catch { /* private mode */ }
+    return fresh;
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+async function init() {
+    document.getElementById("tab-bar").addEventListener("click", e => {
+        const chip = e.target.closest(".chip[data-tab]");
+        if (chip) applyMode(chip.dataset.tab);
+    });
+    const list = document.getElementById("vote-list");
+    list.addEventListener("click", e => {
+        const up = e.target.closest(".upvote-btn");
+        const dn = e.target.closest(".downvote-btn");
+        const sg = e.target.closest(".sign-btn");
+        const ed = e.target.closest(".edit-btn");
+        if (up) handleVote(up.dataset.key,  1);
+        if (dn) handleVote(dn.dataset.key, -1);
+        if (sg) handleSign(sg.dataset.key);
+        if (ed) openSheet(ed.dataset.key);                              // AVC7.1
+    });
+    initGestureDetector(list);                                          // AVC7.2 — long-press, no tap hint (D11)
+    list.addEventListener("gesture:longpress", e => {
+        if (e.target.closest("button, a")) return;                      // buttons and links keep their own meaning
+        const card = e.target.closest(".card");
+        if (card) openSheet(card.dataset.fullKey);
+    });
+    document.getElementById("fab").addEventListener("click", () => openSheet());
+    document.getElementById("sheet-submit").addEventListener("click", submitSheet);
+    document.getElementById("sheet-cancel").addEventListener("click", closeSheet);
+    document.getElementById("sheet-close").addEventListener("click", closeSheet);
+    document.getElementById("sheet-backdrop").addEventListener("click", e => { if (e.target.id === "sheet-backdrop") closeSheet(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && isSheetOpen()) closeSheet(); });
+
+    let cfg = {};
+    try { cfg = await (await fetch("config.php")).json(); } catch (err) { console.warn("[vote] config.php:", err); }
+    const params = new URLSearchParams(location.search);
+    tenantId  = params.get("tid")   || cfg.votePageTid   || "";          // AVC5.1 / AVC5.2
+    topicRoot = ((params.get("topic") || cfg.votePageTopic || "/").replace(/\/+$/, "")) || "/";
+    activeTab = modeFromParam(params.get("type")) || modeFromParam(cfg.votePageType) || "!";   // AVC8.1 / AVC8.2
+    syncTabs();
+    sid       = ensureSid(loadSettings());
+    const title = pageTitle(cfg.votePageTitle, topicRoot);
+    document.getElementById("nav-title").textContent = title;
+    document.title = title + " — fayf";
+
+    if (!TID_RE.test(tenantId)) {                                        // AVC5.3, CC4
+        console.error("[vote] invalid tid:", JSON.stringify(tenantId));
+        showToast("Kein gültiger Bereich angegeben. Bitte den Link prüfen.", "error", 8000);
+        return;
+    }
+    await loadData();
+}
+init();
+</script>
+</body>
+</html>

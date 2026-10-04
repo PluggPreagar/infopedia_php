@@ -12,6 +12,7 @@ require_once 'util_format.php';
 require_once 'util_cache.php';
 require_once 'util_http.php';
 require_once 'util_throttle.php';
+require_once 'util_sumup.php';
 
 // ─── Shared config ────────────────────────────────────────────────────────────
 $cache_max_age     = (int)($config['cache_time']       ?? 3600);
@@ -28,6 +29,13 @@ if ($tenant_id !== '') {
 } else {
     $cache_file  = $base_cache;
     $source_file = preg_replace('/\.cache$/', '.csv', $base_cache);
+}
+
+// T12: offset-based SumUp snapshot for incremental cache rebuild.
+// Config-gated, default off (burn-in phase) — see [entry] sumup_enabled in infopedia.cfg.
+$sumup_file = preg_replace('/\.cache$/', '.sumup.json', $base_cache);
+if ($tenant_id !== '') {
+    $sumup_file = preg_replace('/\.cache$/', "_{$tenant_id}.sumup.json", $base_cache);
 }
 
 // ─── POST ─────────────────────────────────────────────────────────────────────
@@ -90,6 +98,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         touchOutdated($outdated_file);
     }
 
+    // Build incr payload matching the /entries JSON response format.
+    $_pn  = parseEntry($entry);
+    $_pnd = [
+        'timestamp' => $_pn['display_ts'] ?? $timestamp,
+        'message'   => $_pn['content'],
+        'attrs'     => $_pn['attrs'],
+    ];
+    if (!empty($_pn['votes'])) { $_pnd['votes'] = $_pn['votes']; }
+    append_incr($tenant_id, ['type' => 'entries', 'data' => [$_pn['path'] => $_pnd]]);
+    unset($_pn, $_pnd);
+
     // 8. Respond.
     log_return('POST /entries ok');
     respond_json(['status' => 'ok', 'timestamp' => $timestamp], 201);
@@ -123,21 +142,16 @@ if (!$refresh && isCacheValid($cache_file, $cache_max_age, $outdated_file, $cach
     // $since set but nothing new in cache — fall through to long-poll.
 }
 
-// 5. Long-poll: hold until entries or votes file changes.
-//    Cross-watching votes releases the entries connection when votes update,
-//    keeping both client polls in sync.
-$poll_timeout = (int)($config['poll_timeout'] ?? 25);
-$now          = time();
-if ($since !== '' && $since_int > 0) {
-    long_poll($tenant_id, $now, $poll_timeout);
-}
-
-// 6. Fetch from source.
-$raw = @file_get_contents($source_file);
-if ($raw === false) {
-    // File doesn't exist yet — return an empty dataset.
+// 5+6. Fetch, sort/dedup, cache.
+if (!empty($config['sumup_enabled'])) {
+    // T12: incremental rebuild — only appended bytes are parsed via SumUp.
+    // ?refresh discards the snapshot (throttled above), forcing a full rebuild.
+    if ($refresh) {
+        @unlink($sumup_file);
+    }
     if (!file_exists($source_file)) {
-        log_return('data file not yet created, returning empty dataset');
+        // File doesn't exist yet — return an empty dataset (same as legacy path).
+        log_return('data file not yet created, returning empty dataset(' . $source_file . ')');
         $out = _get_respond("Timestamp,entry\n", $format, $since);
         if ($since !== '' && $out === '') {
             http_response_code(204);
@@ -146,30 +160,50 @@ if ($raw === false) {
         echo $out;
         exit;
     }
-    // File read failed — fall back to stale cache if present.
-    $stale = readCache($cache_file);
-    if ($stale !== '') {
-        log_warn('source read failed, serving stale cache: ' . $source_file);
-        log_return(strlen($stale) . ' bytes from stale cache');
-        $out = _get_respond($stale, $format, $since);
-        if ($since !== '' && $out === '') {
-            http_response_code(204);
+    $nodes  = sumup_update($sumup_file, $source_file, 'entries_sumup_merge_line', fn() => []);
+    $sorted = entries_sumup_project($nodes);
+    if ($sorted !== '' && $sorted !== "Timestamp,entry\n") {
+        writeCache($cache_file, $sorted);
+    }
+} else {
+    // Legacy path: full read + full re-sort every time.
+    $raw = @file_get_contents($source_file);
+    if ($raw === false) {
+        // File doesn't exist yet — return an empty dataset.
+        if (!file_exists($source_file)) {
+            log_return('data file not yet created, returning empty dataset(' . $source_file . ')');
+            $out = _get_respond("Timestamp,entry\n", $format, $since);
+            if ($since !== '' && $out === '') {
+                http_response_code(204);
+                exit;
+            }
+            echo $out;
             exit;
         }
-        echo $out;
-        exit;
+        // File read failed — fall back to stale cache if present.
+        $stale = readCache($cache_file);
+        if ($stale !== '') {
+            log_warn('source read failed, serving stale cache: ' . $source_file);
+            log_return(strlen($stale) . ' bytes from stale cache');
+            $out = _get_respond($stale, $format, $since);
+            if ($since !== '' && $out === '') {
+                http_response_code(204);
+                exit;
+            }
+            echo $out;
+            exit;
+        }
+        log_error('source read failed and no cache: ' . $source_file);
+        respond_error('INTERNAL_ERROR', 'Could not read data source.', 500);
     }
-    log_error('source read failed and no cache: ' . $source_file);
-    respond_error('INTERNAL_ERROR', 'Could not read data source.', 500);
+
+    $sorted = sortCsvData($raw);
+    if ($sorted !== '' && $sorted !== "Timestamp,entry\n") {
+        writeCache($cache_file, $sorted);
+    }
 }
 
-// 7. Sort, dedup, cache.
-$sorted = sortCsvData($raw);
-if ($sorted !== '' && $sorted !== "Timestamp,entry\n") {
-    writeCache($cache_file, $sorted);
-}
-
-// 8. Delta filter for $since and respond.
+// 7. Delta filter for $since and respond.
 $out = _get_respond($sorted, $format, $since);
 
 // If delta filtering produced nothing, return 204.

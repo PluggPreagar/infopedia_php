@@ -58,7 +58,10 @@ function section(string $name): void { echo "\n── $name\n"; }
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 chdir(__DIR__ . '/..');
-foreach (['data/entries_e2e.csv', 'data/votes_e2e.csv', 'data/entries_e2e.cache'] as $f) {
+foreach ([
+    'data/entries_e2e.csv', 'data/votes_e2e.csv', 'data/entries_e2e.cache',
+    'data/entries_e2e.sumup.json', 'data/votes_e2e.sumup.json',
+] as $f) {
     if (file_exists($f)) unlink($f);
 }
 echo "E2E — PHP subprocess mode (" . PHP_BINARY . ")\n";
@@ -140,6 +143,29 @@ $r = get('/votes', "sid=$sid&tid=$tid&format=json&refresh");
 ok($r['status'] === 200,                       'GET /votes → 200');
 ok(isset($r['json']['/e2e/poll']),             '/e2e/poll in json');
 ok(isset($r['json']['/e2e/poll']['votes']),    'votes key present');
+
+// T03 (Story A, UC-A1): second session votes on the same path — both must be counted.
+$r = post('/votes', "sid={$sid}2&tid=$tid", "entry=/e2e/poll | votes:{$sid}2:1 | Good idea?");
+ok($r['status'] === 201, 'POST /votes second sid → 201');
+
+$r = get('/votes', "sid={$sid}3&tid=$tid&format=json&refresh");
+ok($r['status'] === 200, 'GET /votes (third sid) → 200');
+ok(($r['json']['/e2e/poll']['votes']['others'] ?? 0) === 2,
+   'both sessions counted in others (got ' . json_encode($r['json']['/e2e/poll'] ?? null) . ')');
+
+// ─── UI2610: set-kinds (REQ-UI2610-14) ────────────────────────────────────────
+section('UI2610 set-kinds');
+$r = post('/votes', "sid=$sid&tid=$tid", "entry=/e2e/ui/a | tri:$sid:in | rate:$sid:5 | signed:$sid:1 | Item.");
+ok($r['status'] === 201, 'POST /votes set-kinds only → 201');
+$r = post('/votes', "sid={$sid}2&tid=$tid", "entry=/e2e/ui/a | rate:{$sid}2:3 | Item.");
+ok($r['status'] === 201, 'POST /votes rate second sid → 201');
+$r = post('/votes', "sid=$sid&tid=$tid", "entry=/e2e/ui/a | rate:$sid:9 | Item.");
+ok($r['status'] === 400, 'POST /votes invalid rate only → 400');
+$r = get('/votes', "sid=$sid&tid=$tid&format=json&refresh");
+$ui = $r['json']['/e2e/ui/a'] ?? [];
+ok(($ui['sets']['rate'][$sid] ?? '') === '5', 'GET /votes own rate (got ' . json_encode($ui) . ')');
+ok(($ui['sets']['rate']['others'] ?? '') === '3=1', 'GET /votes rate histogram of others');
+ok(($ui['attrs']['signers'] ?? '') === $sid, 'GET /votes signers listed');
 
 // ─── 7. Dumps ─────────────────────────────────────────────────────────────────
 
@@ -264,14 +290,6 @@ section('entries.php — long-poll');
 post('entries.php', "sid=$sid&tid=$tid", 'entry=/longpoll/test | Node for poll.');
 sleep(2);
 
-// Lower poll_timeout to 2 for timing test.
-$orig_cfg = file_get_contents('infopedia.cfg');
-register_shutdown_function(function() use ($orig_cfg) {
-    file_put_contents('infopedia.cfg', $orig_cfg);
-});
-$patched  = preg_replace('/^poll_timeout\s*=.*/m', 'poll_timeout = 2', $orig_cfg);
-file_put_contents('infopedia.cfg', $patched);
-
 // GET without ?since — must return 200 immediately (under 1s).
 $t0 = microtime(true);
 $r  = get('entries.php', "tid=$tid");
@@ -279,12 +297,12 @@ $elapsed = microtime(true) - $t0;
 ok($r['status'] === 200,    'GET without since → 200');
 ok($elapsed < 1.0,          'GET without since → fast (no hold)', round($elapsed, 2) . 's');
 
-// GET with ?since far in future — must hold ≥ 2s then return 204.
+// GET with ?since far in future — must return 204 immediately (no hold).
 $t0 = microtime(true);
 $r  = get('entries.php', "tid=$tid&since=2099-01-01+00:00:00");
 $elapsed = microtime(true) - $t0;
-ok($r['status'] === 204,    'GET since future → 204 after hold');
-ok($elapsed >= 2.0,         'GET since future → held ≥ 2s', round($elapsed, 2) . 's');
+ok($r['status'] === 204,    'GET since future → 204');
+ok($elapsed < 1.0,          'GET since future → immediate (no hold)', round($elapsed, 2) . 's');
 
 // GET with ?since=<very old> — data exists → 200 immediately.
 $t0 = microtime(true);
@@ -293,13 +311,171 @@ $elapsed = microtime(true) - $t0;
 ok($r['status'] === 200,    'GET since past → 200 with data');
 ok($elapsed < 1.0,          'GET since past → fast (data exists)', round($elapsed, 2) . 's');
 
-// Restore original cfg.
-file_put_contents('infopedia.cfg', $orig_cfg);
-
 // Cleanup long-poll test data.
 foreach (['data/entries_e2e.csv', 'data/entries_e2e.cache'] as $f) {
     if (file_exists($f)) unlink($f);
 }
+
+// ─── notify.php ──────────────────────────────────────────────────────────────
+section('notify.php');
+
+// GET without tid → 400
+$r = get('notify.php', '');
+ok($r['status'] === 400,                                  'GET notify without tid → 400');
+ok(($r['json']['error']['code'] ?? '') === 'INVALID_TID', 'INVALID_TID code');
+
+// Patch poll_timeout to 2 for timing tests
+$orig_cfg2 = file_get_contents('infopedia.cfg');
+register_shutdown_function(function() use ($orig_cfg2) {
+    file_put_contents('infopedia.cfg', $orig_cfg2);
+});
+$patched2 = preg_replace('/^poll_timeout\s*=.*/m', 'poll_timeout = 2', $orig_cfg2);
+file_put_contents('infopedia.cfg', $patched2);
+
+// GET with no cursor (no incr files) → 204 after hold
+$t0 = microtime(true);
+$r  = get('notify.php', 'tid=notify_e2e');
+$elapsed = microtime(true) - $t0;
+ok($r['status'] === 204,  'GET notify no cursor no data → 204 after hold');
+ok($elapsed >= 2.0,       'GET notify → held ≥ 2s', round($elapsed, 2) . 's');
+
+// STALE_CURSOR: ts older than re_read_timespan → 400 immediately
+$stale_ts = time() - 9999;
+$r = get('notify.php', 'tid=notify_e2e&ts=' . $stale_ts);
+ok($r['status'] === 400,                                       'stale ts → 400');
+ok(($r['json']['error']['code'] ?? '') === 'STALE_CURSOR',     'STALE_CURSOR code');
+
+// Write a message event directly to incr file _a (and _b)
+$ts_msg    = time();
+$msg_line  = json_encode(['ts' => $ts_msg, 'msgid' => 1, 'type' => 'message', 'text' => 'test-notice']);
+file_put_contents('data/notify_notify_e2e_a.jsonl', $msg_line . "\n", FILE_APPEND | LOCK_EX);
+file_put_contents('data/notify_notify_e2e_b.jsonl', $msg_line . "\n", FILE_APPEND | LOCK_EX);
+sleep(1);
+$r = get('notify.php', 'tid=notify_e2e&ts=' . ($ts_msg - 1));
+ok($r['status'] === 200,                                   'GET notify with message → 200');
+ok(isset($r['json']['ts']),                                'response has ts key');
+ok(isset($r['json']['msgid']),                             'response has msgid key');
+$msgs = $r['json']['message'] ?? [];
+ok(count($msgs) > 0,                                       'message array non-empty');
+ok(($msgs[0]['text'] ?? '') === 'test-notice',             'message text correct');
+
+// Write an entries event directly to both incr files
+$ts_entries = time();
+$path       = '/test/notify';
+$entry_data = [$path => ['timestamp' => date('Y-m-d H:i:s'), 'message' => 'hello.', 'attrs' => []]];
+$entry_line = json_encode(['ts' => $ts_entries, 'msgid' => 2, 'type' => 'entries', 'data' => $entry_data]);
+file_put_contents('data/notify_notify_e2e_a.jsonl', $entry_line . "\n", FILE_APPEND | LOCK_EX);
+file_put_contents('data/notify_notify_e2e_b.jsonl', $entry_line . "\n", FILE_APPEND | LOCK_EX);
+sleep(1);
+$r = get('notify.php', 'tid=notify_e2e&ts=' . ($ts_entries - 1));
+ok($r['status'] === 200,                                    'notify returns entries on incr write');
+ok(isset($r['json']['entries'][$path]),                     'entries key contains path');
+ok(($r['json']['entries'][$path]['message'] ?? '') === 'hello.', 'entry message correct');
+
+// Cursor in response: ts and msgid match the last message in batch
+ok(is_int($r['json']['ts'] ?? null),    'response ts is int');
+ok(is_int($r['json']['msgid'] ?? null), 'response msgid is int');
+
+// Restore cfg
+file_put_contents('infopedia.cfg', $orig_cfg2);
+
+// Cleanup
+foreach ([
+    'data/notify_notify_e2e_a.jsonl',
+    'data/notify_notify_e2e_b.jsonl',
+] as $f) {
+    if (file_exists($f)) unlink($f);
+}
+
+// ─── data.php ────────────────────────────────────────────────────────────────
+section('data.php');
+
+// Patch poll_timeout to 0 so data.php tests don't long-poll
+$orig_cfg3 = file_get_contents('infopedia.cfg');
+register_shutdown_function(function() use ($orig_cfg3) {
+    file_put_contents('infopedia.cfg', $orig_cfg3);
+});
+$patched3 = preg_replace('/^(\[data\].*?)poll_timeout\s*=\s*\d+/ms', '$1poll_timeout = 0', $orig_cfg3);
+file_put_contents('infopedia.cfg', $patched3);
+
+// Ensure data/infopedia.log exists (E2E may create it via prior requests)
+if (!file_exists('data/infopedia.log')) file_put_contents('data/infopedia.log', '');
+
+// E1: no entity → 400 INVALID_ENTITY
+$r = get('/data');
+ok($r['status'] === 400, 'data: no entity → 400');
+ok(($r['json']['error']['code'] ?? '') === 'INVALID_ENTITY', 'data: error code INVALID_ENTITY');
+
+// E2: entity=stats → 200, full + increments + offset
+$r = get('/data', 'entity=stats');
+ok($r['status'] === 200, 'data: stats first load → 200');
+ok(isset($r['json']['offset']),           'data: stats has offset');
+ok(isset($r['json']['full']),             'data: stats has full section');
+ok(isset($r['json']['increments']),       'data: stats has increments section');
+ok(isset($r['json']['full']['sessions_uniq']), 'data: full has sessions_uniq');
+ok(isset($r['json']['increments']['requests']), 'data: increments has requests');
+ok(is_array($r['json']['increments']['rows'] ?? null), 'data: increments has rows array');
+
+// E3: stale offset → 400 STALE_OFFSET
+$r = get('/data', 'entity=stats&offset=999999999');
+ok($r['status'] === 400, 'data: stale offset → 400');
+ok(($r['json']['error']['code'] ?? '') === 'STALE_OFFSET', 'data: error code STALE_OFFSET');
+
+// E4: entity=ops, no cursor → 200 or 204
+$r = get('/data', 'entity=ops&tid=' . $tid);
+ok(in_array($r['status'], [200, 204], true), 'data: ops no cursor → 200 or 204');
+
+// E5: append an ops event, then poll → 200 with row
+// Write ops event directly to JSONL for deterministic E2E
+$ops_file_a = 'data/notify_ops_' . $tid . '_a.jsonl';
+$ops_file_b = 'data/notify_ops_' . $tid . '_b.jsonl';
+foreach ([$ops_file_a, $ops_file_b] as $of) { if (file_exists($of)) unlink($of); }
+
+$ts_e5 = time() - 5;
+$ev_json = json_encode(['ts'=>$ts_e5,'msgid'=>1,'type'=>'ops',
+                        'severity'=>'info','op'=>'deploy','text'=>'e2e test']) . "\n";
+file_put_contents($ops_file_a, $ev_json);
+file_put_contents($ops_file_b, $ev_json);
+
+// Cursor: 10 seconds before the event; ts=0 would trigger stale detection
+$cursor_ts = $ts_e5 - 10;
+$r = get('/data', 'entity=ops&tid=' . $tid . '&ts=' . $cursor_ts . '&msgid=0');
+ok($r['status'] === 200, 'data: ops with prior event → 200');
+ok(count($r['json']['increments']['rows'] ?? []) >= 1, 'data: ops rows non-empty');
+ok(($r['json']['increments']['rows'][0]['op'] ?? '') === 'deploy', 'data: ops row op=deploy');
+
+// E5b: ops stale cursor (ts=0 is epoch, far behind any recent message) → 400 STALE_OFFSET
+// Write a fresh ops message so the file is non-empty
+$stale_ev = json_encode(['ts' => time() - 5, 'msgid' => 1, 'type' => 'ops',
+                         'severity' => 'info', 'op' => 'stale-test', 'text' => 'x']) . "\n";
+file_put_contents($ops_file_a, $stale_ev);
+file_put_contents($ops_file_b, $stale_ev);
+// ts=0 as explicit cursor: oldest_msg.ts > 0 + rotation_secs → stale
+$r = get('/data', 'entity=ops&tid=' . $tid . '&ts=0&msgid=0');
+ok($r['status'] === 400, 'data: ops stale cursor → 400');
+ok(($r['json']['error']['code'] ?? '') === 'STALE_OFFSET', 'data: ops stale → STALE_OFFSET');
+
+// Cleanup ops files
+foreach ([$ops_file_a, $ops_file_b] as $of) { if (file_exists($of)) unlink($of); }
+
+// Restore cfg
+file_put_contents('infopedia.cfg', $orig_cfg3);
+
+// ─── config.php — vote page keys ─────────────────────────────────────────────
+
+section('config.php — vote page keys');
+$r = get('config.php');
+ok($r['status'] === 200,                                   'config: 200');
+ok(is_array($r['json']),                                   'config: json body');
+ok(array_key_exists('votePageTid',   $r['json'] ?? []),    'config: has votePageTid');
+ok(array_key_exists('votePageTopic', $r['json'] ?? []),    'config: has votePageTopic');
+ok(str_starts_with((string)($r['json']['votePageTopic'] ?? ''), '/'), 'config: votePageTopic starts with /');
+ok(array_key_exists('votePageType', $r['json'] ?? []),                         'config: has votePageType');
+ok(in_array($r['json']['votePageType'] ?? '', ['fakt', 'gegenfrage'], true), 'config: votePageType is fakt|gegenfrage');
+ok(array_key_exists('votePageTitle', $r['json'] ?? []),                        'config: has votePageTitle');
+ok(array_key_exists('voteMobileTid', $r['json'] ?? []),                        'config: has voteMobileTid (UI2610)');
+ok(array_key_exists('voteMobileTopic', $r['json'] ?? []),                      'config: has voteMobileTopic (UI2610)');
+ok(array_key_exists('voteMobileTitle', $r['json'] ?? []),                      'config: has voteMobileTitle (UI2610)');
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoteUI — fayf</title>
+  <link rel="icon" href="assets/favicon.ico">
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <!-- UI2610 POC. Decisions: .ai/adr/ui2610-adr-*.md · Requirements: .ai/ui2610/req.md -->
+  <style>
+    :root {
+      --color-interactive-50:  #F0FDFA; --color-interactive-100: #CCFBF1; --color-interactive-400: #2DD4BF;
+      --color-interactive-600: #0F766E; --color-interactive-700: #115E59; --color-interactive-accent: #14B8A6;
+      --color-focus: #0F766E;
+    }
+    body { display: flex; flex-direction: column; min-height: 100dvh; }
+    main { flex: 1; width: 100%; max-width: 640px; margin: 0 auto; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+    .muted { color: var(--color-neutral-600); font-size: var(--text-sm); }
+    .row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+    .grow { flex: 1; min-width: 0; }
+    #tab-bar { flex-wrap: nowrap; overflow-x: auto; }
+    #tab-bar .chip { flex: none; padding-inline: var(--space-2); font-size: var(--text-sm); }
+    .tab-count { font-size: var(--text-xs); opacity: .8; margin-left: 2px; }
+    .item-title { font-weight: var(--font-weight-bold); overflow-wrap: anywhere; }
+    .ind-pair { display: flex; align-items: center; gap: 4px; cursor: pointer; background: none; border: 0; padding: 2px; }
+    .ind-pair small { font-size: 10px; color: var(--color-neutral-600); }
+    svg.ind { display: block; background: #fff; }
+    svg.ind.fit { outline: 2px solid var(--color-interactive-600); outline-offset: 2px; border-radius: 2px; }
+    .ind-empty { width: 32px; height: 32px; border: 1px dashed var(--color-neutral-400); border-radius: 4px; display: grid; place-items: center; font-size: var(--text-xs); color: var(--color-neutral-600); }
+    .rate-chips { display: flex; gap: 6px; }
+    .rate-chips .chip { min-width: 40px; justify-content: center; }
+    .chip.active { background: var(--color-interactive-600); color: #fff; border-color: var(--color-interactive-600); }
+    .sign-chip { font-size: var(--text-xs); padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-interactive-50); color: var(--color-interactive-700); }
+    /* Triage stack */
+    #stack .card { touch-action: none; min-height: 160px; display: flex; flex-direction: column; justify-content: center; }
+    .tri-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-2); }
+    /* Fine-tune pair */
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+    .pair .card { cursor: pointer; min-height: 140px; }
+    /* Overview */
+    .rank { font-variant-numeric: tabular-nums; font-weight: var(--font-weight-bold); width: 2ch; text-align: right; }
+    .hist { font-size: var(--text-xs); color: var(--color-neutral-600); font-variant-numeric: tabular-nums; }
+    /* Editor */
+    #editor-grid { width: 100%; max-width: 320px; aspect-ratio: 1; touch-action: none; display: block; margin: 0 auto; user-select: none; }
+    .axis { font-size: var(--text-xs); color: var(--color-neutral-600); display: flex; justify-content: space-between; gap: var(--space-2); width: 100%; max-width: 320px; margin: 0 auto; }
+    #toast-container { position: fixed; top: var(--space-4); right: var(--space-4); z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--space-2); }
+    #toast-container .toast { position: static; }
+    .toast button { margin-left: var(--space-2); }
+    .sheet-header { display: flex; align-items: center; gap: var(--space-2); }
+    .sheet-header h3 { flex: 1; margin: 0; font-size: var(--text-base); }
+    .bottom-sheet { max-height: 92dvh; overflow-y: auto; }
+    .fab[hidden] { display: none; }
+  </style>
+</head>
+<body>
+<nav class="nav">
+  <span class="nav-title grow" id="nav-title">VoteUI</span>
+  <button id="btn-reload" class="btn-icon" aria-label="Neu laden">↻</button>
+</nav>
+
+<div class="chip-bar" id="tab-bar">
+  <button class="chip chip-scope" data-step="triage">1 Sichten<span class="tab-count" id="cnt-triage"></span></button>
+  <button class="chip chip-scope" data-step="rate">2 Bewerten<span class="tab-count" id="cnt-rate"></span></button>
+  <button class="chip chip-scope" data-step="tune">3 Feinschliff<span class="tab-count" id="cnt-tune"></span></button>
+  <button class="chip chip-scope" data-step="over">Übersicht</button>
+</div>
+
+<main id="view"></main>
+<div id="toast-container"></div>
+
+<button id="fab" class="fab" aria-label="Eintrag hinzufügen" hidden>+</button>
+
+<div id="sheet-backdrop" class="overlay-backdrop">
+  <div id="sheet" class="bottom-sheet" role="dialog" aria-modal="true"></div>
+</div>
+
+<script src="assets/entry-core.js"></script>
+<script src="assets/card-swipe.js"></script>
+<script src="assets/ui2610-core.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let tenantId = "", topicRoot = "/", sid = "www";
+let entries = {};          // GET /entries (json)
+let votes = {};            // GET /votes  (json, with `sets`)
+let step = "triage";
+let newOnly = false;       // Triage: only Items without own Triage
+let myName = "";
+const TID_RE = /^[a-zA-Z0-9_-]{1,30}$/;
+const TRI_LABEL = { in: "Relevant", open: "Offen", out: "Raus" };   // UI labels for In / Open / Out
+const UNDO_MS = 4000;
+
+// ── Model access ──────────────────────────────────────────────────────────────
+const nodeId  = key => key.slice(key.lastIndexOf("/") + 1);
+const itemKey = id => fullKey(topicRoot, id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function itemIds() {
+    const prefix = topicRoot === "/" ? "/" : topicRoot + "/";
+    return Object.keys(entries)
+        .filter(k => k.startsWith(prefix) && !k.slice(prefix.length).includes("/") && !k.includes("~"))
+        .sort((a, b) => (entries[a].timestamp || "").localeCompare(entries[b].timestamp || ""))
+        .map(nodeId);
+}
+const titleOf = id => stripTypeSuffix((entries[itemKey(id)] || {}).message || id);
+function setOf(path, kind) { return ((votes[path] || {}).sets || {})[kind] || {}; }
+const own    = (path, kind) => setOf(path, kind)[sid];
+const others = (path, kind) => setOf(path, kind).others || "";
+const attrOf = (path, a) => ((votes[path] || {}).attrs || {})[a] || "";
+
+function setOwnLocal(path, kind, value) {
+    votes[path] = votes[path] || { attrs: {}, sets: {} };
+    votes[path].sets = votes[path].sets || {};
+    votes[path].sets[kind] = votes[path].sets[kind] || {};
+    if (value === null) delete votes[path].sets[kind][sid]; else votes[path].sets[kind][sid] = value;
+}
+
+function trustedSet() {
+    const pre = topicRoot.replace(/\/$/, "") + "/~trust/";
+    return new Set(Object.keys(votes).filter(k => k.startsWith(pre) && own(k, "trust") === "1").map(k => k.slice(pre.length)));
+}
+function cmpMap() {
+    const pre = topicRoot.replace(/\/$/, "") + "/~cmp/", out = {};
+    for (const k of Object.keys(votes)) {
+        if (!k.startsWith(pre)) continue;
+        const h = parseHist(others(k, "cmp")), o = own(k, "cmp");
+        if (o !== undefined) h[o] = (h[o] || 0) + 1;
+        out[k.slice(pre.length)] = h;
+    }
+    return out;
+}
+const pairPath = (a, b) => topicRoot.replace(/\/$/, "") + "/~cmp/" + pairKey(a, b);
+
+function indOf(id) {
+    const p = itemKey(id);
+    const mine = parseInd(own(p, "ind"));
+    const group = groupInd(mine, parseIndHist(others(p, "ind")));
+    return { mine, group };
+}
+function statsOf(id) { const p = itemKey(id); return ratingStats(own(p, "rate"), others(p, "rate")); }
+function ranked() { return rank(itemIds().map(id => ({ id, mean: statsOf(id).mean })), cmpMap(), 15); }
+
+// ── POST (optimistic; caller reverts on false) ────────────────────────────────
+async function postVotes(path, attrs, content) {
+    const line = `${path} | ${attrs.join(" | ")} | ${content}`;
+    try {
+        const res = await fetch("votes?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body: new URLSearchParams({ entry: line }) });
+        if (!res.ok) {
+            console.error("[ui2610] POST votes non-ok:", res.status, (await res.text()).slice(0, 500), "line:", line);   // CA16
+            showToast("Konnte nicht gespeichert werden. Bitte erneut versuchen.", "error");                              // CA15
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error("[ui2610] POST votes:", err, "line:", line);
+        showToast("Verbindung unterbrochen. Bitte erneut versuchen.", "error");
+        return false;
+    }
+}
+function saveSet(id, kind, value, extra = []) {
+    const p = itemKey(id), prev = own(p, kind) ?? null;
+    setOwnLocal(p, kind, value);
+    render();
+    return postVotes(p, [`${kind}:${sid}:${value}`, ...extra], (entries[p] || {}).message || "Item.")
+        .then(ok => { if (!ok) { setOwnLocal(p, kind, prev); render(); } return ok; });
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function showToast(message, type = "info", duration = 3000, action = null) {
+    const el = document.createElement("div");
+    el.className = "toast toast-" + type;
+    el.textContent = message;
+    if (action) {
+        const b = document.createElement("button");
+        b.className = "btn btn-ghost"; b.textContent = action.label;
+        b.onclick = () => { action.run(); el.remove(); };
+        el.appendChild(b);
+    }
+    document.getElementById("toast-container").appendChild(el);
+    setTimeout(() => el.remove(), duration);
+}
+
+/** Card icon: group Indicator; own one beside it unless Fit (then one, highlighted). */
+function indHtml(id) {
+    const { mine, group } = indOf(id);
+    if (!group) return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator setzen"><span class="ind-empty">+</span></button>`;
+    if (mine && isFit(mine, group)) return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator (Fit)">${iconSvg(group, { fit: true })}<small>Fit</small></button>`;
+    return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator">${iconSvg(group)}`
+        + (mine ? `<small>ich</small>${iconSvg(mine, { size: 20 })}` : `<small>+</small>`) + `</button>`;
+}
+function signsHtml(id) {
+    const p = itemKey(id);
+    return visibleSigns(attrOf(p, "signers"), attrOf(p, "names"), trustedSet(), sid)
+        .map(s => `<span class="sign-chip">✍ ${s.sid === sid ? "ich" : esc(s.name)}</span>`).join(" ");
+}
+function rateChips(id) {
+    const r = own(itemKey(id), "rate");
+    return `<div class="rate-chips">` + [1, 2, 3, 4, 5].map(n =>
+        `<button class="chip${String(n) === r ? " active" : ""}" data-rate="${id}" data-v="${n}">${n}</button>`).join("") + `</div>`;
+}
+function signBtn(id) {
+    const p = itemKey(id);
+    if (!own(p, "rate") || own(p, "rate") === "0") return "";
+    const signed = attrOf(p, "signers").split(",").includes(sid);
+    return `<button class="chip${signed ? " active" : ""}" data-sign="${id}">${signed ? "✍ signiert" : "✍ signieren"}</button>`;
+}
+
+// ── Step sets ─────────────────────────────────────────────────────────────────
+function triageIds() {
+    return itemIds().filter(id => { const t = own(itemKey(id), "tri"); return newOnly ? t === undefined : t === undefined || t === "open"; });
+}
+const rateIds = () => itemIds().filter(id => own(itemKey(id), "tri") !== "out");
+function tuneList() {
+    return rateIds().map(id => ({ id, r: parseInt(own(itemKey(id), "rate"), 10) || null }))
+        .filter(x => x.r).sort((a, b) => b.r - a.r).slice(0, 15);
+}
+function nextPair() {
+    const compared = {};
+    for (const k of Object.keys(votes)) if (k.includes("/~cmp/") && own(k, "cmp") !== undefined) compared[k.slice(k.indexOf("/~cmp/") + 6)] = 1;
+    const list = tuneList(), pairs = nextPairs(list, compared, 1);
+    return pairs.length && !compared[pairKey(...pairs[0])] ? pairs[0] : null;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+    document.querySelectorAll("#tab-bar .chip").forEach(c => c.classList.toggle("active", c.dataset.step === step));
+    document.getElementById("cnt-triage").textContent = " " + triageIds().length;
+    document.getElementById("cnt-rate").textContent = " " + rateIds().filter(id => !own(itemKey(id), "rate")).length;
+    document.getElementById("cnt-tune").textContent = nextPair() ? " •" : "";
+    const v = document.getElementById("view");
+    v.innerHTML = ({ triage: viewTriage, rate: viewRate, tune: viewTune, over: viewOver })[step]();
+    const stack = document.getElementById("stack");
+    if (stack) initCardSwipe(stack, {});
+}
+
+function viewTriage() {
+    const ids = triageIds();
+    const filter = `<div class="row"><span class="grow muted">${ids.length} zu sichten · relevant zum Bewerten?</span>
+        <button class="chip chip-filter${newOnly ? " active" : ""}" data-act="newonly">nur neue</button></div>`;
+    if (!ids.length) return filter + `<p class="muted">Alles gesichtet. <button class="btn btn-ghost" data-go="rate">Weiter: Bewerten →</button></p>`;
+    const id = ids[0];
+    const t = own(itemKey(id), "tri");
+    return filter + `<div id="stack"><div class="card" data-tri-card="${id}"><div class="card-body">
+            <div class="row"><span class="item-title grow">${esc(titleOf(id))}</span>${indHtml(id)}</div>
+            ${t === "open" ? `<span class="muted">bisher: Offen</span>` : ""}
+        </div></div></div>
+        <div class="tri-buttons">
+            <button class="btn btn-secondary" data-tri="${id}" data-v="out">← Raus</button>
+            <button class="btn btn-ghost" data-tri="${id}" data-v="open">Offen</button>
+            <button class="btn btn-primary" data-tri="${id}" data-v="in">Relevant →</button>
+        </div><p class="muted">Wischen: rechts = Relevant · links = Raus · hoch = Offen</p>`;
+}
+
+function itemCard(id, body) {
+    return `<div class="card"><div class="card-body">
+        <div class="row"><span class="item-title grow" data-open="${id}">${esc(titleOf(id))}</span>${indHtml(id)}</div>${body}</div></div>`;
+}
+
+function viewRate() {
+    const ids = rateIds();
+    if (!ids.length) return `<p class="muted">Nichts zu bewerten. Erst sichten.</p>`;
+    return ids.map(id => {
+        const s = statsOf(id);
+        return itemCard(id, `<div class="row">${rateChips(id)}${signBtn(id)}</div>
+            <div class="row muted">${s.n ? `Ø ${s.mean.toFixed(1)} · ${s.n} Stimmen` : "noch keine Stimmen"} ${signsHtml(id)}</div>`);
+    }).join("") + `<button class="btn btn-ghost" data-go="tune">Weiter: Feinschliff →</button>`;
+}
+
+function viewTune() {
+    const pair = nextPair();
+    if (!pair) return `<p class="muted">Keine offenen Vergleiche. Erst ≥ 2 Einträge mit gleicher/naher Bewertung.</p>
+        <button class="btn btn-ghost" data-go="over">Zur Übersicht →</button>`;
+    const [a, b] = pair, card = (id, v) => `<div class="card" data-cmp="${v}" data-a="${a}" data-b="${b}"><div class="card-body">
+        <div class="item-title">${esc(titleOf(id))}</div><div class="muted">meine Bewertung ${own(itemKey(id), "rate")}</div>${indHtml(id)}</div></div>`;
+    return `<p class="muted">Was ist wichtiger?</p><div class="pair">${card(a, 1)}${card(b, -1)}</div>
+        <button class="btn btn-secondary" data-cmp="0" data-a="${a}" data-b="${b}">Gleich wichtig</button>`;
+}
+
+function viewOver() {
+    const rows = ranked().map((x, i) => {
+        const p = itemKey(x.id), t = parseHist(others(p, "tri")), mt = own(p, "tri");
+        if (mt) t[mt] = (t[mt] || 0) + 1;
+        const s = statsOf(x.id);
+        return `<div class="card" data-open="${x.id}"><div class="card-body row">
+            <span class="rank">${x.mean === null ? "–" : i + 1}</span>
+            <span class="grow"><span class="item-title">${esc(titleOf(x.id))}</span><br>
+              <span class="hist">${s.n ? "Ø " + s.mean.toFixed(1) + " (" + s.n + ")" : "–"} · ✓${t.in || 0} ?${t.open || 0} ✗${t.out || 0}
+              · ich: ${mt ? TRI_LABEL[mt] : "–"}${own(p, "rate") ? " / " + own(p, "rate") : ""}</span> ${signsHtml(x.id)}</span>
+            ${indHtml(x.id)}</div></div>`;
+    }).join("");
+    const trusted = trustedSet(), signers = {};
+    for (const k of Object.keys(votes)) {
+        const names = {};
+        attrOf(k, "names").split(";").forEach(s => { const i = s.indexOf("="); if (i > 0) names[s.slice(0, i)] = s.slice(i + 1); });
+        attrOf(k, "signers").split(",").filter(Boolean).forEach(s => { if (s !== sid) signers[s] = names[s] || signers[s] || "#" + s; });
+    }
+    const trustRows = Object.entries(signers).map(([s, n]) =>
+        `<button class="chip${trusted.has(s) ? " active" : ""}" data-trust="${s}">${trusted.has(s) ? "✓ " : ""}${esc(n)}</button>`).join(" ");
+    return `<p class="muted">Gruppen-Rangliste · Tippen = Eintrag ändern</p>${rows || '<p class="muted">Keine Einträge.</p>'}
+        <div class="card"><div class="card-body">
+          <label class="form-label" for="my-name">Mein Name (für Signaturen)</label>
+          <div class="row"><input id="my-name" class="input grow" maxlength="40" value="${esc(myName)}" placeholder="z. B. Mart">
+          <button class="btn btn-secondary" data-act="name">OK</button></div>
+          <p class="form-label">Ich vertraue (Signaturen sichtbar):</p><div class="row">${trustRows || '<span class="muted">noch keine Unterzeichner</span>'}</div>
+        </div></div>`;
+}
+
+// ── Sheets: Item (jump back) · Indicator editor · add ─────────────────────────
+function openSheet(html) {
+    document.getElementById("sheet").innerHTML = html;
+    document.getElementById("sheet-backdrop").classList.add("open");
+    document.getElementById("sheet").classList.add("open");
+}
+function closeSheet() {
+    document.getElementById("sheet-backdrop").classList.remove("open");
+    document.getElementById("sheet").classList.remove("open");
+    editor = null;
+}
+const sheetHead = t => `<div class="sheet-header"><h3>${esc(t)}</h3><button class="btn-icon" data-act="close" aria-label="Schließen">✕</button></div>`;
+
+function openItem(id) {
+    const p = itemKey(id), t = own(p, "tri");
+    openSheet(sheetHead(titleOf(id)) + `
+        <p class="form-label">Sichten</p><div class="row">${["in", "open", "out"].map(v =>
+            `<button class="chip${t === v ? " active" : ""}" data-tri="${id}" data-v="${v}" data-stay="1">${TRI_LABEL[v]}</button>`).join("")}</div>
+        <p class="form-label">Bewerten</p><div class="row">${rateChips(id)}${signBtn(id)}</div>
+        <p class="form-label">Indikator</p><div class="row">${indHtml(id)}<button class="btn btn-ghost" data-edit="${id}">bearbeiten</button></div>`);
+    sheetItem = id;
+}
+let sheetItem = null;
+
+let editor = null;   // { id, core, lo, hi, draft }
+const P_LBL = ["10 %", "30 %", "50 %", "70 %", "90 %"], I_LBL = ["marginal", "spürbar", "erheblich", "schwer", "existenziell"];
+function openEditor(id) {
+    const { mine } = indOf(id);
+    editor = { id, core: null, lo: null, hi: null, draft: mine };
+    openSheet(sheetHead("Indikator: " + titleOf(id)) + `
+        <p class="muted">Tippen = Kern · ziehen nach links-unten = Streuung · weiter nach rechts-oben = Streuung nach oben</p>
+        <div class="row" style="justify-content:center"><span class="muted" style="writing-mode:vertical-rl;transform:rotate(180deg)">Auswirkung →</span>
+          <svg id="editor-grid" viewBox="0 0 5 5"></svg></div>
+        <div class="axis"><span>10 %</span><span>Eintrittswahrscheinlichkeit →</span><span>90 %</span></div>
+        <p id="editor-info" class="muted"></p>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn btn-ghost" data-act="close">Abbrechen</button>
+          <button class="btn btn-primary" data-act="ind-save">Speichern</button></div>`);
+    const svg = document.getElementById("editor-grid");
+    const at = e => { const r = svg.getBoundingClientRect(); return cellAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height); };
+    svg.addEventListener("pointerdown", e => {
+        svg.setPointerCapture(e.pointerId);
+        editor.core = at(e); editor.lo = editor.hi = null;
+        editor.draft = dragInd(editor.core, null, null); drawEditor();
+    });
+    svg.addEventListener("pointermove", e => {
+        if (!editor || !editor.core || !svg.hasPointerCapture(e.pointerId)) return;
+        const c = at(e), k = editor.core, same = c.kP === k.kP && c.kI === k.kI;
+        // within one drag σ only grows: the way back to the upper right must not shrink σ− (new tap resets)
+        if (!same && c.kP <= k.kP && c.kI <= k.kI && !editor.hi) editor.lo = growLo(editor.lo, c);
+        else if (!same && c.kP >= k.kP && c.kI >= k.kI) editor.hi = growHi(editor.hi, c);
+        editor.draft = dragInd(k, editor.lo, editor.hi); drawEditor();
+    });
+    drawEditor();
+}
+function drawEditor() {
+    const svg = document.getElementById("editor-grid");
+    if (!svg || !editor) return;
+    const p = itemKey(editor.id);
+    const group = groupInd(editor.draft, parseIndHist(others(p, "ind")));
+    const tone = { dunkel: "#0E7A66", mittel: "#4E9E8C", hell: "#79BDAE" };
+    let s = "";
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) s += `<rect x="${c}" y="${r}" width="1" height="1" fill="#fff" stroke="#D8DBD4" stroke-width="0.02"/>`;
+    if (group) stateGrid(group).forEach((row, r) => row.forEach((t, c) => { if (t) s += `<rect x="${c + .08}" y="${r + .08}" width=".84" height=".84" fill="${tone[t]}" opacity=".3"/>`; }));
+    if (editor.draft) stateGrid(editor.draft).forEach((row, r) => row.forEach((t, c) => { if (t) s += `<rect x="${c + .22}" y="${r + .22}" width=".56" height=".56" fill="${tone[t]}"/>`; }));
+    svg.innerHTML = s;
+    const d = editor.draft;
+    document.getElementById("editor-info").textContent = d
+        ? `P ${P_LBL[d.kP]} (−${d.sPm}/+${d.sPp}) · Auswirkung ${I_LBL[d.kI]} (−${d.sIm}/+${d.sIp})${isFit(d, group) ? " · ✓ Fit mit Gruppe" : ""}`
+        : "Noch kein eigener Wert — tippe in die Matrix.";
+}
+
+function openAdd() {
+    openSheet(sheetHead("Neuer Eintrag") + `<label class="form-label" for="add-text">Text</label>
+        <textarea id="add-text" class="textarea" maxlength="300" placeholder="Was soll bewertet werden?"></textarea>
+        <div class="row" style="justify-content:flex-end"><button class="btn btn-primary" data-act="add-save">Hinzufügen</button></div>`);
+    document.getElementById("add-text").focus();
+}
+async function saveAdd() {
+    const text = document.getElementById("add-text").value.trim().replace(/\s*\|\s*/g, " / ");
+    if (text.length < 3) { showToast("Bitte mindestens 3 Zeichen eingeben.", "error"); return; }
+    let id = generateNodeId();
+    while (entries[itemKey(id)]) id = generateNodeId();
+    const message = /[.!?>-]$/.test(text) ? text : text + ".";
+    try {
+        const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body: new URLSearchParams({ entry: `${itemKey(id)} | ${message}` }) });
+        if (!res.ok) { console.error("[ui2610] POST entries:", res.status, (await res.text()).slice(0, 500)); showToast("Eintrag konnte nicht gespeichert werden.", "error"); return; }
+        const json = await res.json().catch(() => ({}));
+        entries[itemKey(id)] = { timestamp: json.timestamp || "", message, attrs: {} };
+        closeSheet(); render(); showToast("Eintrag hinzugefügt!", "success", 1500);
+    } catch (err) { console.error("[ui2610] POST entries:", err); showToast("Verbindung unterbrochen.", "error"); }
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+let pendingTri = null;   // delayed POST so "Rückgängig" can cancel (append-only store)
+function triage(id, v, delayed) {
+    const p = itemKey(id), prev = own(p, "tri") ?? null;
+    if (pendingTri) { clearTimeout(pendingTri.timer); pendingTri.commit(); }
+    setOwnLocal(p, "tri", v); render(); refreshSheet();
+    const commit = () => { pendingTri = null; postVotes(p, [`tri:${sid}:${v}`], (entries[p] || {}).message || "Item.").then(ok => { if (!ok) { setOwnLocal(p, "tri", prev); render(); } }); };
+    if (!delayed) return commit();
+    pendingTri = { commit, timer: setTimeout(commit, UNDO_MS) };
+    showToast(`${TRI_LABEL[v]}: ${titleOf(id)}`, "info", UNDO_MS, { label: "Rückgängig", run: () => {
+        clearTimeout(pendingTri.timer); pendingTri = null; setOwnLocal(p, "tri", prev); render();
+    } });
+}
+function sign(id) {
+    const p = itemKey(id), list = attrOf(p, "signers").split(",").filter(Boolean), on = !list.includes(sid);
+    votes[p] = votes[p] || { attrs: {}, sets: {} };
+    votes[p].attrs = votes[p].attrs || {};
+    const before = votes[p].attrs.signers;
+    votes[p].attrs.signers = (on ? list.concat(sid) : list.filter(s => s !== sid)).join(",");
+    render(); refreshSheet();
+    const attrs = [`signed:${sid}:${on ? 1 : 0}`];
+    if (on && myName) attrs.push(`by:${myName}`);
+    if (on && !myName) showToast("Tipp: Namen in der Übersicht setzen, sonst erscheint #Kennung.", "info", 4000);
+    postVotes(p, attrs, (entries[p] || {}).message || "Item.").then(ok => { if (!ok) { votes[p].attrs.signers = before; render(); } });
+}
+function compare(a, b, v) {
+    const p = pairPath(a, b), val = a < b ? v : -v;   // stored for canonical a~b order
+    setOwnLocal(p, "cmp", String(val)); render();
+    postVotes(p, [`cmp:${sid}:${val}`], "Vergleich.").then(ok => { if (!ok) { setOwnLocal(p, "cmp", null); render(); } });
+}
+function trust(s) {
+    const p = topicRoot.replace(/\/$/, "") + "/~trust/" + s, on = own(p, "trust") !== "1";
+    setOwnLocal(p, "trust", on ? "1" : "0"); render();
+    postVotes(p, [`trust:${sid}:${on ? 1 : 0}`], "Vertrauen.").then(ok => { if (!ok) { setOwnLocal(p, "trust", on ? "0" : "1"); render(); } });
+}
+function refreshSheet() { if (sheetItem && document.getElementById("sheet").classList.contains("open") && !editor) openItem(sheetItem); }
+
+function onClick(e) {
+    const t = e.target.closest("[data-tri],[data-rate],[data-sign],[data-cmp],[data-trust],[data-edit],[data-open],[data-go],[data-act],[data-step]");
+    if (!t) return;
+    const d = t.dataset;
+    if (d.step) { step = d.step; render(); }
+    else if (d.go) { step = d.go; render(); }
+    else if (d.tri) triage(d.tri, d.v, !d.stay);
+    else if (d.rate) { saveSet(d.rate, "rate", own(itemKey(d.rate), "rate") === d.v ? "0" : d.v).then(refreshSheet); refreshSheet(); }
+    else if (d.sign) sign(d.sign);
+    else if (d.cmp !== undefined && d.a) compare(d.a, d.b, parseInt(d.cmp, 10));
+    else if (d.trust) trust(d.trust);
+    else if (d.edit) openEditor(d.edit);
+    else if (d.open) openItem(d.open);
+    else if (d.act === "close") closeSheet();
+    else if (d.act === "newonly") { newOnly = !newOnly; render(); }
+    else if (d.act === "name") {
+        const v = document.getElementById("my-name").value.trim();
+        if (v && !/^[^|;=,]{1,40}$/.test(v)) { showToast("Name: max. 40 Zeichen, ohne | ; = ,", "error"); return; }
+        myName = v; saveSettings({ ui2610Name: v }); showToast("Name gespeichert.", "success", 1500);
+    }
+    else if (d.act === "ind-save") {
+        if (!editor || !editor.draft) { closeSheet(); return; }
+        const id = editor.id; saveSet(id, "ind", formatInd(editor.draft)); closeSheet();
+    }
+    else if (d.act === "add-save") saveAdd();
+}
+
+// ── Data + settings ───────────────────────────────────────────────────────────
+async function jsonOrEmpty(res) { const t = await res.text(); return t.trim() ? JSON.parse(t) : {}; }
+async function loadData() {
+    const url = r => r + "?" + new URLSearchParams({ sid, tid: tenantId, format: "json" });
+    try {
+        const [eRes, vRes] = await Promise.all([fetch(url("entries")), fetch(url("votes"))]);
+        if (!eRes.ok || !vRes.ok) throw new Error(`entries ${eRes.status} / votes ${vRes.status}`);
+        entries = await jsonOrEmpty(eRes);
+        votes = await jsonOrEmpty(vRes);
+        render();
+        document.getElementById("fab").hidden = false;
+    } catch (err) {
+        console.error("[ui2610] loadData:", err);                                                // CA16
+        showToast("Daten konnten nicht geladen werden. Bitte Seite neu laden.", "error", 5000);    // CA15
+    }
+}
+function loadSettings() { try { return JSON.parse(localStorage.getItem("fayf_settings") || "{}"); } catch { return {}; } }
+function saveSettings(patch) { try { localStorage.setItem("fayf_settings", JSON.stringify({ ...loadSettings(), ...patch })); } catch { /* private mode */ } }
+function ensureSid(s) {
+    if (s.sid) return s.sid;
+    const fresh = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    saveSettings({ sid: fresh });
+    return fresh;
+}
+
+async function init() {
+    document.body.addEventListener("click", onClick);
+    document.getElementById("view").addEventListener("cardswipe:action", e => {
+        const id = e.target.closest("[data-tri-card]")?.dataset.triCard;
+        const v = { right: "in", left: "out", up: "open" }[e.detail.direction];
+        if (id && v) triage(id, v, true);
+    });
+    document.getElementById("fab").addEventListener("click", openAdd);
+    document.getElementById("btn-reload").addEventListener("click", loadData);
+    document.getElementById("sheet-backdrop").addEventListener("click", e => { if (e.target.id === "sheet-backdrop") closeSheet(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+    let cfg = {};
+    try { cfg = await (await fetch("config.php")).json(); } catch (err) { console.warn("[ui2610] config.php:", err); }
+    const params = new URLSearchParams(location.search);
+    tenantId  = params.get("tid") || cfg.voteMobileTid || "";
+    topicRoot = (params.get("topic") || cfg.voteMobileTopic || "/").replace(/\/+$/, "") || "/";
+    const settings = loadSettings();
+    sid = ensureSid(settings);
+    myName = settings.ui2610Name || "";
+    const title = cfg.voteMobileTitle || "Abstimmen · " + topicRoot;
+    document.getElementById("nav-title").textContent = title;
+    document.title = title + " — fayf";
+    if (!TID_RE.test(tenantId)) {
+        console.error("[ui2610] invalid tid:", JSON.stringify(tenantId));
+        showToast("Kein gültiger Bereich angegeben. Bitte den Link prüfen.", "error", 8000);
+        return;
+    }
+    render();
+    await loadData();
+}
+init();
+</script>
+</body>
+</html>

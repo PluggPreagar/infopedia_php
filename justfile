@@ -1,8 +1,8 @@
 # InfoPedia PHP — task runner
 # Install: https://just.systems  |  run: just <recipe>  |  list: just
 
-php  := env_var_or_default("PHP",  "php")
 port := env_var_or_default("PORT", "8080")
+php  := env_var_or_default("PHP",  if os() == "windows" { "D:/_progs/xampp/php/php.exe" } else { "php" })
 base := "http://localhost:" + port
 
 # List all recipes
@@ -28,6 +28,10 @@ e2e-debug:
 test-file file:
     {{php}} {{file}}
 
+# UI2610 frontend core (pure JS, node)
+ui2610-core:
+    node test/ui2610_core_test.js
+
 # Full suite: unit + e2e  (CI entry point — exits non-zero on failure)
 ci: unit e2e
 
@@ -37,6 +41,8 @@ ci: unit e2e
 serve:
     @echo "  App:       {{base}}/infopedia.html"
     @echo "  App2:      {{base}}/app2.html"
+    @echo "  Vote:      {{base}}/vote.html"
+    @echo "  Recherche: {{base}}/frueher_besser.html"
     @echo "  Statistic: {{base}}/statistic.php"
     @echo "  Stat+excl: {{base}}/statistic.php?exclude_e2e=1"
     @echo "  Stat+err:  {{base}}/statistic.php?errors_only=1"
@@ -86,6 +92,15 @@ e2e-add-vote entry="/demo/poll | votes:just:1 | Good idea?" tid="demo":
     {{php}} test/e2e_run.php POST /votes "sid=just&tid={{tid}}" "entry={{entry}}"
     just e2e-read "{{tid}}"
 
+# Seed the vote page tenant: two arguments (one with sources) and one Gegenfrage
+# just seed-vote
+# just seed-vote mytenant
+seed-vote tid="frueher":
+    {{php}} test/e2e_run.php POST /entries 'sid=just&tid={{tid}}' 'entry=/frueher/zucker | src:[DGE 2021](https://www.dge.de) [Destatis](https://www.destatis.de) | Der Zuckerkonsum ist seit 1970 um 40% gestiegen!'
+    {{php}} test/e2e_run.php POST /entries 'sid=just&tid={{tid}}' 'entry=/frueher/arbeit | Die Wochenarbeitszeit war 1970 hoeher als heute!'
+    {{php}} test/e2e_run.php POST /entries 'sid=just&tid={{tid}}' 'entry=/frueher/zucker-frage | War die Messmethode 1970 vergleichbar??'
+    {{php}} test/e2e_run.php GET /entries 'sid=just&tid={{tid}}&format=txt.0.2&refresh'
+
 # Read entries + votes for a tenant
 # just read
 # just read myproject
@@ -121,21 +136,25 @@ e2e-demo tid="demo":
 
 # Show last 40 log lines
 log:
-    tail -40 infopedia.log
+    tail -40 data/infopedia.log
 
 # Follow log in real time
 log-tail:
-    tail -f infopedia.log
+    tail -f data/infopedia.log
 
 # Grep log for errors
 log-errors:
-    grep -i " ERROR " infopedia.log | tail -20
+    grep -i " ERROR " data/infopedia.log | tail -20
 
 # ── Clean ────────────────────────────────────────────────────────────────────
 
 # Remove cache files
 clean-cache:
     rm -f data/*.cache data/*.cache.outdated
+
+# Remove all SumUp snapshots — next request per tenant does a full rebuild
+sumup-clean:
+    rm -f data/*.sumup.json
 
 # Remove throttle state files
 clean-throttle:
@@ -146,7 +165,7 @@ clean-test:
     rm -f data/*_e2e.* data/entries_e2e.* data/votes_e2e.*
 
 # Remove all generated runtime files
-clean: clean-cache clean-throttle clean-test
+clean: clean-cache clean-throttle clean-test sumup-clean
 
 # ── Code quality ─────────────────────────────────────────────────────────────
 

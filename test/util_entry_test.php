@@ -49,6 +49,13 @@ pe('/climate/solutions | author:martin | priority:high | Solar panels.',
     ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>null,'attrs'=>['author'=>'martin','priority'=>'high'],'votes'=>[],'signed'=>[]],
     'multiple attrs');
 
+// src: attribute holding markdown links — the value keeps its own colons, brackets, parens.
+// vote.html depends on this; the case guards against a future attr-parser change.
+pe('/frueher/x | src:[A](https://a.example.org/p?q=1) [B](https://b.example.org) | Text!',
+    ['path'=>'/frueher/x','content'=>'Text!','type'=>'!','display_ts'=>null,
+     'attrs'=>['src'=>'[A](https://a.example.org/p?q=1) [B](https://b.example.org)'],'votes'=>[],'signed'=>[]],
+    'src attr with two markdown links');
+
 // display timestamp
 pe('/climate/solutions | 2025-09-07 20:44:54 | Solar panels.',
     ['path'=>'/climate/solutions','content'=>'Solar panels.','type'=>'.','display_ts'=>'2025-09-07 20:44:54','attrs'=>[],'votes'=>[],'signed'=>[]],
@@ -126,6 +133,18 @@ sd($H . "2025-09-07 20:44:54,/climate/solutions | Old.\n2025-09-08 10:00:00,/cli
 sd($H . "2025-09-08 10:00:00,/climate/solutions | New.\n2025-09-07 20:44:54,/climate/solutions | Old.",
    $H . "2025-09-08 10:00:00,/climate/solutions | New.",
    'dedup keeps newest regardless of input order');
+
+// dedup — same outer timestamp (add + edit within one second): the row written later
+// in the append-only log is the newer one and must win. Regression: strict '>' kept the
+// first row, so a fast edit on vote.html/app2.html was silently lost after reload.
+sd($H . "2025-09-08 10:00:00,/climate/solutions | First write.\n2025-09-08 10:00:00,/climate/solutions | Edited within the same second.",
+   $H . "2025-09-08 10:00:00,/climate/solutions | Edited within the same second.",
+   'dedup same second: later row wins');
+
+// delete marker — same second as the row it deletes → entry removed
+sd($H . "2025-09-08 10:00:00,/climate/solutions | Solar panels.\n2025-09-08 10:00:00,/climate/solutions | --",
+   $H,
+   'delete marker same second removes entry');
 
 // delete marker — newest row is delete → entry removed
 sd($H . "2025-09-07 20:44:54,/climate/solutions | Solar panels.\n2025-09-08 10:00:00,/climate/solutions | --",
@@ -212,3 +231,42 @@ av($H2 . "2025-09-07 20:44:54,/climate/solutions | Solar panels.\n"
    $H2 . "2025-09-07 20:44:54,/climate/solutions | Solar panels.\n"
        . "2025-09-07 20:44:54,/poll/q1 | votes:sid_own:1 | Q?",
    'mixed entries and votes');
+
+// ─── votes read pipeline: sortCsvData → aggregateVotes (chain used by votes.php GET) ───
+// T01 (sumup-bootstrap epic, Story A): proves whether sortCsvData()'s per-path dedup
+// drops older vote rows of OTHER sessions before aggregateVotes() ever sees them.
+// UC-A1: two sessions vote on the same path — both must survive the pipeline.
+$pipe_in = $H2 . "2025-09-07 20:44:54,/poll/q1 | votes:sid_a:1 | Q?\n"
+               . "2025-09-07 20:45:00,/poll/q1 | votes:sid_b:1 | Q?";
+assert_eq($H2 . "2025-09-07 20:45:00,/poll/q1 | votes:others:2 | Q?",
+    aggregateVotes(sortCsvData($pipe_in), 'sid_view'),
+    'pipeline: two sids on one path both counted');
+
+// UC-A2: same sid votes twice — own total 2
+$pipe_in2 = $H2 . "2025-09-07 20:44:54,/poll/q1 | votes:sid_a:1 | Q?\n"
+                . "2025-09-07 20:45:00,/poll/q1 | votes:sid_a:1 | Q?";
+assert_eq($H2 . "2025-09-07 20:45:00,/poll/q1 | votes:sid_a:2 | Q?",
+    aggregateVotes(sortCsvData($pipe_in2), 'sid_a'),
+    'pipeline: same sid summed across rows');
+
+// ─── T02: no-dedup mode (sortCsvData($csv, false)) — keeps all rows per path ───
+function sd2(string $input, string $expect, string $msg): void {
+    assert_eq($expect, sortCsvData($input, false), "sortCsvData(no-dedup): $msg");
+}
+
+// no-dedup: both rows kept (chronological)
+sd2($H . "2025-09-07 20:45:00,/p | votes:b:1 | Q?\n2025-09-07 20:44:54,/p | votes:a:1 | Q?",
+    $H . "2025-09-07 20:44:54,/p | votes:a:1 | Q?\n2025-09-07 20:45:00,/p | votes:b:1 | Q?",
+    'no-dedup: both rows kept, chronological');
+
+// no-dedup: delete marker still removes path
+sd2($H . "2025-09-07 20:44:54,/p | votes:a:1 | Q?\n2025-09-07 20:45:00,/p | --",
+    $H,
+    'no-dedup: delete marker removes path');
+
+// ─── T04: csv_join_wrapped_lines ──────────────────────────────────────────────
+assert_eq(['a,b'],         csv_join_wrapped_lines(['a,b']),          'joiner: plain line untouched');
+assert_eq(['ts,"x\\ny"'],  csv_join_wrapped_lines(['ts,"x', 'y"']),  'joiner: quoted wrap joined with \\n');
+assert_eq(['a', 'b'],      csv_join_wrapped_lines(['a', 'b']),       'joiner: two complete lines stay separate');
+assert_eq(['ts,"x'],       csv_join_wrapped_lines(['ts,"x']),        'joiner: unbalanced tail kept as-is');
+assert_eq([],              csv_join_wrapped_lines([]),               'joiner: empty input');

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "infopedia",
+      "runtimeExecutable": "D:/_progs/xampp/php/php.exe",
+      "runtimeArgs": ["-S", "localhost:8080", "-t", ".", "router.php"],
+      "port": 8080
+    }
+  ]
+}

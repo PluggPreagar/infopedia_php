@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Früher war alles besser? — fayf</title>
+<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+<link rel="stylesheet" href="assets/design-tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<style>
+:root {
+  /* Page theme: greenish (teal) interactive scale — same override as vote.html.
+     UI chrome is teal; truth states keep the semantic green (#16A34A), CG-DS1. */
+  --color-interactive-50:     #F0FDFA;
+  --color-interactive-100:    #CCFBF1;
+  --color-interactive-400:    #2DD4BF;
+  --color-interactive-600:    #0F766E;   /* buttons — 5.5:1 on white ✓ AA  */
+  --color-interactive-700:    #115E59;   /* nav bg  — 7.2:1 on white ✓ AAA */
+  --color-interactive-accent: #14B8A6;   /* decoration only */
+  --color-focus:              #0F766E;
+
+  /* Chart roles — dataviz reference palette (aqua slot, dark step), validated on #FFFFFF:
+     #199e70 ↔ #eb6834 CVD ΔE 8.4, contrast ≥ 3:1; ordinal ramp light end 2.38:1.
+     Series colors are for marks only; text always uses neutral tokens. */
+  --viz-series-1: #199e70;   /* Spanne / Verlauf */
+  --viz-series-2: #eb6834;   /* „früher besser“ */
+  --viz-q-1: #4dbb8f;        /* Rekonstruktion  (ordinal ramp, one hue) */
+  --viz-q-2: #199e70;        /* Schätzung */
+  --viz-q-3: #0a5a3e;        /* Statistik */
+  --viz-grid: #E5E7EB;
+  --viz-axis: #C3C2B7;
+}
+body { margin:0; font-family:var(--font-family); font-size:var(--text-sm);
+       background:var(--color-surface-page); color:var(--color-neutral-900); }
+.page { max-width:1200px; margin:0 auto; padding:var(--space-4) var(--space-4) var(--space-12); }
+.page > p.lead { color:var(--color-neutral-600); margin:var(--space-2) 0 var(--space-4); max-width:760px; }
+
+/* ── stat strip (same look as statistic.html) ─────────────────────────── */
+.stat-strip { display:flex; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-4); }
+.stat-box { background:var(--color-surface-card); border:1px solid var(--color-interactive-100);
+            border-radius:var(--radius-md); padding:var(--space-3) var(--space-4);
+            flex:1; min-width:110px; text-align:center; }
+.stat-box .val { font-size:1.9em; font-weight:var(--font-weight-bold);
+                 color:var(--color-interactive-700); line-height:1.1; }
+.stat-box .lbl { font-size:var(--text-xs); color:var(--color-neutral-600); margin-top:var(--space-1); }
+
+/* ── filter row: one row above everything it scopes ──────────────────── */
+.filter-row { display:flex; flex-wrap:wrap; gap:var(--space-2) var(--space-4); align-items:center;
+              background:var(--color-surface-card); border:1px solid var(--color-neutral-200);
+              border-radius:var(--radius-md); padding:var(--space-2) var(--space-3);
+              margin-bottom:var(--space-4); }
+@media (min-width: 900px) { .filter-row { position:sticky; top:0; z-index:var(--z-chip-bar); } }
+.filter-row .filter-input { min-width:160px; padding:var(--space-1) var(--space-2); font-size:var(--text-sm);
+                            border:1px solid var(--color-neutral-200); border-radius:var(--radius-sm); }
+.chip-group .chip { min-height:32px; padding:var(--space-1) var(--space-3); font-size:var(--text-xs); }
+.chip-fb.active  { background:var(--viz-series-2); }
+.chip-log.active { background:var(--color-neutral-600); }
+
+/* ── sections ─────────────────────────────────────────────────────────── */
+.section { background:var(--color-surface-card); border:1px solid var(--color-interactive-100);
+           border-radius:var(--radius-md); padding:var(--space-4); margin-bottom:var(--space-4); }
+.section > h2, .cat > h2 { margin:0 0 var(--space-3); font-size:var(--text-sm); text-transform:uppercase;
+              letter-spacing:.04em; border-bottom:1px solid var(--color-interactive-100);
+              padding-bottom:var(--space-2); color:var(--color-interactive-700); }
+.cat > h2 .cnt { color:var(--color-neutral-400); font-weight:var(--font-weight-normal); text-transform:none; letter-spacing:0; }
+.cat { margin-bottom:var(--space-6); }
+.cat[hidden] { display:none; }
+
+/* ── legend ───────────────────────────────────────────────────────────── */
+.legend { display:flex; flex-wrap:wrap; gap:var(--space-2) var(--space-4); font-size:var(--text-xs);
+          color:var(--color-neutral-600); margin:0 0 var(--space-3); align-items:center; }
+.legend .key { display:inline-flex; align-items:center; gap:6px; }
+.legend svg { width:26px; height:14px; display:block; }
+.legend .note { color:var(--color-neutral-400); }
+
+/* ── cards ────────────────────────────────────────────────────────────── */
+.cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:var(--space-3); }
+.vcard { background:var(--color-surface-card); border:1px solid var(--color-neutral-200);
+         border-radius:var(--radius-md); padding:var(--space-3); min-width:0;
+         scroll-margin-top:72px; }
+.vcard[hidden] { display:none; }
+.vcard.bars { grid-column:1 / -1; }
+.vcard-head { display:flex; justify-content:space-between; align-items:flex-start; gap:var(--space-2); }
+.vcard-title { font-weight:var(--font-weight-bold); font-size:var(--text-sm); line-height:1.3; }
+.vcard-unit  { font-size:var(--text-xs); color:var(--color-neutral-600); }
+.vcard svg.chart { width:100%; height:auto; display:block; margin-top:var(--space-2); }
+.vcard.bars svg.chart { max-width:640px; }
+.vcard-meta { display:flex; flex-wrap:wrap; gap:var(--space-1) var(--space-2); align-items:center; margin-top:var(--space-2); font-size:var(--text-xs); }
+.dir { color:var(--color-neutral-600); }
+.verdict { display:inline-flex; align-items:center; gap:4px; padding:2px var(--space-2); border-radius:var(--radius-full);
+           font-weight:var(--font-weight-medium); cursor:default; }
+.verdict .d { font-weight:var(--font-weight-normal); opacity:.85; }
+.v-besser     { background:var(--color-semantic-50); color:#006300; }
+.v-schlechter { background:#FEF2F2; color:var(--color-error); }
+.v-gleich     { background:#F3F4F6; color:var(--color-neutral-600); }
+.v-unklar     { background:#FFFBEB; color:#92400E; }
+.v-neutral    { background:#F3F4F6; color:var(--color-neutral-600); }
+.tbl-btn { min-height:28px; padding:0 var(--space-2); font-size:var(--text-xs); flex-shrink:0; }
+
+/* ── Bilanz (diverging bars) ──────────────────────────────────────────── */
+.bilanz svg { width:100%; height:auto; display:block; }
+.bilanz text { font-family:var(--font-family); font-size:10px; fill:var(--color-neutral-600); }
+.bilanz .grid { stroke:var(--viz-grid); stroke-width:1; }
+.bilanz .mid  { stroke:var(--viz-axis); stroke-width:1; }
+.bilanz .b-besser     { fill:#0ca30c; }
+.bilanz .b-schlechter { fill:#d03b3b; }
+.bilanz .b-gleich     { fill:#9CA3AF; }
+.bilanz .b-unklar     { fill-opacity:.4; }
+.bilanz .row-hit { fill:transparent; cursor:pointer; outline:none; }
+.bilanz .row-hit:hover + .bar, .bilanz .row-hit:focus-visible + .bar { filter:brightness(.85); }
+.bilanz .row-hit:focus-visible { stroke:var(--color-focus); stroke-width:2; }
+.bilanz .name { fill:var(--color-neutral-900); }
+.bilanz .val  { fill:var(--color-neutral-600); font-variant-numeric:tabular-nums; }
+.bilanz .note { color:var(--color-neutral-600); font-size:var(--text-xs); margin-top:var(--space-2); }
+.sw { display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:middle; }
+.tbl-btn.active { background:var(--color-interactive-50); color:var(--color-interactive-700); }
+
+/* svg furniture */
+.chart text { font-family:var(--font-family); fill:var(--color-neutral-600); font-size:9.5px; }
+.chart .grid { stroke:var(--viz-grid); stroke-width:1; }
+.chart .axis { stroke:var(--viz-axis); stroke-width:1; }
+.chart .lbl  { font-size:9px; fill:var(--color-neutral-600); }
+.chart .band { fill:var(--viz-series-1); fill-opacity:.14; }
+.chart .mid  { fill:none; stroke:var(--viz-series-1); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+.chart .mark { fill:var(--viz-series-1); stroke:#fff; stroke-width:2; transition:r var(--duration-fast); }
+.chart .mark.fb-ja { fill:var(--viz-series-2); }
+.chart .mark.fb-teilweise { fill:#fff; stroke:var(--viz-series-2); stroke-width:2.5; }
+.chart .mark.lift { r:6.5; }
+.chart .hit  { fill:transparent; cursor:pointer; outline:none; }
+.chart .hit:focus-visible { stroke:var(--color-focus); stroke-width:2; }
+.chart .bar-max { fill:var(--viz-series-1); fill-opacity:.35; transition:fill-opacity var(--duration-fast); }
+.chart .bar-min { fill:var(--viz-series-1); }
+.chart .bar-hit { fill:transparent; cursor:pointer; outline:none; }
+.chart .bar-hit:focus-visible { stroke:var(--color-focus); stroke-width:2; }
+.chart .bar-max.lift { fill-opacity:.55; }
+.chart .zero { font-size:8px; fill:var(--color-neutral-400); }
+.chart .dir-lbl { font-size:8px; fill:var(--color-neutral-600); letter-spacing:.02em; }
+
+/* tile (single value) */
+.tile .val { font-size:1.6em; font-weight:var(--font-weight-bold); color:var(--color-neutral-900); line-height:1.2; margin-top:var(--space-2); }
+.tile .val small { font-size:.55em; font-weight:var(--font-weight-normal); color:var(--color-neutral-600); }
+.tile .meta { font-size:var(--text-xs); color:var(--color-neutral-600); margin-top:var(--space-1); }
+.tile .note { font-size:var(--text-xs); color:var(--color-neutral-600); margin-top:var(--space-2); }
+
+/* table view (accessibility twin) */
+.vtable { width:100%; border-collapse:collapse; font-size:var(--text-xs); margin-top:var(--space-2); }
+.vtable th, .vtable td { border:1px solid var(--color-neutral-200); padding:var(--space-1) var(--space-2);
+                         text-align:left; vertical-align:top; }
+.vtable th { background:var(--color-interactive-50); color:var(--color-interactive-700); font-weight:var(--font-weight-bold); }
+.vtable td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.vtable a { color:var(--color-interactive-600); }
+.vtable .st { color:var(--color-neutral-400); }
+.vtable[hidden] { display:none; }
+.check { color:#92400e; font-weight:var(--font-weight-bold); }
+
+/* ── coverage matrix ──────────────────────────────────────────────────── */
+.matrix-wrap { overflow-x:auto; }
+.matrix { border-collapse:collapse; font-size:var(--text-xs); }
+.matrix th, .matrix td { padding:2px var(--space-1); white-space:nowrap; }
+.matrix thead th { position:sticky; top:0; background:var(--color-surface-card); color:var(--color-neutral-600);
+                   font-weight:var(--font-weight-medium); text-align:center; border-bottom:1px solid var(--color-neutral-200); }
+.matrix thead th:first-child { text-align:left; }
+.matrix td.cell { text-align:center; min-width:30px; height:20px; }
+.matrix tr.cat-row td { padding-top:var(--space-2); color:var(--color-interactive-700);
+                        font-weight:var(--font-weight-bold); text-transform:uppercase; letter-spacing:.04em; font-size:10px; }
+.matrix tr.grp:hover td, .matrix tr.grp:hover th { background:var(--color-interactive-50); }
+.matrix tr[hidden] { display:none; }
+.matrix th.rowh { text-align:left; font-weight:var(--font-weight-normal); }
+.matrix th.rowh button { background:none; border:none; padding:0; font:inherit; color:var(--color-neutral-900);
+                         cursor:pointer; text-align:left; }
+.matrix th.rowh button:hover { color:var(--color-interactive-600); text-decoration:underline; }
+.matrix th.rowh .u { color:var(--color-neutral-400); }
+.dot { display:inline-block; width:11px; height:11px; border-radius:50%; margin:0 1px; vertical-align:middle;
+       box-shadow:0 0 0 2px #fff; cursor:default; }
+.dot.fb { box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--viz-series-2); }
+.dot:focus-visible { outline:none; box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--color-focus); }
+
+/* ── tooltip ──────────────────────────────────────────────────────────── */
+.tip { position:fixed; z-index:var(--z-toast); pointer-events:none; display:none;
+       background:var(--color-neutral-900); color:#fff; padding:var(--space-2) var(--space-3);
+       border-radius:var(--radius-sm); font-size:var(--text-xs); line-height:1.4; max-width:300px;
+       box-shadow:var(--shadow-2); }
+.tip .v { font-size:var(--text-sm); font-weight:var(--font-weight-bold); }
+.tip .k { color:rgba(255,255,255,.65); }
+.tip .warn { color:#FCD34D; }
+
+/* ── methodik (markdown) ─────────────────────────────────────────────── */
+details.section summary { cursor:pointer; font-size:var(--text-sm); text-transform:uppercase; letter-spacing:.04em;
+                          color:var(--color-interactive-700); font-weight:var(--font-weight-bold); }
+.md { line-height:1.55; }
+.md h1 { font-size:var(--text-lg); margin:var(--space-3) 0; }
+.md h2 { font-size:var(--text-base); margin:var(--space-4) 0 var(--space-2); }
+.md table { border-collapse:collapse; font-size:var(--text-xs); margin:var(--space-2) 0; }
+.md th, .md td { border:1px solid var(--color-neutral-200); padding:var(--space-1) var(--space-2); vertical-align:top; }
+.md th { background:var(--color-interactive-50); }
+.md code { background:var(--color-interactive-50); padding:0 3px; border-radius:3px; font-size:.9em; }
+.md a { color:var(--color-interactive-600); }
+
+.err { color:var(--color-error); }
+.empty { color:var(--color-neutral-400); text-align:center; padding:var(--space-6); }
+footer.foot { text-align:center; color:var(--color-neutral-400); font-size:var(--text-xs); margin-top:var(--space-8); }
+footer.foot a { color:var(--color-neutral-600); }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="nav-back" href="infopage.html">← Home</a>
+  <span class="nav-title">Früher war alles besser?</span>
+</nav>
+
+<div class="page">
+  <p class="lead">Messbare Indikatoren für Deutschland über Epochen hinweg — von der Steinzeit bis heute.
+     Jede Zeile trägt eine Spanne (min–max) statt eines Einzelwerts. Orange markiert Epochen, in denen
+     ein Wert <em>besser</em> war als später.</p>
+
+  <div class="stat-strip" id="stat-strip"></div>
+
+  <div class="filter-row" id="filter-row">
+    <div class="filter-group">
+      <span class="filter-label">Kategorie</span>
+      <div class="chip-group" id="fg-cat"></div>
+    </div>
+    <div class="filter-group">
+      <div class="chip-group">
+        <button class="chip chip-fb" id="f-fb" type="button">nur „früher besser“</button>
+        <button class="chip chip-filter" id="f-check" type="button">nur PRÜFEN</button>
+        <button class="chip chip-log" id="f-log" type="button" title="Logarithmische Werteachse (0 liegt auf der Grundlinie)">Log-Skala</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label" for="f-q">Indikator</label>
+      <input class="input filter-input" id="f-q" placeholder="suchen…" autocomplete="off">
+    </div>
+    <button class="btn btn-ghost tbl-btn" id="f-clear" type="button" style="display:none">× Zurücksetzen</button>
+  </div>
+
+  <div id="error" class="section err" hidden></div>
+
+  <div class="section bilanz" id="bilanz-section">
+    <h2>Bilanz: heute gegenüber der frühesten belegten Epoche</h2>
+    <div class="legend">
+      <span class="key"><span class="sw" style="background:#0ca30c"></span> ✓ besser</span>
+      <span class="key"><span class="sw" style="background:#d03b3b"></span> ✗ schlechter</span>
+      <span class="key"><span class="sw" style="background:#9CA3AF"></span> ≈ unverändert (±5 %)</span>
+      <span class="key"><span class="sw" style="background:#0ca30c;opacity:.4"></span> blass = unklar, Spannen überlappen</span>
+      <span class="note">Balken = Faktor der Verbesserung (Mitte der Spanne, log-Achse), rechts ist immer „besser“. Klick springt zur Grafik.</span>
+    </div>
+    <div id="bilanz"></div>
+    <div class="note" id="bilanz-note"></div>
+  </div>
+
+  <div class="section" id="matrix-section">
+    <h2>Abdeckung: welcher Indikator ist in welcher Epoche belegt?</h2>
+    <div class="legend">
+      <span class="key"><span class="dot" style="background:var(--viz-q-3)"></span> Statistik</span>
+      <span class="key"><span class="dot" style="background:var(--viz-q-2)"></span> Schätzung</span>
+      <span class="key"><span class="dot" style="background:var(--viz-q-1)"></span> Rekonstruktion</span>
+      <span class="key"><span class="dot fb" style="background:var(--viz-q-3)"></span> Ring = „früher besser“ (ja / teilweise)</span>
+      <span class="note">Klick auf einen Indikator springt zur Grafik.</span>
+    </div>
+    <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
+  </div>
+
+  <div class="legend" id="chart-legend">
+    <span class="key"><svg viewBox="0 0 26 14"><rect x="0" y="2" width="26" height="10" fill="var(--viz-series-1)" fill-opacity=".12"/><line x1="0" y1="7" x2="26" y2="7" stroke="var(--viz-series-1)" stroke-width="2"/></svg> Spanne min–max, Linie = Mitte</span>
+    <span class="key"><svg viewBox="0 0 26 14"><circle cx="13" cy="7" r="4.5" fill="var(--viz-series-1)" stroke="#fff" stroke-width="2"/></svg> Epoche</span>
+    <span class="key"><svg viewBox="0 0 26 14"><circle cx="13" cy="7" r="4.5" fill="var(--viz-series-2)" stroke="#fff" stroke-width="2"/></svg> früher besser: ja</span>
+    <span class="key"><svg viewBox="0 0 26 14"><circle cx="13" cy="7" r="4.5" fill="#fff" stroke="var(--viz-series-2)" stroke-width="2.5"/></svg> teilweise</span>
+    <span class="key"><svg viewBox="0 0 26 14"><rect x="0" y="0" width="26" height="7" fill="#0ca30c" fill-opacity=".18"/><rect x="0" y="7" width="26" height="7" fill="#d03b3b" fill-opacity=".18"/></svg> Hintergrund: grün = bessere, rot = schlechtere Werte</span>
+    <span class="note">Epochen sind gleichabständig gesetzt, nicht zeitproportional. Details per Hover, Tastatur oder „Tabelle“.</span>
+  </div>
+
+  <div id="cards-root"></div>
+  <div class="empty" id="empty" hidden>Kein Indikator passt zum Filter.</div>
+
+  <details class="section" id="methodik-section">
+    <summary>Methodik</summary>
+    <div class="md" id="methodik"></div>
+  </details>
+
+  <footer class="foot">
+    Datensatz: <a href="data_recherche/frueher_besser_indikatoren.csv">frueher_besser_indikatoren.csv</a> ·
+    <a href="data_recherche/frueher_besser_methodik.md">Methodik</a> · Fakt Farming Project
+  </footer>
+</div>
+
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script src="assets/md-renderer.js"></script>
+<script>
+(function () {
+'use strict';
+
+// ── constants ──────────────────────────────────────────────────────────────
+const CSV_URL = 'data_recherche/frueher_besser_indikatoren.csv';
+const MD_URL  = 'data_recherche/frueher_besser_methodik.md';
+
+const EPOCHS = ['Steinzeit','Mittelalter','Spätmittelalter','Frühe Neuzeit',
+                '1800','1850','1900','1950','1970','1990','2000','heute'];
+const EPOCH_SHORT = { 'Spätmittelalter':'Spät-MA', 'Frühe Neuzeit':'Fr. Neuzeit' };
+const EPOCH_TINY  = { 'Steinzeit':'Steinz.', 'Mittelalter':'MA', 'Spätmittelalter':'Spät-MA', 'Frühe Neuzeit':'Fr. NZ' };
+
+// Same indicator, unit wording differs only by territory → one chart. Original unit stays in the tooltip.
+const UNIT_ALIAS = { 'Fälle BRD/Jahr':'Fälle/Jahr', 'Fälle DE/Jahr':'Fälle/Jahr',
+                     'Mio Kinder (ohne Vater)':'Mio Kinder' };
+
+// Indicators kept in the CSV but left out of this page.
+const EXCLUDE_INDIKATOREN = ['Körpergröße', 'Suizid'];
+
+const QUALITY_VAR = { 'Statistik':'--viz-q-3', 'Schätzung':'--viz-q-2',
+                      'Schätzung (berechnet)':'--viz-q-2', 'Rekonstruktion':'--viz-q-1' };
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// ── state ──────────────────────────────────────────────────────────────────
+const state = { cats:new Set(), onlyFb:false, onlyCheck:false, q:'', log:false };
+let ROWS = [], GROUPS = [], CARDS = [];
+
+// ── helpers ────────────────────────────────────────────────────────────────
+function el(tag, attrs, children) {
+    const n = document.createElement(tag);
+    if (attrs) for (const k in attrs) {
+        if (k === 'class') n.className = attrs[k];
+        else if (k === 'text') n.textContent = attrs[k];
+        else if (k.startsWith('on')) n.addEventListener(k.slice(2), attrs[k]);
+        else n.setAttribute(k, attrs[k]);
+    }
+    (children || []).forEach(c => n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+    return n;
+}
+function svg(tag, attrs, children) {
+    const n = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) {
+        if (k === 'class') n.setAttribute('class', attrs[k]);
+        else if (k === 'text') n.textContent = attrs[k];
+        else n.setAttribute(k, attrs[k]);
+    }
+    (children || []).forEach(c => n.appendChild(c));
+    return n;
+}
+const fmtNum = v => Math.abs(v) >= 1000 ? v.toLocaleString('de-DE', { maximumFractionDigits:0 })
+    : (v !== 0 && Math.abs(v) < 0.1) ? v.toLocaleString('de-DE', { maximumSignificantDigits:2 })
+    : v.toLocaleString('de-DE', { maximumFractionDigits:2 });
+const fmtRange = r => { const a = fmtNum(r.min), b = fmtNum(r.max); return a === b ? a : a + '–' + b; };
+const epochShort = e => EPOCH_SHORT[e] || e;
+const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+function jahrStart(s) {
+    const m = String(s).match(/-?\d+/);
+    return m ? parseInt(m[0], 10) : 0;
+}
+
+// ── data ───────────────────────────────────────────────────────────────────
+function parseCsv(text) {
+    const lines = text.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.trim() !== '');
+    const head = (lines.shift() || '').split(';');
+    if (!head.includes('indikator') || !head.includes('wert_min'))
+        throw new Error('Antwort ist kein Indikatoren-CSV (fehlt die Datei auf dem Server?)');
+    return lines.map(line => {
+        const cells = line.split(';');
+        const r = {};
+        head.forEach((h, i) => r[h] = (cells[i] || '').trim());
+        r.min = parseFloat(r.wert_min);
+        r.max = parseFloat(r.wert_max);
+        if (isNaN(r.min)) r.min = r.max;
+        if (isNaN(r.max)) r.max = r.min;
+        r.mid = (r.min + r.max) / 2;
+        r.epochIdx = EPOCHS.indexOf(r.epoche);
+        r.jahrStart = jahrStart(r.jahr);
+        const fb = r.frueher_besser.toLowerCase();
+        r.fb = fb.startsWith('ja') ? 'ja' : fb.startsWith('teil') ? 'teilweise' : 'nein';
+        r.check = /PRÜFEN/.test(r.anmerkung) || /PRÜFEN/.test(r.url_status) || /PRÜFEN/.test(r.erstnennung);
+        r.richtung = ['weniger', 'mehr'].includes(r.richtung) ? r.richtung : 'neutral';
+        r.unitKey = UNIT_ALIAS[r.einheit] || r.einheit;
+        return r;
+    }).filter(r => r.id !== '' && !EXCLUDE_INDIKATOREN.includes(r.indikator));
+}
+
+function buildGroups(rows) {
+    const map = new Map();
+    rows.forEach(r => {
+        const key = r.kategorie + '|' + r.indikator + '|' + r.unitKey;
+        if (!map.has(key)) map.set(key, { key, kat:r.kategorie, ind:r.indikator, unit:r.unitKey, rows:[] });
+        map.get(key).rows.push(r);
+    });
+    const groups = [...map.values()];
+    groups.forEach(g => g.rows.sort((a, b) =>
+        (a.epochIdx - b.epochIdx) || (a.jahrStart - b.jahrStart) || (+a.id - +b.id)));
+    // keep categories contiguous (the CSV interleaves them), first appearance decides the order
+    const katOrder = [...new Set(rows.map(r => r.kategorie))];
+    groups.sort((a, b) => (katOrder.indexOf(a.kat) - katOrder.indexOf(b.kat)) || (+a.rows[0].id - +b.rows[0].id));
+    return groups;
+}
+
+// A group with ≥2 points → range chart. Single points sharing a unit inside a
+// category → one comparison bar chart. A lone single point → stat tile.
+function buildCards(groups) {
+    const cards = [], singles = new Map();
+    groups.forEach(g => {
+        if (g.rows.length >= 2) { cards.push({ type:'chart', kat:g.kat, groups:[g], rows:g.rows, order:+g.rows[0].id }); return; }
+        const k = g.kat + '|' + g.unit;
+        if (!singles.has(k)) singles.set(k, []);
+        singles.get(k).push(g);
+    });
+    singles.forEach(gs => {
+        const rows = gs.map(g => g.rows[0]).sort((a, b) => (a.epochIdx - b.epochIdx) || (a.jahrStart - b.jahrStart));
+        if (gs.length >= 2) cards.push({ type:'bars', kat:gs[0].kat, unit:gs[0].unit, groups:gs, rows, order:+rows[0].id });
+        else cards.push({ type:'tile', kat:gs[0].kat, groups:gs, rows, order:+rows[0].id });
+    });
+    cards.sort((a, b) => a.order - b.order);
+    cards.forEach((c, i) => { c.id = 'card-' + i; c.groups.forEach(g => g.card = c); });
+    return cards;
+}
+
+function cardVisible(c) {
+    if (state.cats.size && !state.cats.has(c.kat)) return false;
+    if (state.onlyFb && !c.rows.some(r => r.fb !== 'nein')) return false;
+    if (state.onlyCheck && !c.rows.some(r => r.check)) return false;
+    if (state.q) {
+        const q = state.q.toLowerCase();
+        if (!c.groups.some(g => g.ind.toLowerCase().includes(q) || g.unit.toLowerCase().includes(q))) return false;
+    }
+    return true;
+}
+function groupVisible(g) {
+    if (!cardVisible(g.card)) return false;
+    if (state.onlyFb && !g.rows.some(r => r.fb !== 'nein')) return false;
+    if (state.onlyCheck && !g.rows.some(r => r.check)) return false;
+    if (state.q) { const q = state.q.toLowerCase(); if (!(g.ind.toLowerCase().includes(q) || g.unit.toLowerCase().includes(q))) return false; }
+    return true;
+}
+
+// ── verdict: latest epoch vs. earliest epoch, read through the indicator's richtung ─
+const DIR_LABEL = { weniger:'↓ weniger ist besser', mehr:'↑ mehr ist besser', neutral:'○ ohne Richtung' };
+const KIND_LABEL = { besser:'✓ besser', schlechter:'✗ schlechter', gleich:'≈ unverändert', unklar:'? unklar', neutral:'○ Veränderung' };
+function verdict(rows, richtung) {
+    const eps = [...new Set(rows.map(r => r.epochIdx))].sort((a, b) => a - b);
+    if (eps.length < 2) return null;
+    const span = idx => {
+        const rs = rows.filter(r => r.epochIdx === idx);
+        return { min:Math.min(...rs.map(r => r.min)), max:Math.max(...rs.map(r => r.max)),
+                 epoche:rs[0].epoche, jahr:[...new Set(rs.map(r => r.jahr))].join(' / ') };
+    };
+    const a = span(eps[0]), b = span(eps[eps.length - 1]);
+    const am = (a.min + a.max) / 2, bm = (b.min + b.max) / 2;
+    const overlap = b.max >= a.min && b.min <= a.max;
+    let ratio;                                    // change of the raw value, latest / earliest
+    if (am > 0 && bm > 0) ratio = bm / am;
+    else if (am > 0 && bm === 0) ratio = 0;
+    else if (am === 0 && bm > 0) ratio = Infinity;
+    else ratio = 1;
+    const factor = richtung === 'weniger' ? 1 / ratio : ratio;   // ≥ 1 means better
+    let kind;
+    if (richtung === 'neutral') kind = 'neutral';
+    else if (overlap) kind = 'unklar';
+    else if (factor >= 1.05) kind = 'besser';
+    else if (factor <= 1 / 1.05) kind = 'schlechter';
+    else kind = 'gleich';
+    const change = ratio === 0 ? '→ 0' : ratio === Infinity ? 'von 0' : ratio === 1 ? '±0 %'
+        : ratio >= 2 ? '×' + fmtNum(+ratio.toPrecision(2)) : ratio <= 0.5 ? '÷' + fmtNum(+(1 / ratio).toPrecision(2))
+        : (ratio > 1 ? '+' : '−') + Math.round(Math.abs(ratio - 1) * 100) + ' %';
+    return { a, b, am, bm, ratio, factor, kind, change };
+}
+function verdictTitle(v, unit) {
+    return `${v.a.epoche} (${v.a.jahr}): ${fmtRange(v.a)} ${unit} → ${v.b.epoche} (${v.b.jahr}): ${fmtRange(v.b)} ${unit}`
+        + (v.kind === 'unklar' ? ' — Spannen überlappen, kein eindeutiger Trend' : '');
+}
+function verdictChip(v, unit) {
+    const chip = el('span', { class:'verdict v-' + v.kind, title: verdictTitle(v, unit) },
+        [KIND_LABEL[v.kind] + ' ', el('span', { class:'d', text: v.b.epoche + ' vs. ' + v.a.epoche + ': ' + v.change })]);
+    return chip;
+}
+
+// ── tooltip ────────────────────────────────────────────────────────────────
+const tip = document.getElementById('tip');
+function tipContent(r, title) {
+    const frag = document.createDocumentFragment();
+    frag.appendChild(el('div', { class:'v', text: fmtRange(r) + ' ' + r.einheit }));
+    frag.appendChild(el('div', { text: (title || r.indikator) + ' · ' + r.epoche + (r.jahr && r.jahr !== r.epoche ? ' (' + r.jahr + ')' : '') }));
+    frag.appendChild(el('div', { class:'k', text: r.datenqualitaet + (r.fb !== 'nein' ? ' · früher besser: ' + r.frueher_besser : '') }));
+    if (r.anmerkung) frag.appendChild(el('div', { class: r.check ? 'warn' : '', text: r.anmerkung }));
+    if (r.quelle) frag.appendChild(el('div', { class:'k', text: 'Quelle: ' + r.quelle + (r.url_status ? ' · ' + r.url_status : '') }));
+    return frag;
+}
+function showTip(target, r, title) {
+    tip.replaceChildren(tipContent(r, title));
+    tip.style.display = 'block';
+    const b = target.getBoundingClientRect();
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = b.left + b.width / 2 - tw / 2, y = b.top - th - 8;
+    if (y < 4) y = b.bottom + 8;
+    x = Math.max(4, Math.min(x, window.innerWidth - tw - 4));
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip() { tip.style.display = 'none'; }
+function attachTip(node, r, title, liftTarget) {
+    const on  = () => { showTip(node, r, title); if (liftTarget) liftTarget.classList.add('lift'); };
+    const off = () => { hideTip(); if (liftTarget) liftTarget.classList.remove('lift'); };
+    node.addEventListener('pointerenter', on);
+    node.addEventListener('pointerleave', off);
+    node.addEventListener('focus', on);
+    node.addEventListener('blur', off);
+    node.setAttribute('tabindex', '0');
+    node.setAttribute('role', 'img');
+    node.setAttribute('aria-label', (title || r.indikator) + ', ' + r.epoche + ': ' + fmtRange(r) + ' ' + r.einheit);
+}
+
+// ── scales ─────────────────────────────────────────────────────────────────
+function niceStep(raw) {
+    if (!(raw > 0)) return 1;
+    const p = Math.pow(10, Math.floor(Math.log10(raw)));
+    const f = raw / p;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+}
+// Returns { y(v), ticks:[{v,label}], zeroLine } mapping values onto [p1 (top) .. p0 (bottom)].
+function makeScale(rows, log, p0, p1) {
+    const vals = rows.flatMap(r => [r.min, r.max]);
+    const max = Math.max(...vals), min = Math.min(...vals);
+    if (log) {
+        const pos = vals.filter(v => v > 0);
+        if (!pos.length) return makeScale(rows, false, p0, p1);
+        const lo = Math.pow(10, Math.floor(Math.log10(Math.min(...pos))));
+        const hi = Math.pow(10, Math.ceil(Math.log10(Math.max(...pos)) - 1e-9));
+        const hiE = Math.max(hi, lo * 10);
+        const l0 = Math.log10(lo), l1 = Math.log10(hiE);
+        const y = v => v <= 0 ? p0 : p0 - (Math.log10(v) - l0) / (l1 - l0) * (p0 - p1);
+        const ticks = [];
+        const n = Math.round(l1 - l0), skip = n > 5 ? Math.ceil(n / 4) : 1;
+        for (let e = l0, i = 0; e <= l1 + 1e-9; e++, i++) if (i % skip === 0) ticks.push({ v: Math.pow(10, e), label: fmtNum(Math.pow(10, e)) });
+        return { y, ticks, hasZero: vals.some(v => v <= 0), log:true };
+    }
+    let lo = (min <= 0 || (max - min) / max >= 0.5) ? 0 : min;
+    let step = niceStep((max - lo) / 4 || max / 4 || 1);
+    lo = Math.floor(lo / step) * step;
+    let hi = Math.ceil(max / step) * step;
+    if (hi <= lo) hi = lo + step;
+    const y = v => p0 - (v - lo) / (hi - lo) * (p0 - p1);
+    const ticks = [];
+    for (let v = lo; v <= hi + step / 1e6; v += step) ticks.push({ v: +v.toFixed(10), label: fmtNum(+v.toFixed(10)) });
+    return { y, ticks, hasZero:false, log:false };
+}
+
+// ── range chart (small multiple) ───────────────────────────────────────────
+function renderChart(card) {
+    const rows = card.rows, n = rows.length;
+    const dense = n >= 6;                                     // stagger + shorten x labels
+    const W = 320, H = dense ? 210 : 200, m = { t:18, r:14, b: dense ? 40 : 30, l:46 };
+    const sc = makeScale(rows, state.log, H - m.b, m.t);
+    const xs = rows.map((_, i) => n === 1 ? (m.l + W - m.r) / 2 : m.l + i * (W - m.l - m.r) / (n - 1));
+    const s = svg('svg', { class:'chart', viewBox:`0 0 ${W} ${H}`, role:'group', 'aria-label': card.groups[0].ind });
+
+    // direction wash: green at the "better" end of the value axis, red at the "worse" end
+    const richtung = card.groups[0].rows[0].richtung;
+    if (richtung !== 'neutral') {
+        const gid = 'grad-' + card.id, goodTop = richtung === 'mehr';
+        const stop = (off, good) => svg('stop', { offset:off, 'stop-color': good ? '#0ca30c' : '#d03b3b', 'stop-opacity': '0.10' });
+        s.appendChild(svg('defs', null, [svg('linearGradient', { id:gid, x1:0, y1:0, x2:0, y2:1 },
+            [stop('0%', goodTop), stop('100%', !goodTop)])]));
+        s.appendChild(svg('rect', { class:'wash', x:m.l, y:m.t, width:W - m.l - m.r, height:H - m.t - m.b, fill:`url(#${gid})` }));
+        // left edge: rising series crowd the top-right, falling series the bottom-right
+        s.appendChild(svg('text', { class:'dir-lbl', x:m.l + 4, y: goodTop ? m.t + 9 : H - m.b - 4, text:(goodTop ? '▲' : '▼') + ' besser' }));
+    }
+
+    // grid + y ticks
+    sc.ticks.forEach(t => {
+        const y = sc.y(t.v);
+        s.appendChild(svg('line', { class:'grid', x1:m.l, x2:W - m.r, y1:y, y2:y }));
+        s.appendChild(svg('text', { x:m.l - 6, y:y + 3, 'text-anchor':'end', text:t.label }));
+    });
+    s.appendChild(svg('line', { class:'axis', x1:m.l, x2:W - m.r, y1:H - m.b, y2:H - m.b }));
+
+    // x labels: epoch, or jahr when the epoch repeats inside this indicator
+    const epochCount = {};
+    rows.forEach(r => epochCount[r.epoche] = (epochCount[r.epoche] || 0) + 1);
+    rows.forEach((r, i) => {
+        const label = epochCount[r.epoche] > 1 ? r.jahr : (dense ? (EPOCH_TINY[r.epoche] || r.epoche) : epochShort(r.epoche));
+        const anchor = n === 1 ? 'middle' : i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
+        s.appendChild(svg('text', { class:'lbl', x: xs[i] + (anchor === 'start' ? -4 : anchor === 'end' ? 4 : 0),
+                                    y:H - m.b + 13 + (dense && i % 2 ? 10 : 0), 'text-anchor':anchor, text:label }));
+    });
+
+    // band + mid line
+    if (n >= 2) {
+        const top = rows.map((r, i) => `${xs[i]},${sc.y(r.max)}`);
+        const bot = rows.map((r, i) => `${xs[i]},${sc.y(r.min)}`).reverse();
+        s.appendChild(svg('polygon', { class:'band', points: top.concat(bot).join(' ') }));
+        s.appendChild(svg('polyline', { class:'mid', points: rows.map((r, i) => `${xs[i]},${sc.y(r.mid)}`).join(' ') }));
+    }
+
+    // selective direct labels: first, last, and every „früher besser“ point (all when ≤ 4)
+    rows.forEach((r, i) => {
+        if (!(n <= 4 || i === 0 || i === n - 1 || r.fb !== 'nein')) return;
+        const anchor = i === 0 && n > 1 ? 'start' : i === n - 1 && n > 1 ? 'end' : 'middle';
+        s.appendChild(svg('text', { class:'lbl', x:xs[i] + (anchor === 'start' ? -4 : anchor === 'end' ? 4 : 0),
+                                    y: sc.y(r.max) - 8, 'text-anchor':anchor, text: fmtRange(r) }));
+        if (sc.log && r.max <= 0) s.appendChild(svg('text', { class:'zero', x:xs[i], y:H - m.b - 8, 'text-anchor':'middle', text:'0' }));
+    });
+
+    // marks + hit targets (≥24px)
+    rows.forEach((r, i) => {
+        const mark = svg('circle', { class:'mark fb-' + r.fb, cx:xs[i], cy:sc.y(r.mid), r:4.5 });
+        const hit  = svg('circle', { class:'hit', cx:xs[i], cy:sc.y(r.mid), r:13 });
+        attachTip(hit, r, card.groups[0].ind, mark);
+        s.appendChild(mark); s.appendChild(hit);
+    });
+    return s;
+}
+
+// ── comparison bar chart (single-point indicators sharing a unit) ──────────
+function barPath(x0, x1, y, h, rad) {
+    const r = Math.min(rad, (x1 - x0) / 2, h / 2);
+    return `M${x0},${y} H${x1 - r} a${r},${r} 0 0 1 ${r},${r} V${y + h - r} a${r},${r} 0 0 1 -${r},${r} H${x0} Z`;
+}
+function renderBars(card) {
+    const rows = card.rows, n = rows.length;
+    const W = 640, rowH = 30, m = { t:8, r:60, b:26, l:190 };
+    const H = m.t + n * rowH + m.b;
+    const sc = makeScale(rows, state.log, m.l, W - m.r);   // horizontal: p0 = left, p1 = right
+    const x = v => sc.y(v);                                   // p0 = left edge, p1 = right edge
+    const s = svg('svg', { class:'chart', viewBox:`0 0 ${W} ${H}`, role:'group', 'aria-label': card.kat + ' ' + card.unit });
+
+    sc.ticks.forEach(t => {
+        const xx = x(t.v);
+        s.appendChild(svg('line', { class:'grid', x1:xx, x2:xx, y1:m.t, y2:H - m.b }));
+        s.appendChild(svg('text', { x:xx, y:H - m.b + 13, 'text-anchor':'middle', text:t.label }));
+    });
+    s.appendChild(svg('line', { class:'axis', x1:m.l, x2:m.l, y1:m.t, y2:H - m.b }));
+
+    rows.forEach((r, i) => {
+        const y = m.t + i * rowH + (rowH - 14) / 2;
+        s.appendChild(svg('text', { x:m.l - 8, y:y + 7, 'text-anchor':'end', text:r.indikator }));
+        s.appendChild(svg('text', { class:'lbl', x:m.l - 8, y:y + 17, 'text-anchor':'end', text:r.jahr, fill:'#9CA3AF' }));
+        const xMax = x(r.max), xMin = x(r.min);
+        const bMax = svg('path', { class:'bar-max', d: barPath(m.l, Math.max(xMax, m.l + 1), y, 14, 4) });
+        const bMin = svg('path', { class:'bar-min', d: barPath(m.l, Math.max(xMin, m.l + 1), y, 14, 4) });
+        s.appendChild(bMax); s.appendChild(bMin);
+        s.appendChild(svg('text', { class:'lbl', x:Math.max(xMax, m.l) + 6, y:y + 10.5, text: fmtRange(r) }));
+        const hit = svg('rect', { class:'bar-hit', x:m.l, y:y - 6, width:W - m.l - m.r + 40, height:26 });
+        attachTip(hit, r, r.indikator, bMax);
+        s.appendChild(hit);
+    });
+    return s;
+}
+
+// ── table view ─────────────────────────────────────────────────────────────
+function sourceCell(r) {
+    const td = el('td');
+    const urls = r.quelle_url ? r.quelle_url.split('|').map(u => u.trim()).filter(Boolean) : [];
+    const stats = r.url_status.split('|').map(u => u.trim());
+    if (!urls.length) { td.textContent = r.quelle; return td; }
+    td.appendChild(document.createTextNode(r.quelle + ' '));
+    urls.forEach((u, i) => {
+        if (!/^https?:\/\//i.test(u)) return;
+        const a = el('a', { href:u, target:'_blank', rel:'noopener', text: urls.length > 1 ? '[' + (i + 1) + ']' : '↗' });
+        a.title = stats[i] || '';
+        td.appendChild(a); td.appendChild(document.createTextNode(' '));
+    });
+    td.appendChild(el('span', { class:'st', text: r.url_status }));
+    return td;
+}
+function renderTable(card) {
+    const multi = card.groups.length > 1;
+    const t = el('table', { class:'vtable' });
+    const heads = (multi ? ['Indikator'] : []).concat(['Epoche', 'Jahr', 'Min', 'Max', 'Einheit', 'Qualität', 'Früher besser', 'Anmerkung', 'Quelle']);
+    t.appendChild(el('thead', null, [el('tr', null, heads.map(h => el('th', { text:h })))]));
+    const tb = el('tbody');
+    card.rows.forEach(r => {
+        const tr = el('tr');
+        if (multi) tr.appendChild(el('td', { text:r.indikator }));
+        tr.appendChild(el('td', { text:r.epoche }));
+        tr.appendChild(el('td', { text:r.jahr }));
+        tr.appendChild(el('td', { class:'num', text:fmtNum(r.min) }));
+        tr.appendChild(el('td', { class:'num', text:fmtNum(r.max) }));
+        tr.appendChild(el('td', { text:r.einheit }));
+        tr.appendChild(el('td', { text:r.datenqualitaet }));
+        tr.appendChild(el('td', { text:r.frueher_besser }));
+        const an = el('td');
+        if (r.check) { an.appendChild(el('span', { class:'check', text:'PRÜFEN ' })); an.appendChild(document.createTextNode(r.anmerkung.replace(/PRÜFEN:?\s*/g, ''))); }
+        else an.textContent = r.anmerkung;
+        tr.appendChild(an);
+        tr.appendChild(sourceCell(r));
+        tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    return t;
+}
+
+// ── cards ──────────────────────────────────────────────────────────────────
+function renderCard(card) {
+    const g = card.groups[0];
+    const wrap = el('div', { class:'vcard ' + card.type, id:card.id });
+    const title = card.type === 'bars' ? card.kat + ': ' + card.groups.map(x => x.ind).join(' · ') : g.ind;
+    const unit  = card.type === 'bars' ? card.unit : g.unit;
+    const head  = el('div', { class:'vcard-head' }, [
+        el('div', null, [el('div', { class:'vcard-title', text:title }), el('div', { class:'vcard-unit', text:unit })])
+    ]);
+    const table = renderTable(card);
+    table.hidden = true;
+    const btn = el('button', { class:'btn btn-ghost tbl-btn', type:'button', text:'Tabelle', 'aria-expanded':'false' });
+    btn.addEventListener('click', () => {
+        table.hidden = !table.hidden;
+        btn.classList.toggle('active', !table.hidden);
+        btn.setAttribute('aria-expanded', String(!table.hidden));
+    });
+    head.appendChild(btn);
+    wrap.appendChild(head);
+
+    if (card.type !== 'bars') {
+        const meta = el('div', { class:'vcard-meta' }, [el('span', { class:'dir', text: DIR_LABEL[g.rows[0].richtung] })]);
+        if (card.type === 'chart') {
+            const v = verdict(card.rows, g.rows[0].richtung);
+            card.verdict = v;
+            if (v) meta.appendChild(verdictChip(v, unit));
+        }
+        wrap.appendChild(meta);
+    }
+
+    if (card.type === 'tile') {
+        const r = card.rows[0];
+        wrap.appendChild(el('div', { class:'val' }, [fmtRange(r) + ' ', el('small', { text:r.einheit })]));
+        wrap.appendChild(el('div', { class:'meta', text: r.epoche + (r.jahr !== r.epoche ? ' (' + r.jahr + ')' : '') + ' · ' + r.datenqualitaet }));
+        if (r.anmerkung) wrap.appendChild(el('div', { class:'note' + (r.check ? ' check' : ''), text:r.anmerkung }));
+    } else {
+        const holder = el('div', { class:'chart-holder' });
+        holder.appendChild(card.type === 'bars' ? renderBars(card) : renderChart(card));
+        wrap.appendChild(holder);
+        card.holder = holder;
+    }
+    wrap.appendChild(table);
+    return wrap;
+}
+
+function renderCards() {
+    const root = document.getElementById('cards-root');
+    root.replaceChildren();
+    const cats = [...new Set(CARDS.map(c => c.kat))];
+    cats.forEach(kat => {
+        const sec = el('section', { class:'cat', 'data-kat':kat });
+        const h = el('h2', null, [kat + ' ', el('span', { class:'cnt' })]);
+        sec.appendChild(h);
+        const grid = el('div', { class:'cards' });
+        CARDS.filter(c => c.kat === kat).forEach(c => grid.appendChild(renderCard(c)));
+        sec.appendChild(grid);
+        root.appendChild(sec);
+    });
+}
+function rerenderCharts() {
+    CARDS.forEach(c => { if (c.holder) c.holder.replaceChildren(c.type === 'bars' ? renderBars(c) : renderChart(c)); });
+}
+
+// ── Bilanz: one diverging bar per indicator, right = better ───────────────
+function renderBilanz() {
+    const root = document.getElementById('bilanz');
+    const items = CARDS.filter(c => c.type === 'chart' && c.verdict && c.verdict.kind !== 'neutral' && !document.getElementById(c.id).hidden)
+        .map(c => ({ c, v:c.verdict, g:c.groups[0] }))
+        .sort((x, y) => (Math.min(y.v.factor, 1e9) - Math.min(x.v.factor, 1e9)));
+    const neutral = CARDS.filter(c => c.type === 'chart' && c.verdict && c.verdict.kind === 'neutral' && !document.getElementById(c.id).hidden);
+    root.replaceChildren();
+    if (!items.length) { root.appendChild(el('div', { class:'empty', text:'Kein Indikator im Filter.' })); return; }
+    const W = 720, rowH = 20, m = { t:22, r:70, b:8, l:230 };
+    const H = m.t + items.length * rowH + m.b;
+    const LO = -3, HI = 3;                                    // log10 factor, ÷1000 .. ×1000
+    const x = f => m.l + (Math.max(LO, Math.min(HI, f)) - LO) / (HI - LO) * (W - m.l - m.r);
+    const lg = f => f === Infinity ? HI : f === 0 ? LO : Math.log10(f);
+    const s = svg('svg', { viewBox:`0 0 ${W} ${H}`, role:'group', 'aria-label':'Bilanz aller Indikatoren' });
+    [-2, -1, 0, 1, 2, 3].forEach(t => {
+        const xx = x(t);
+        s.appendChild(svg('line', { class: t === 0 ? 'mid' : 'grid', x1:xx, x2:xx, y1:m.t - 4, y2:H - m.b }));
+        s.appendChild(svg('text', { x:xx, y:m.t - 8, 'text-anchor':'middle', text: t === 0 ? '×1' : t < 0 ? '÷' + fmtNum(Math.pow(10, -t)) : '×' + fmtNum(Math.pow(10, t)) }));
+    });
+    s.appendChild(svg('text', { x:m.l - 6, y:m.t - 8, 'text-anchor':'end', text:'← schlechter' }));
+    s.appendChild(svg('text', { x:W - m.r + 6, y:m.t - 8, text:'besser →' }));
+    items.forEach(({ c, v, g }, i) => {
+        const y = m.t + i * rowH + 4, f = v.factor, xf = x(lg(f)), x0 = x(0);
+        const label = f === Infinity ? '→ 0' : f === 0 ? 'von 0' : f >= 1 ? '×' + fmtNum(+f.toPrecision(2)) : '÷' + fmtNum(+(1 / f).toPrecision(2));
+        s.appendChild(svg('text', { class:'name', x:m.l - 8, y:y + 10, 'text-anchor':'end', text: g.ind + (g.unit.length <= 14 ? ' (' + g.unit + ')' : '') }));
+        const bar = svg('path', { class:'bar b-' + v.kind + (v.kind === 'unklar' ? ' b-' + (f >= 1 ? 'besser' : 'schlechter') : ''),
+                                  d: f >= 1 ? barPath(x0, Math.max(xf, x0 + 1), y, 12, 4) : barPathLeft(Math.min(xf, x0 - 1), x0, y, 12, 4) });
+        s.appendChild(svg('text', { class:'val', x: f >= 1 ? xf + 5 : xf - 5, y:y + 10, 'text-anchor': f >= 1 ? 'start' : 'end', text:label }));
+        const hit = svg('rect', { class:'row-hit', x:0, y:y - 4, width:W, height:rowH, tabindex:'0', role:'link',
+                                  'aria-label': g.ind + ': ' + KIND_LABEL[v.kind] + ', ' + label });
+        hit.addEventListener('click', () => { const n = document.getElementById(c.id); n.hidden = false; n.scrollIntoView({ behavior:'smooth', block:'start' }); });
+        hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hit.click(); } });
+        const tipRow = { indikator:g.ind, epoche:v.b.epoche, jahr:v.b.jahr, min:v.b.min, max:v.b.max, einheit:g.unit,
+                         datenqualitaet: KIND_LABEL[v.kind] + ' · ' + DIR_LABEL[g.rows[0].richtung], fb:'nein', frueher_besser:'',
+                         anmerkung: 'Basis ' + v.a.epoche + ' (' + v.a.jahr + '): ' + fmtRange(v.a) + ' ' + g.unit, check:false, quelle:'', url_status:'' };
+        attachTip(hit, tipRow, g.ind);
+        s.appendChild(hit); s.appendChild(bar);
+    });
+    root.appendChild(s);
+    const counts = items.reduce((acc, it) => (acc[it.v.kind] = (acc[it.v.kind] || 0) + 1, acc), {});
+    document.getElementById('bilanz-note').textContent =
+        `${items.length} Indikatoren: ${counts.besser || 0} besser, ${counts.schlechter || 0} schlechter, ${counts.gleich || 0} unverändert, ${counts.unklar || 0} unklar.`
+        + (neutral.length ? ` Ohne Richtung und daher nicht bewertet: ${neutral.map(c => c.groups[0].ind).join(', ')}.` : '');
+}
+function barPathLeft(x0, x1, y, h, rad) {                  // rounded data-end on the left
+    const r = Math.min(rad, (x1 - x0) / 2, h / 2);
+    return `M${x1},${y} H${x0 + r} a${r},${r} 0 0 0 -${r},${r} V${y + h - r} a${r},${r} 0 0 0 ${r},${r} H${x1} Z`;
+}
+
+// ── coverage matrix ────────────────────────────────────────────────────────
+function renderMatrix() {
+    const t = document.getElementById('matrix');
+    t.replaceChildren();
+    const usedEpochs = EPOCHS.filter(e => ROWS.some(r => r.epoche === e));
+    t.appendChild(el('thead', null, [el('tr', null,
+        [el('th', { text:'Indikator' })].concat(usedEpochs.map(e => el('th', { text:epochShort(e), title:e }))))]));
+    const tb = el('tbody');
+    let lastKat = null;
+    GROUPS.forEach(g => {
+        if (g.kat !== lastKat) {
+            tb.appendChild(el('tr', { class:'cat-row', 'data-kat':g.kat }, [el('td', { colspan:String(usedEpochs.length + 1), text:g.kat })]));
+            lastKat = g.kat;
+        }
+        const tr = el('tr', { class:'grp' });
+        tr._group = g;
+        const btn = el('button', { type:'button' }, [g.ind + ' ', el('span', { class:'u', text:'(' + g.unit + ')' })]);
+        btn.addEventListener('click', () => {
+            const c = document.getElementById(g.card.id);
+            if (c) { c.hidden = false; c.scrollIntoView({ behavior:'smooth', block:'start' }); }
+        });
+        tr.appendChild(el('th', { class:'rowh', scope:'row' }, [btn]));
+        usedEpochs.forEach(e => {
+            const td = el('td', { class:'cell' });
+            g.rows.filter(r => r.epoche === e).forEach(r => {
+                const d = el('span', { class:'dot' + (r.fb !== 'nein' ? ' fb' : '') });
+                d.style.background = 'var(' + (QUALITY_VAR[r.datenqualitaet] || '--viz-q-2') + ')';
+                attachTip(d, r, g.ind);
+                td.appendChild(d);
+            });
+            tr.appendChild(td);
+        });
+        tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+}
+
+// ── stats ──────────────────────────────────────────────────────────────────
+function renderStats() {
+    const strip = document.getElementById('stat-strip');
+    const distinct = k => new Set(ROWS.map(r => r[k])).size;
+    const ja = ROWS.filter(r => r.fb === 'ja').length, tw = ROWS.filter(r => r.fb === 'teilweise').length;
+    const check = ROWS.filter(r => r.check).length;
+    const verified = ROWS.filter(r => /^verifiziert/.test(r.url_status)).length;
+    const vs = CARDS.map(c => c.type === 'chart' ? verdict(c.rows, c.groups[0].rows[0].richtung) : null).filter(Boolean);
+    const cnt = k => vs.filter(v => v.kind === k).length;
+    const items = [
+        [ROWS.length, 'Zeilen'], [distinct('indikator'), 'Indikatoren'], [distinct('kategorie'), 'Kategorien'],
+        [distinct('epoche'), 'Epochen'], [ja + ' + ' + tw, '„früher besser“ ja + teilweise'],
+        [cnt('besser') + ' / ' + cnt('schlechter') + ' / ' + cnt('unklar'), 'Bilanz: besser / schlechter / unklar'],
+        [check, 'Zeilen PRÜFEN'], [Math.round(verified / ROWS.length * 100) + ' %', 'Zeilen mit verifizierter URL'],
+    ];
+    strip.replaceChildren(...items.map(([v, l]) => el('div', { class:'stat-box' }, [
+        el('div', { class:'val', text:String(v) }), el('div', { class:'lbl', text:l })])));
+}
+
+// ── filters ────────────────────────────────────────────────────────────────
+function applyFilters() {
+    let any = false;
+    CARDS.forEach(c => { const v = cardVisible(c); document.getElementById(c.id).hidden = !v; any = any || v; });
+    document.querySelectorAll('.cat').forEach(sec => {
+        const cards = [...sec.querySelectorAll('.vcard')];
+        const vis = cards.filter(c => !c.hidden).length;
+        sec.hidden = vis === 0;
+        sec.querySelector('.cnt').textContent = vis === cards.length ? cards.length : vis + ' / ' + cards.length;
+    });
+    document.getElementById('empty').hidden = any;
+    const visibleKats = new Set();
+    document.querySelectorAll('#matrix tr.grp').forEach(tr => {
+        const v = groupVisible(tr._group); tr.hidden = !v; if (v) visibleKats.add(tr._group.kat);
+    });
+    document.querySelectorAll('#matrix tr.cat-row').forEach(tr => tr.hidden = !visibleKats.has(tr.dataset.kat));
+    const active = state.cats.size || state.onlyFb || state.onlyCheck || state.q;
+    document.getElementById('f-clear').style.display = active ? '' : 'none';
+    renderBilanz();
+    hideTip();
+}
+function renderFilters() {
+    const fg = document.getElementById('fg-cat');
+    [...new Set(ROWS.map(r => r.kategorie))].forEach(kat => {
+        const b = el('button', { class:'chip chip-filter', type:'button', text:kat, 'data-val':kat });
+        b.addEventListener('click', () => {
+            if (state.cats.has(kat)) state.cats.delete(kat); else state.cats.add(kat);
+            b.classList.toggle('active', state.cats.has(kat));
+            applyFilters();
+        });
+        fg.appendChild(b);
+    });
+    const fb = document.getElementById('f-fb');
+    fb.addEventListener('click', () => { state.onlyFb = !state.onlyFb; fb.classList.toggle('active', state.onlyFb); applyFilters(); });
+    const ck = document.getElementById('f-check');
+    ck.addEventListener('click', () => { state.onlyCheck = !state.onlyCheck; ck.classList.toggle('active', state.onlyCheck); applyFilters(); });
+    const lg = document.getElementById('f-log');
+    lg.addEventListener('click', () => { state.log = !state.log; lg.classList.toggle('active', state.log); lg.setAttribute('aria-pressed', String(state.log)); rerenderCharts(); });
+    const q = document.getElementById('f-q');
+    q.addEventListener('input', () => { state.q = q.value.trim(); applyFilters(); });
+    document.getElementById('f-clear').addEventListener('click', () => {
+        state.cats.clear(); state.onlyFb = false; state.onlyCheck = false; state.q = ''; q.value = '';
+        fg.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        fb.classList.remove('active'); ck.classList.remove('active');
+        applyFilters();
+    });
+}
+
+// ── boot ───────────────────────────────────────────────────────────────────
+async function main() {
+    const errBox = document.getElementById('error');
+    try {
+        const res = await fetch(CSV_URL, { cache:'no-cache' });
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' für ' + CSV_URL);
+        ROWS = parseCsv(await res.text());
+        if (!ROWS.length) throw new Error('CSV ist leer');
+    } catch (e) {
+        errBox.hidden = false;
+        errBox.textContent = 'Datensatz konnte nicht geladen werden: ' + e.message;
+        return;
+    }
+    GROUPS = buildGroups(ROWS);
+    CARDS  = buildCards(GROUPS);
+    renderStats();
+    renderFilters();
+    renderMatrix();
+    renderCards();
+    applyFilters();
+
+    try {
+        const md = await fetch(MD_URL, { cache:'no-cache' });
+        if (md.ok && typeof renderMd === 'function') document.getElementById('methodik').innerHTML = renderMd(await md.text());
+        else document.getElementById('methodik-section').hidden = true;
+    } catch (e) { document.getElementById('methodik-section').hidden = true; }
+}
+document.addEventListener('DOMContentLoaded', main);
+})();
+</script>
+</body>
+</html>

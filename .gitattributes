@@ -1,0 +1,7 @@
+# Line endings: LF in the repo and in the working tree.
+# Deploy target is Linux; PHP, just and sh all prefer LF. No CRLF-only files exist.
+* text=auto eol=lf
+
+# Binaries — never normalise
+*.png binary
+*.ico binary

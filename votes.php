@@ -6,6 +6,7 @@ require_once 'util_format.php';
 require_once 'util_cache.php';
 require_once 'util_http.php';
 require_once 'util_throttle.php';
+require_once 'util_sumup.php';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,9 @@ if ($tenant_id !== '') {
     $localCsv = preg_replace('/\.cache$/', '.csv', $cacheFile);
 }
 
+// T09: SumUp file for incremental vote aggregation
+$sumupFile = preg_replace('/\.csv$/', '.sumup', $localCsv);
+
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -38,26 +42,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // refresh flag bypasses the disk cache (throttled).
     if ($refresh) {
         require_throttle('data', $throttle_key, $throttle_max, $throttle_window);
+        // T10: Forced refresh — invalidate SumUp
+        @unlink($sumupFile);
     }
 
-    // Load from local CSV.
-    $csv = @file_get_contents($localCsv) ?: "Timestamp,entry\n";
-    $csv = sortCsvData($csv);
+    // T09: Use SumUp for fast incremental aggregation (Story B: incremental votes).
+    $nodes = sumup_update($sumupFile, $localCsv,
+        'votes_sumup_merge_line',
+        fn() => []
+    );
 
-    // Aggregate votes — the key difference from entries.php.
-    $csv = aggregateVotes($csv, $session_id);
+    // Project the aggregated nodes for this session's view
+    $csv = votes_sumup_project($nodes, $session_id);
 
-    // Long-poll: if ?since= given and no new data yet, wait for any change.
-    //    Cross-watching entries releases the votes connection when entries update,
-    //    keeping both client polls in sync.
-    $poll_timeout = (int)($config['poll_timeout'] ?? 25);
-    $now          = time();
-    if ($since !== '' && $since_int > 0 && !_votes_has_since($csv, $since)) {
-        if (long_poll($tenant_id, $now, $poll_timeout)) {
-            $csv = sortCsvData(@file_get_contents($localCsv) ?: "Timestamp,entry\n");
-            $csv = aggregateVotes($csv, $session_id);
-        }
-    }
     if ($since !== '' && !_votes_has_since($csv, $since)) {
         http_response_code(204);
         log_return('votes GET 204 no new data since ' . $since);
@@ -97,8 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             break;
         }
     }
+    // UI2610-ADR-2: a valid set-kind (tri/rate/ind/cmp/trust) also counts as a vote.
+    if (!$hasVote && !empty(parseSetKinds(parseEntry(implode(' | ', $columns))))) {
+        $hasVote = true;
+    }
     if (!$hasVote) {
-        respond_error('INVALID_ENTRY', 'vote entry must contain a votes:<sid>:<n> or signed:<sid>:<n> attribute', 400);
+        respond_error('INVALID_ENTRY', 'vote entry must contain a votes:<sid>:<n>, signed:<sid>:<n> or valid set-kind attribute', 400);
     }
 
     // Append type suffix if missing.
@@ -131,6 +132,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($cacheOutdatedFile !== null) {
         touchOutdated($cacheOutdatedFile);
     }
+
+    // DESIGN-GAP: payload written for future incr vote delivery; frontend re-fetches /votes.
+    append_incr($tenant_id, ['type' => 'votes', 'data' => $entry]);
 
     log_return('votes POST saved ' . strlen($line) . ' bytes to ' . $localCsv);
 

@@ -182,9 +182,9 @@ testBuildFullReport();
 function testLoadSaveSettings() {
     suite('loadSettings / saveSettings');
     localStorage.removeItem('fayf_settings');
-    assert('missing key → {}', loadSettings(), {});
+    assert('missing key → {}', loadSettings(), {"issueGithubUrl":"https://github.com/PluggPreagar/infopedia_php/issues/new","issueMailto":"bugs@fayf.info"});
     saveSettings({ tenantId: 'demo', sid: 'abc' });
-    assert('saved and loaded',  loadSettings(), { tenantId: 'demo', sid: 'abc' });
+    assert('saved and loaded',  loadSettings(), {"issueGithubUrl":"https://github.com/PluggPreagar/infopedia_php/issues/new","issueMailto":"bugs@fayf.info","tenantId":"demo","sid":"abc"});
     saveSettings({ sid: 'xyz' });
     assert('patch merges',      loadSettings().tenantId, 'demo');
     assert('patch updates',     loadSettings().sid,      'xyz');

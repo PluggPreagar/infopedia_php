@@ -10,7 +10,7 @@ Business use cases and acceptance criteria live in [`docs/app2-use-cases.md`](./
 | **Entry** | A single contribution at a topic with a type suffix and optional votes. |
 | **SID** | Session identifier stored in `localStorage`. Ties votes and settings to a session. |
 | **TID** | Tenant ID (`?tid=demo`). Entries are isolated per tenant; data lives in `data/<tid>.*`. |
-| **Long-poll** | Client keeps a connection open to `/entries?since=…`; server holds up to 50 s, sends 204 on timeout. |
+| **Notify channel** | Client holds one connection to `/notify?tid=…&since=…`; server watches three files per tenant, returns typed events (`entries`, `votes`, `message`) or 204 on timeout. See [`docs/backend-communication.md`](./backend-communication.md). |
 
 ## Entry Type Suffixes
 
@@ -40,7 +40,7 @@ Business use cases and acceptance criteria live in [`docs/app2-use-cases.md`](./
 
 | UC | Key functions / endpoints |
 |----|--------------------------|
-| UC1 | `loadInitialData()` — parallel fetch of `buildEntriesUrl()` + `buildVotesUrl()`; `startLongPoll()` |
+| UC1 | `loadInitialData()` — parallel fetch of `buildEntriesUrl()` + `buildVotesUrl()`; `startNotifyPoll()` |
 | UC2 | `navigateTo(path)` → sets `selectedTopic`, updates `#nav-topic`, pushes `history.pushState` |
 | UC3 | `navigateTo(parentTopic)` on back-tap; `popstate` event reads `?topic=` param |
 | UC4 | `openBottomSheet()` (no arg = new mode); `submitEntry()` POSTs to `/entries?sid=…&tid=…`; stub topic via `checkData()` |
@@ -54,7 +54,7 @@ Business use cases and acceptance criteria live in [`docs/app2-use-cases.md`](./
 | UC12 | `applySettings()` — clears data and poll, reloads; `loadSettings()`/`saveSettings()` via `localStorage` |
 | UC13 | `pushAction()`, `buildStateSnapshot()`, `sanitiseForReport()`, `buildReportText()`, `buildFullReport()` |
 | UC13a | Settings "Issue melden" button → `closeSettings()` + `openIssueReport(null)` |
-| UC14 | Long-poll: server 204 → immediate re-poll; server 200 → `addData()` + `updateView()` |
+| UC14 | Notify poll: server 204 → immediate re-poll; server 200 → per event type: `addData()`+`updateView()` / `addVotesData()`+`updateView()` / `showToast()` |
 | UC15 | `typeDisplayMode` → `updateTypeDisplay()`; persisted in `localStorage` via `saveSettings()` |
 
 ## Test Coverage

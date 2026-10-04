@@ -1,5 +1,61 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **`util_sumup.php`** (new): generic offset-based SumUp snapshot helper (`sumup_load()`,
+  `sumup_save()`, `sumup_read_tail()`, `sumup_update()`) — flock + newer-wins pattern
+  extracted from the stats aggregate cache in `util_data.php`.
+- `votes.php`: `GET /votes` now served from an offset-based SumUp snapshot
+  (`data/votes[_<tid>].sumup.json`) instead of re-reading and re-aggregating the full
+  vote history on every request — bootstrap cost scales with the appended tail, not
+  history size. No API change. Forced full rebuild via `?refresh=1` or `just sumup-clean`.
+- `justfile`: `sumup-clean` recipe — removes all `data/*.sumup.json` snapshots (chained
+  into `just clean`).
+- `entries.php`: optional incremental cache rebuild via the SumUp helper, config-gated
+  (`[entry] sumup_enabled`, **default off** during burn-in) — when enabled, a cache
+  rebuild after a POST parses only the appended CSV tail instead of re-sorting the full
+  entry history. Byte-identical output to the legacy `sortCsvData()` path in both modes
+  (golden tests: `test/util_sumup_test.php` T-D1…T-D4).
+- **`vote.html`** (new): standalone voting page — tab *Argumente* lists the `!` (Fakt)
+  entries and tab *Gegenfragen* the `??` entries under one configured topic folder of one
+  configured tenant, sorted by score; ▲/▼ vote and *Bestätigen* post to `/votes` with
+  optimistic update; a `src:` attribute holding markdown link(s) (`src:[Name](url) …`, bare
+  URL accepted) renders as source links via `renderMd()`. No backend change.
+- `infopedia.cfg` `[vote_page]` (`tid`, `topic`) — surfaced to the frontend by `config.php`
+  as `votePageTid` / `votePageTopic`; `?tid=` / `?topic=` override per URL.
+- `justfile`: `seed-vote` recipe seeds the vote tenant with demo arguments; `serve` lists
+  the vote page.
+- `.gitattributes`: LF line endings enforced repo-wide (`* text=auto eol=lf`).
+- `vote.html`: **add and edit entries** — a FAB opens a bottom sheet (text, Quelle URL,
+  Quelle Name) creating an entry of the page type; pencil button or long-press opens the
+  edit sheet pre-filled from the entry and re-sends every attribute, so `src:` survives the
+  server's newest-row-wins read path. `?type=fakt|gegenfrage` page mode, default
+  `[vote_page] type` (`votePageType` in `config.php`); the tabs rewrite the URL.
+  No delete (the `--` marker needs its own design).
+
+### Changed
+- `generateNodeId()` moved from `app2.html` to `assets/entry-core.js`.
+- **`assets/entry-core.js`** (new): `fullKey`, `splitKey`, `getTypeFromMessage`,
+  `matchType`, `TYPE_DEFS`, `getTypeDef`, `escapeHtml`, `debounceKey` moved out of
+  `app2.html` so `vote.html` shares one definition (CA7, CA18). Card-internal CSS
+  (`.card-text`, `.sign-count`, `.sign-btn`, `.ts-label`) moved from app2's inline style to
+  `assets/components.css`; `.sign-btn` gained the CG-DS5 44 px minimum height.
+- `test/e2e_request.php`: route table knows `config.php` / `/config`.
+
+### Fixed
+- `util_entry.php` / `util_sumup_entries.php`: an entry edited within the **same second** as
+  its previous write was lost after reload — both dedup paths kept a newer row only on a
+  strictly greater timestamp, so on a tie the first-written row won. Now `>=`: the line
+  appended later wins (and a same-second `--` delete applies in the SumUp path too).
+  Regression tests: `util_entry_test.php` "dedup same second", `util_sumup_test.php` T-D1b.
+- `util_entry.php`: `sortCsvData()` gained a `$dedup_paths = false` mode — the votes read
+  pipeline no longer drops older vote rows from other sessions on the same path before
+  aggregation (previously only the newest row per path survived, undercounting votes).
+- `util_entry.php`: `csv_join_wrapped_lines()` extracted as a standalone pure function
+  (multiline/quoted CSV row joining), reused by both `sortCsvData()` and
+  `sumup_read_tail()`.
+
 ## [0.3.0] — 2026-06-23
 
 ### Added
