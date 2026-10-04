@@ -42,6 +42,7 @@ These are product requirements, separate from the process requirements `REQ-S<st
 
 - **REQ-UI2610-31 (MUST):** the Voter selects or creates a topic. Items, Comparisons and Trust are separated per topic; the current topic is kept in `?topic=` and in localStorage. -- ADR-7
 - **REQ-UI2610-32 (MUST):** related choices are one segmented button group with one active part: step tabs · Triage (Raus/Offen/Relevant) · Rating 1–5. -- user 2026-10-04
+- **REQ-UI2610-33 (MUST):** nav: the topic is a clickable breadcrumb top left ("VoteUI › Klima ▾" → topic sheet with all topics, "+ Thema", "Neu laden"); the steps are an action group top right (⇆ Sichten · ★ Bewerten · ⚖ Feinschliff · ☰ Übersicht) with count badges; the step name is a heading above the content. -- user 2026-10-04
 
 UI labels (German): Triage = "Sichten" · Rate = "Bewerten" · Fine-tune = "Feinschliff" · In / Open / Out = "Relevant / Offen / Raus" · Sign = "signieren".
 

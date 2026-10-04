@@ -26,10 +26,22 @@
     .seg > button:first-child { border-left: 0; }
     .seg > button.active { background: var(--color-interactive-600); color: #fff; }
     .seg.rate { max-width: 260px; flex: 1; }
-    #tab-bar { margin: var(--space-2) var(--space-3) 0; }
-    .topic-bar { padding: var(--space-2) var(--space-3) 0; max-width: 640px; margin: 0 auto; width: 100%; }
-    .topic-bar select { flex: 1; min-width: 0; }
-    .tab-count { font-size: var(--text-xs); opacity: .8; margin-left: 2px; }
+    /* Nav: breadcrumb (topic) left · steps as action group right (REQ-UI2610-33) */
+    .nav { padding-inline: var(--space-3); }
+    #crumb { margin-right: auto; min-width: 0; max-width: 55%; background: none; border: 0; color: #fff; font: inherit; font-size: var(--text-sm);
+             display: flex; align-items: center; gap: 4px; min-height: 44px; cursor: pointer; padding: 0; }
+    #crumb .base { opacity: .75; white-space: nowrap; }
+    #crumb .topic { font-weight: var(--font-weight-bold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nav .seg { border-color: rgba(255,255,255,.55); background: transparent; flex: none; }
+    .nav .seg > button { flex: none; width: 42px; min-height: 34px; padding: 0; background: transparent; color: #fff; border-left-color: rgba(255,255,255,.55);
+                         font-size: 17px; position: relative; overflow: visible; }
+    .nav .seg > button.active { background: #fff; color: var(--color-interactive-700); }
+    .nav .seg .tab-count { position: absolute; top: -6px; right: -4px; font-size: 10px; line-height: 14px; min-width: 14px; padding: 0 3px; border-radius: 7px;
+                           background: #F59E0B; color: #14171A; opacity: 1; margin: 0; }
+    .nav .seg .tab-count:empty { display: none; }
+    .step-head { margin: 0; font-size: var(--text-base); font-weight: var(--font-weight-bold); }
+    .topic-list button { width: 100%; justify-content: flex-start; }
+    .tab-count { font-size: var(--text-xs); }
     .item-title { font-weight: var(--font-weight-bold); overflow-wrap: anywhere; }
     .ind-pair { display: flex; align-items: center; gap: 4px; cursor: pointer; background: none; border: 0; padding: 2px; }
     .ind-pair small { font-size: 10px; color: var(--color-neutral-600); }
@@ -60,22 +72,14 @@
 </head>
 <body>
 <nav class="nav">
-  <span class="nav-title grow" id="nav-title">VoteUI</span>
-  <button id="btn-reload" class="btn-icon" aria-label="Neu laden">↻</button>
+  <button id="crumb" data-act="topics" aria-label="Thema wechseln"><span class="base" id="nav-title">VoteUI</span><span class="base">›</span><span class="topic" id="crumb-topic">…</span><span>▾</span></button>
+  <div class="seg" id="tab-bar" role="tablist" aria-label="Schritte">
+    <button data-step="triage" title="1 Sichten" aria-label="1 Sichten">⇆<span class="tab-count" id="cnt-triage"></span></button>
+    <button data-step="rate" title="2 Bewerten" aria-label="2 Bewerten">★<span class="tab-count" id="cnt-rate"></span></button>
+    <button data-step="tune" title="3 Feinschliff" aria-label="3 Feinschliff">⚖<span class="tab-count" id="cnt-tune"></span></button>
+    <button data-step="over" title="Übersicht" aria-label="Übersicht">☰</button>
+  </div>
 </nav>
-
-<div class="row topic-bar">
-  <label class="muted" for="topic-select">Thema</label>
-  <select id="topic-select" class="select" aria-label="Thema wählen"></select>
-  <button class="btn btn-ghost" data-act="topic-new">+ Thema</button>
-</div>
-
-<div class="seg" id="tab-bar" role="tablist">
-  <button data-step="triage">Sichten<span class="tab-count" id="cnt-triage"></span></button>
-  <button data-step="rate">Bewerten<span class="tab-count" id="cnt-rate"></span></button>
-  <button data-step="tune">Feinschliff<span class="tab-count" id="cnt-tune"></span></button>
-  <button data-step="over">Übersicht</button>
-</div>
 
 <main id="view"></main>
 <div id="toast-container"></div>
@@ -236,11 +240,13 @@ function nextPair() {
 function render() {
     document.querySelectorAll("#tab-bar button").forEach(c => c.classList.toggle("active", c.dataset.step === step));
     renderTopics();
-    document.getElementById("cnt-triage").textContent = " " + triageIds().length;
-    document.getElementById("cnt-rate").textContent = " " + rateIds().filter(id => !own(itemKey(id), "rate")).length;
-    document.getElementById("cnt-tune").textContent = nextPair() ? " •" : "";
+    const nT = triageIds().length, nR = rateIds().filter(id => !own(itemKey(id), "rate")).length;
+    document.getElementById("cnt-triage").textContent = nT ? String(nT) : "";
+    document.getElementById("cnt-rate").textContent = nR ? String(nR) : "";
+    document.getElementById("cnt-tune").textContent = nextPair() ? "•" : "";
     const v = document.getElementById("view");
-    v.innerHTML = ({ triage: viewTriage, rate: viewRate, tune: viewTune, over: viewOver })[step]();
+    const head = { triage: "1 Sichten", rate: "2 Bewerten", tune: "3 Feinschliff", over: "Übersicht" }[step];
+    v.innerHTML = `<h2 class="step-head">${head}</h2>` + ({ triage: viewTriage, rate: viewRate, tune: viewTune, over: viewOver })[step]();
     const stack = document.getElementById("stack");
     if (stack) {
         // buttons inside the card (Indicator) keep their tap: card-swipe.js would capture the pointer and swallow the click
@@ -330,8 +336,14 @@ function topicOptions() {
     return list;
 }
 function renderTopics() {
-    const sel = document.getElementById("topic-select");
-    sel.innerHTML = topicOptions().map(t => `<option value="${esc(t.key)}"${t.key === topicRoot ? " selected" : ""}>${esc(t.title)}</option>`).join("");
+    const t = topicOptions().find(x => x.key === topicRoot);
+    document.getElementById("crumb-topic").textContent = t ? t.title : topicRoot;
+}
+function openTopics() {
+    openSheet(sheetHead("Thema") + `<div class="topic-list" style="display:flex;flex-direction:column;gap:6px">${topicOptions().map(t =>
+        `<button class="btn ${t.key === topicRoot ? "btn-primary" : "btn-secondary"}" data-topic="${esc(t.key)}">${t.key === topicRoot ? "✓ " : ""}${esc(t.title)}</button>`).join("")}</div>
+        <div class="row" style="justify-content:space-between"><button class="btn btn-ghost" data-act="reload">↻ Neu laden</button>
+        <button class="btn btn-primary" data-act="topic-new">+ Thema</button></div>`);
 }
 function switchTopic(key) {
     if (key === topicRoot) return;
@@ -502,10 +514,11 @@ function trust(s) {
 function refreshSheet() { if (sheetItem && document.getElementById("sheet").classList.contains("open") && !editor) openItem(sheetItem); }
 
 function onClick(e) {
-    const t = e.target.closest("[data-tri],[data-rate],[data-sign],[data-cmp],[data-trust],[data-edit],[data-open],[data-go],[data-act],[data-step]");
+    const t = e.target.closest("[data-tri],[data-rate],[data-sign],[data-cmp],[data-trust],[data-edit],[data-open],[data-go],[data-act],[data-step],[data-topic]");
     if (!t) return;
     const d = t.dataset;
     if (d.step) { step = d.step; render(); }
+    else if (d.topic) { closeSheet(); switchTopic(d.topic); }
     else if (d.go) { step = d.go; render(); }
     else if (d.tri) triage(d.tri, d.v, !d.stay);
     else if (d.rate) { saveSet(d.rate, "rate", own(itemKey(d.rate), "rate") === d.v ? "0" : d.v).then(refreshSheet); refreshSheet(); }
@@ -527,6 +540,8 @@ function onClick(e) {
     }
     else if (d.act === "add-save") saveAdd();
     else if (d.act === "topic-new") openTopicNew();
+    else if (d.act === "topics") openTopics();
+    else if (d.act === "reload") { closeSheet(); loadData(); }
     else if (d.act === "topic-save") saveTopicNew();
 }
 
@@ -565,8 +580,6 @@ async function init() {
         if (id && v) triage(id, v, true);
     });
     document.getElementById("fab").addEventListener("click", openAdd);
-    document.getElementById("btn-reload").addEventListener("click", loadData);
-    document.getElementById("topic-select").addEventListener("change", e => switchTopic(e.target.value));
     document.getElementById("sheet-backdrop").addEventListener("click", e => { if (e.target.id === "sheet-backdrop") closeSheet(); });
     document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
     let cfg = {};
@@ -580,8 +593,8 @@ async function init() {
     if (topicRoot !== baseRoot && !topicRoot.startsWith(baseRoot === "/" ? "/" : baseRoot + "/") && !params.get("topic")) topicRoot = baseRoot;   // stale setting from another base
     sid = ensureSid(settings);
     myName = settings.ui2610Name || "";
-    const title = cfg.voteMobileTitle || "Abstimmen · " + baseRoot;
-    document.getElementById("nav-title").textContent = title;
+    const title = cfg.voteMobileTitle || "Abstimmen";
+    document.getElementById("nav-title").textContent = title;   // breadcrumb root
     document.title = title + " — fayf";
     if (!TID_RE.test(tenantId)) {
         console.error("[ui2610] invalid tid:", JSON.stringify(tenantId));
