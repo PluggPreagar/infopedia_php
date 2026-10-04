@@ -80,16 +80,12 @@ function isFit(a, b) {
 }
 
 // ── Icon (box indicator, ADR-4; colours + frame from Schema F) ───────────────
-const TONE = {
-    pro:    { dunkel: '#0E7A66', mittel: '#4E9E8C', hell: '#79BDAE' },
-    contra: { dunkel: '#C03A72', mittel: '#D5709A', hell: '#E599BB' },
-};
 const FRAME = '#C6CBD0';
 
 /** Box indicator (UI2610-ADR-4, supersedes Schema F satellites): every cell in
  *  P[kP−sPm, kP+sPp] × I[kI−sIm, kI+sIp] is filled — every combination in the range is valid.
  *  σ step = cells (0..3), clipped at the grid edge. Tone = distance (F2 idea): core dunkel ·
- *  ring 1 mittel · ring ≥ 2 hell. Core hell ("entwertet") only when all four sides are 3.
+ *  ring 1 mittel · ring ≥ 2 hell. (ADR-5 colours these by severity; "entwertet" dropped — core is black.)
  *  5×5 grid, row 0 = highest Impact; null = white. */
 function stateGrid(v) {
     const g = Array.from({ length: 5 }, () => Array(5).fill(null));
@@ -99,7 +95,6 @@ function stateGrid(v) {
             g[4 - kI][kP] = ring === 0 ? 'dunkel' : ring === 1 ? 'mittel' : 'hell';
         }
     }
-    if (v.sPm === 3 && v.sPp === 3 && v.sIm === 3 && v.sIp === 3) g[4 - v.kI][v.kP] = 'hell';
     return g;
 }
 
@@ -110,17 +105,29 @@ function boxRect(v) {
     return { x: x0, y: 4 - iHi, w: x1 - x0 + 1, h: iHi - iLo + 1 };
 }
 
+/** Severity (UI2610-ADR-5): cell colour by score P+I (0..8), green → red. */
+const SEVERITY = ['#2f9e5b', '#2f9e5b', '#7cb342', '#c0ca33', '#f2b600', '#f08c00', '#e8590c', '#d03b3b', '#b02525'];
+const CORE = '#14171A';
+const RING_OPACITY = { mittel: 0.75, hell: 0.5 };
+
+/** Fill of one cell (kP, kI) or null when outside the range. Core = black square;
+ *  a single point (all σ 0) shows its own severity colour, faded. */
+function cellStyle(v, kP, kI) {
+    const tone = stateGrid(v)[4 - kI][kP];
+    if (!tone) return null;
+    const single = !v.sPm && !v.sPp && !v.sIm && !v.sIp;
+    if (tone === 'dunkel') return single ? { fill: SEVERITY[kP + kI], opacity: 0.5 } : { fill: CORE, opacity: 1 };
+    return { fill: SEVERITY[kP + kI], opacity: RING_OPACITY[tone] };
+}
+
 function iconSvg(v, opts = {}) {
-    const { side = 'pro', size = 32, fit = false, faint = false } = opts;
-    const T = TONE[side], g = stateGrid(v);
-    const isPro = side === 'pro';
-    const gx = isPro ? 0 : 1, gy = isPro ? 1 : 0, rx = isPro ? 5 : 0, ry = isPro ? 0 : 5;
+    const { size = 32, fit = false, faint = false } = opts;
     const label = `P ${v.kP + 1}/5, Impact ${v.kI + 1}/5, σ P −${v.sPm} +${v.sPp}, σ I −${v.sIm} +${v.sIp}`;
     let s = `<svg class="ind${fit ? ' fit' : ''}${faint ? ' faint' : ''}" width="${size}" height="${size}" viewBox="0 0 6 6" shape-rendering="crispEdges" role="img" aria-label="${label}">`;
-    s += `<rect x="${rx}" y="0" width="1" height="6" fill="${FRAME}"/>`;
-    s += `<rect x="${gx}" y="${ry}" width="5" height="1" fill="${FRAME}"/>`;
-    for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
-        if (g[r][c]) s += `<rect x="${gx + c}" y="${gy + r}" width="1" height="1" fill="${T[g[r][c]]}"/>`;
+    s += `<rect x="5" y="0" width="1" height="6" fill="${FRAME}"/><rect x="0" y="0" width="5" height="1" fill="${FRAME}"/>`;
+    for (let kI = 0; kI < 5; kI++) for (let kP = 0; kP < 5; kP++) {
+        const st = cellStyle(v, kP, kI);
+        if (st) s += `<rect x="${kP}" y="${1 + 4 - kI}" width="1" height="1" fill="${st.fill}"${st.opacity < 1 ? ` fill-opacity="${st.opacity}"` : ''}/>`;
     }
     return s + '</svg>';
 }
@@ -215,7 +222,7 @@ function nextPairs(list, compared, limit = 5) {
 if (typeof module !== 'undefined') {
     module.exports = {
         parseHist, parseIndHist, parseInd, formatInd, ratingStats,
-        pooledAxis, groupInd, isFit, stateGrid, boxRect, iconSvg,
+        pooledAxis, groupInd, isFit, stateGrid, boxRect, SEVERITY, cellStyle, iconSvg,
         cellAt, dragInd, growLo, growHi, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
     };
 }

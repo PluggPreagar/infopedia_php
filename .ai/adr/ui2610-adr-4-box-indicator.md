@@ -1,6 +1,6 @@
 # UI2610-ADR-4: Box indicator: the σ range is drawn as a filled rectangle
 
-- **Status:** accepted
+- **Status:** accepted; tone part superseded by UI2610-ADR-5
 - **Date:** 2026-10-04
 - **Deciders:** user (Mart) + Claude
 - **Supersedes:** UI2610-ADR-3, icon part only (satellites, σ step ↔ Schema F distance)

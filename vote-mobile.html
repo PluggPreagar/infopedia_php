@@ -369,10 +369,12 @@ function drawEditor() {
     if (!svg || !editor) return;
     const p = itemKey(editor.id);
     const group = groupInd(editor.draft, parseIndHist(others(p, "ind")));
-    const tone = { dunkel: "#0E7A66", mittel: "#4E9E8C", hell: "#79BDAE" };
     // Low noise (ADR-4): own value = one solid box like the icon; group = one dashed outline; no nested squares
     let s = "";
-    if (editor.draft) stateGrid(editor.draft).forEach((row, r) => row.forEach((t, c) => { if (t) s += `<rect x="${c}" y="${r}" width="1" height="1" fill="${tone[t]}"/>`; }));
+    if (editor.draft) for (let kI = 0; kI < 5; kI++) for (let kP = 0; kP < 5; kP++) {
+        const st = cellStyle(editor.draft, kP, kI);
+        if (st) s += `<rect x="${kP}" y="${4 - kI}" width="1" height="1" fill="${st.fill}" fill-opacity="${st.opacity}"/>`;
+    }
     for (let i = 1; i < 5; i++) s += `<line x1="${i}" y1="0" x2="${i}" y2="5" stroke="#000" stroke-opacity=".08" stroke-width=".02"/><line x1="0" y1="${i}" x2="5" y2="${i}" stroke="#000" stroke-opacity=".08" stroke-width=".02"/>`;
     if (group && !isFit(editor.draft, group)) {
         const b = boxRect(group);

@@ -49,8 +49,20 @@ eq('box: σ 2 all sides = 5×5, ring 2 light', T(C.stateGrid({ kP: 2, kI: 2, sPm
 eq('box: asym P −0 +2, I −1 +0', T(C.stateGrid({ kP: 1, kI: 2, sPm: 0, sPp: 2, sIm: 1, sIp: 0 })), '...../...../.dmh./.mmh./.....');
 eq('box: clipped at edge', T(C.stateGrid({ kP: 0, kI: 4, sPm: 3, sPp: 1, sIm: 1, sIp: 3 })), 'dm.../mm.../...../...../.....');
 eq('box: step 3 reaches 3 cells', T(C.stateGrid({ kP: 0, kI: 0, sPm: 0, sPp: 3, sIm: 0, sIp: 0 })), '...../...../...../...../dmhh.');
-eq('box: entwertet all 3 → core light', C.stateGrid({ kP: 2, kI: 2, sPm: 3, sPp: 3, sIm: 3, sIp: 3 })[2][2], 'hell');
+eq('box: all 3 → core stays dunkel (ADR-5: black core)', C.stateGrid({ kP: 2, kI: 2, sPm: 3, sPp: 3, sIm: 3, sIp: 3 })[2][2], 'dunkel');
 eq('box: symmetric is a subset (P −1 +1 == both sides)', T(C.stateGrid({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 0, sIp: 0 })), '...../...../.mdm./...../.....');
+
+// ── Severity colouring (UI2610-ADR-5) ────────────────────────────────────────
+eq('severity scale 9 steps green→red', [C.SEVERITY.length, C.SEVERITY[0], C.SEVERITY[8]], [9, '#2f9e5b', '#b02525']);
+const wide = { kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 1, sIp: 1 };
+eq('cellStyle: core = black', C.cellStyle(wide, 2, 2), { fill: '#14171A', opacity: 1 });
+eq('cellStyle: ring 1 = score colour .75', C.cellStyle(wide, 3, 3), { fill: C.SEVERITY[6], opacity: 0.75 });
+eq('cellStyle: ring 2 = score colour .5', C.cellStyle({ ...wide, sPp: 2 }, 4, 2), { fill: C.SEVERITY[6], opacity: 0.5 });
+eq('cellStyle: outside range = null', C.cellStyle(wide, 0, 0), null);
+const one = { kP: 3, kI: 1, sPm: 0, sPp: 0, sIm: 0, sIp: 0 };
+eq('cellStyle: single point → faded own colour', C.cellStyle(one, 3, 1), { fill: C.SEVERITY[4], opacity: 0.5 });
+eq('iconSvg: black core rect', C.iconSvg(wide).includes('fill="#14171A"'), true);
+eq('iconSvg: single point has no black', C.iconSvg(one).includes('#14171A'), false);
 
 // boxRect: range as one rectangle in grid coords (x = kP, y = row 0 top), clipped — editor group outline
 eq('boxRect sym 1', C.boxRect({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 1, sIp: 1 }), { x: 1, y: 1, w: 3, h: 3 });

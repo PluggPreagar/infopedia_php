@@ -55,12 +55,13 @@ UI labels (German): Triage = "Sichten" · Rate = "Bewerten" · Fine-tune = "Fein
 
 ## Indicator
 
-- **REQ-UI2610-20 (MUST):** every Item card shows the group Indicator (box indicator; colours/frame from Schema F). -- ADR-3, ADR-4
+- **REQ-UI2610-20 (MUST):** every Item card shows the group Indicator (box indicator, severity colours, frame from Schema F). -- ADR-3, ADR-4, ADR-5
 - **REQ-UI2610-21 (MUST):** values snap to the 5×5 grid: kP, kI in 0..4; σ step per side 0..3. -- ADR-3
-- **REQ-UI2610-22 (MUST):** the σ range is drawn as a filled box P[kP−σP−, kP+σP+] × I[kI−σI−, kI+σI+]; σ step = cells, clipped at the grid edge; tone = ring distance. -- ADR-4 (was: Schema F satellites, ADR-3)
+- **REQ-UI2610-22 (MUST):** the σ range is drawn as a filled box P[kP−σP−, kP+σP+] × I[kI−σI−, kI+σI+]; σ step = cells, clipped at the grid edge; ring distance = opacity. -- ADR-4 (was: Schema F satellites, ADR-3)
 - **REQ-UI2610-23 (MUST):** the editor is a 2-dimensional matrix, P on x and Impact on y. Tap sets the Core; dragging towards the lower left sets a symmetric σ; continuing towards the upper right sets σ+. -- ADR-3
 - **REQ-UI2610-24 (MUST):** the editor shows the own value as one solid box (like the icon) and the group range as one dashed outline; no nested squares; dragging only widens the box. -- ADR-3, ADR-4
 - **REQ-UI2610-25 (MUST):** Fit → one icon instance, highlighted. -- ADR-3
 - **REQ-UI2610-26 (MUST):** every Voter can edit their own Indicator. -- user
 - **REQ-UI2610-28 (MUST):** group Indicator = rounded mean Core + pooled σ per side (formula in ADR-3), computed in the frontend from the histograms. -- ADR-3
+- **REQ-UI2610-29 (MUST):** cell colour = severity by P+I score (green → amber → red); core = black square; a single point (all σ 0) = its own severity colour, faded. -- ADR-5
 - **REQ-UI2610-27 (SHOULD):** later, one combined icon for own vs group. -- idea
