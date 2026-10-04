@@ -52,11 +52,13 @@
     .topic-list button { width: 100%; justify-content: flex-start; }
     .tab-count { font-size: var(--text-xs); }
     .item-title { font-weight: var(--font-weight-bold); overflow-wrap: anywhere; }
-    .ind-pair { display: flex; align-items: center; gap: 4px; cursor: pointer; background: none; border: 0; padding: 2px; }
-    .ind-pair small { font-size: 10px; color: var(--color-neutral-600); }
+    /* Indicator: icon(s) on top, label below (REQ-UI2610-36) */
+    .ind-pair { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; background: none; border: 0; padding: 2px; flex: none; }
+    .ind-pair .icons { display: flex; align-items: flex-end; gap: 4px; }
+    .ind-pair small { font-size: 11px; line-height: 1; color: var(--color-neutral-600); }
     svg.ind { display: block; background: #fff; }
     svg.ind.fit { outline: 2px solid var(--color-interactive-600); outline-offset: 2px; border-radius: 2px; }
-    .ind-empty { width: 32px; height: 32px; border: 1px dashed var(--color-neutral-400); border-radius: 4px; display: grid; place-items: center; font-size: var(--text-xs); color: var(--color-neutral-600); }
+    .ind-empty { width: 44px; height: 44px; border: 1px dashed var(--color-neutral-400); border-radius: 4px; display: grid; place-items: center; font-size: var(--text-xs); color: var(--color-neutral-600); }
     .chip.active { background: var(--color-interactive-600); color: #fff; border-color: var(--color-interactive-600); }
     .sign-chip { font-size: var(--text-xs); padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-interactive-50); color: var(--color-interactive-700); }
     /* Triage stack */
@@ -206,13 +208,14 @@ function showToast(message, type = "info", duration = 3000, action = null) {
 }
 
 /** Card icon: group Indicator; own one beside it unless Fit (then one, highlighted). */
+const IND_SIZE = 44, IND_OWN_SIZE = 28;
 function indHtml(id) {
     const { mine, group, isDefault } = indOf(id);
-    if (!group) return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator setzen"><span class="ind-empty">+</span></button>`;
-    const who = isDefault ? "Start" : "ich";   // "Start" = seed default, Voter has not set an own value
-    if (mine && isFit(mine, group)) return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator (${isDefault ? "Startwert" : "Fit"})">${iconSvg(group, { fit: !isDefault })}<small>${isDefault ? "Start" : "Fit"}</small></button>`;
-    return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator">${iconSvg(group)}`
-        + (mine ? `<small>${who}</small>${iconSvg(mine, { size: 20 })}` : `<small>+</small>`) + `</button>`;
+    const btn = (aria, icons, label) => `<button class="ind-pair" data-edit="${id}" aria-label="${aria}"><span class="icons">${icons}</span><small>${label}</small></button>`;
+    if (!group) return btn("Indikator setzen", `<span class="ind-empty">+</span>`, "setzen");
+    // "guess" = seed default (ind_default), the Voter has not set an own value yet
+    if (mine && isFit(mine, group)) return btn(isDefault ? "Indikator: Schätzwert" : "Indikator: Fit", iconSvg(group, { size: IND_SIZE, fit: !isDefault }), isDefault ? "guess" : "Fit");
+    return btn("Indikator", iconSvg(group, { size: IND_SIZE }) + (mine ? iconSvg(mine, { size: IND_OWN_SIZE }) : ""), mine ? (isDefault ? "guess" : "Gruppe · ich") : "Gruppe");
 }
 function signsHtml(id) {
     const p = itemKey(id);
