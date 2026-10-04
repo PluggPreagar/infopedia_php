@@ -19,6 +19,7 @@ most of the range. The user's latest indicator version draws the range as one fi
 - **Tone = distance** (the F2 idea, kept): Core dark · ring 1 medium · ring ≥ 2 light. Ring = max(|ΔP|, |ΔI|).
 - "entwertet": Core drawn light only when all four sides are 3 (kept).
 - Kept from Schema F: 6×6 tile, frame rail, Pro/Contra colours, crisp 1-cell pixels.
+- **Editor, low noise:** the own value is drawn exactly like the icon: one solid box of full cells, no nested squares. Dragging only widens it. The group shows as one dashed outline of its range, hidden on Fit.
 - The data model is unchanged: `kP,kI,sP-,sP+,sI-,sI+`, pooled group σ (ADR-3).
 
 | σ | Schema F (old) | Box (new) |

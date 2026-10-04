@@ -42,7 +42,7 @@
     .rank { font-variant-numeric: tabular-nums; font-weight: var(--font-weight-bold); width: 2ch; text-align: right; }
     .hist { font-size: var(--text-xs); color: var(--color-neutral-600); font-variant-numeric: tabular-nums; }
     /* Editor */
-    #editor-grid { width: 100%; max-width: 320px; aspect-ratio: 1; touch-action: none; display: block; margin: 0 auto; user-select: none; }
+    #editor-grid { width: 100%; max-width: 320px; aspect-ratio: 1; touch-action: none; display: block; margin: 0 auto; user-select: none; background: #fff; border: 1px solid var(--color-neutral-200); }
     .axis { font-size: var(--text-xs); color: var(--color-neutral-600); display: flex; justify-content: space-between; gap: var(--space-2); width: 100%; max-width: 320px; margin: 0 auto; }
     #toast-container { position: fixed; top: var(--space-4); right: var(--space-4); z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--space-2); }
     #toast-container .toast { position: static; }
@@ -230,7 +230,11 @@ function render() {
     const v = document.getElementById("view");
     v.innerHTML = ({ triage: viewTriage, rate: viewRate, tune: viewTune, over: viewOver })[step]();
     const stack = document.getElementById("stack");
-    if (stack) initCardSwipe(stack, {});
+    if (stack) {
+        // buttons inside the card (Indicator) keep their tap: card-swipe.js would capture the pointer and swallow the click
+        stack.addEventListener("pointerdown", e => { if (e.target.closest("button")) e.stopPropagation(); }, true);
+        initCardSwipe(stack, {});
+    }
 }
 
 function viewTriage() {
@@ -335,9 +339,9 @@ function openEditor(id) {
     const { mine } = indOf(id);
     editor = { id, core: null, lo: null, hi: null, draft: mine };
     openSheet(sheetHead("Indikator: " + titleOf(id)) + `
-        <p class="muted">Tippen = Kern · ziehen nach links-unten = Streuung · weiter nach rechts-oben = Streuung nach oben</p>
+        <p class="muted">Tippen = Kern · ziehen weitet die Streuung (links-unten, dann rechts-oben) · gestrichelt = Gruppe</p>
         <div class="row" style="justify-content:center"><span class="muted" style="writing-mode:vertical-rl;transform:rotate(180deg)">Auswirkung →</span>
-          <svg id="editor-grid" viewBox="0 0 5 5"></svg></div>
+          <svg id="editor-grid" viewBox="0 0 5 5" shape-rendering="crispEdges"></svg></div>
         <div class="axis"><span>10 %</span><span>Eintrittswahrscheinlichkeit →</span><span>90 %</span></div>
         <p id="editor-info" class="muted"></p>
         <div class="row" style="justify-content:flex-end">
@@ -366,10 +370,14 @@ function drawEditor() {
     const p = itemKey(editor.id);
     const group = groupInd(editor.draft, parseIndHist(others(p, "ind")));
     const tone = { dunkel: "#0E7A66", mittel: "#4E9E8C", hell: "#79BDAE" };
+    // Low noise (ADR-4): own value = one solid box like the icon; group = one dashed outline; no nested squares
     let s = "";
-    for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) s += `<rect x="${c}" y="${r}" width="1" height="1" fill="#fff" stroke="#D8DBD4" stroke-width="0.02"/>`;
-    if (group) stateGrid(group).forEach((row, r) => row.forEach((t, c) => { if (t) s += `<rect x="${c + .08}" y="${r + .08}" width=".84" height=".84" fill="${tone[t]}" opacity=".3"/>`; }));
-    if (editor.draft) stateGrid(editor.draft).forEach((row, r) => row.forEach((t, c) => { if (t) s += `<rect x="${c + .22}" y="${r + .22}" width=".56" height=".56" fill="${tone[t]}"/>`; }));
+    if (editor.draft) stateGrid(editor.draft).forEach((row, r) => row.forEach((t, c) => { if (t) s += `<rect x="${c}" y="${r}" width="1" height="1" fill="${tone[t]}"/>`; }));
+    for (let i = 1; i < 5; i++) s += `<line x1="${i}" y1="0" x2="${i}" y2="5" stroke="#000" stroke-opacity=".08" stroke-width=".02"/><line x1="0" y1="${i}" x2="5" y2="${i}" stroke="#000" stroke-opacity=".08" stroke-width=".02"/>`;
+    if (group && !isFit(editor.draft, group)) {
+        const b = boxRect(group);
+        s += `<rect x="${b.x + .04}" y="${b.y + .04}" width="${b.w - .08}" height="${b.h - .08}" fill="none" stroke="#5A6069" stroke-width=".04" stroke-dasharray=".12 .08"/>`;
+    }
     svg.innerHTML = s;
     const d = editor.draft;
     document.getElementById("editor-info").textContent = d

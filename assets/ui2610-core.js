@@ -103,6 +103,13 @@ function stateGrid(v) {
     return g;
 }
 
+/** The σ range as one rectangle in grid coords (x = kP, y = row, row 0 = top), clipped to 5×5. */
+function boxRect(v) {
+    const x0 = Math.max(0, v.kP - v.sPm), x1 = Math.min(4, v.kP + v.sPp);
+    const iLo = Math.max(0, v.kI - v.sIm), iHi = Math.min(4, v.kI + v.sIp);
+    return { x: x0, y: 4 - iHi, w: x1 - x0 + 1, h: iHi - iLo + 1 };
+}
+
 function iconSvg(v, opts = {}) {
     const { side = 'pro', size = 32, fit = false, faint = false } = opts;
     const T = TONE[side], g = stateGrid(v);
@@ -208,7 +215,7 @@ function nextPairs(list, compared, limit = 5) {
 if (typeof module !== 'undefined') {
     module.exports = {
         parseHist, parseIndHist, parseInd, formatInd, ratingStats,
-        pooledAxis, groupInd, isFit, stateGrid, iconSvg,
+        pooledAxis, groupInd, isFit, stateGrid, boxRect, iconSvg,
         cellAt, dragInd, growLo, growHi, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
     };
 }

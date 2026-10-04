@@ -52,6 +52,10 @@ eq('box: step 3 reaches 3 cells', T(C.stateGrid({ kP: 0, kI: 0, sPm: 0, sPp: 3, 
 eq('box: entwertet all 3 → core light', C.stateGrid({ kP: 2, kI: 2, sPm: 3, sPp: 3, sIm: 3, sIp: 3 })[2][2], 'hell');
 eq('box: symmetric is a subset (P −1 +1 == both sides)', T(C.stateGrid({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 0, sIp: 0 })), '...../...../.mdm./...../.....');
 
+// boxRect: range as one rectangle in grid coords (x = kP, y = row 0 top), clipped — editor group outline
+eq('boxRect sym 1', C.boxRect({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 1, sIp: 1 }), { x: 1, y: 1, w: 3, h: 3 });
+eq('boxRect asym', C.boxRect({ kP: 1, kI: 2, sPm: 0, sPp: 2, sIm: 1, sIp: 0 }), { x: 1, y: 2, w: 3, h: 2 });
+eq('boxRect clipped', C.boxRect({ kP: 0, kI: 4, sPm: 3, sPp: 1, sIm: 1, sIp: 3 }), { x: 0, y: 0, w: 2, h: 2 });
 const svg = C.iconSvg({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 1, sIp: 1 }, { size: 32 });
 eq('iconSvg is svg', svg.startsWith('<svg') && svg.endsWith('</svg>'), true);
 eq('iconSvg fit class', C.iconSvg({ kP: 0, kI: 0, sPm: 0, sPp: 0, sIm: 0, sIp: 0 }, { fit: true }).includes('class="ind fit"'), true);
