@@ -301,6 +301,55 @@ function _normalise_ts(string $ts): ?string {
     return null;
 }
 
+// ─── parseSetKinds (UI2610-ADR-2) ────────────────────────────────────────────
+
+/** Set-kinds: latest value per sid wins (not summed like votes:). Value pattern per kind. */
+const SET_KINDS = [
+    'tri'   => '/^(in|open|out)$/',
+    'rate'  => '/^[0-5]$/',                                   // 0 = cleared
+    'ind'   => '/^[0-4],[0-4],[0-3],[0-3],[0-3],[0-3]$/',     // kP,kI,sP-,sP+,sI-,sI+
+    'cmp'   => '/^(-1|0|1)$/',                                // b wins · tie · a wins
+    'trust' => '/^[01]$/',
+];
+
+/**
+ * Extract set-kinds from a parsed entry. parseEntry() keeps "rate:s42:5" as attrs['rate'] = 's42:5'.
+ * Invalid sid/value → logged and dropped (CA4).
+ *
+ * @return array kind => [sid => value-string], kinds in SET_KINDS order
+ */
+function parseSetKinds(array $parsed): array {
+    $out = [];
+    foreach (SET_KINDS as $kind => $pattern) {
+        if (!isset($parsed['attrs'][$kind])) {
+            continue;
+        }
+        $raw = $parsed['attrs'][$kind];
+        if (preg_match('/^([a-zA-Z0-9_-]+):(.+)$/', $raw, $m) && $m[1] !== 'others' && preg_match($pattern, $m[2])) {
+            $out[$kind] = [$m[1] => $m[2]];
+        } elseif (function_exists('log_warn')) {
+            log_warn("parseSetKinds: invalid $kind:$raw");
+        }
+    }
+    return $out;
+}
+
+/**
+ * Set-kinds from a projected entry (own "<kind>:<sid>:<v>" + "<kind>:others:<hist>").
+ * Used by the JSON format, where attrs keyed by name would collapse both.
+ *
+ * @return array kind => [sid|'others' => value-string]
+ */
+function projectedSetKinds(string $entry): array {
+    $out = [];
+    foreach (explode(' | ', $entry) as $col) {
+        if (preg_match('/^([a-z]+):([a-zA-Z0-9_-]+):(.+)$/', $col, $m) && isset(SET_KINDS[$m[1]])) {
+            $out[$m[1]][$m[2]] = $m[3];
+        }
+    }
+    return $out;
+}
+
 // ─── aggregateVotes ──────────────────────────────────────────────────────────
 
 /**

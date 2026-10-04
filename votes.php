@@ -94,8 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             break;
         }
     }
+    // UI2610-ADR-2: a valid set-kind (tri/rate/ind/cmp/trust) also counts as a vote.
+    if (!$hasVote && !empty(parseSetKinds(parseEntry(implode(' | ', $columns))))) {
+        $hasVote = true;
+    }
     if (!$hasVote) {
-        respond_error('INVALID_ENTRY', 'vote entry must contain a votes:<sid>:<n> or signed:<sid>:<n> attribute', 400);
+        respond_error('INVALID_ENTRY', 'vote entry must contain a votes:<sid>:<n>, signed:<sid>:<n> or valid set-kind attribute', 400);
     }
 
     // Append type suffix if missing.

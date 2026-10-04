@@ -153,6 +153,20 @@ ok($r['status'] === 200, 'GET /votes (third sid) → 200');
 ok(($r['json']['/e2e/poll']['votes']['others'] ?? 0) === 2,
    'both sessions counted in others (got ' . json_encode($r['json']['/e2e/poll'] ?? null) . ')');
 
+// ─── UI2610: set-kinds (REQ-UI2610-14) ────────────────────────────────────────
+section('UI2610 set-kinds');
+$r = post('/votes', "sid=$sid&tid=$tid", "entry=/e2e/ui/a | tri:$sid:in | rate:$sid:5 | signed:$sid:1 | Item.");
+ok($r['status'] === 201, 'POST /votes set-kinds only → 201');
+$r = post('/votes', "sid={$sid}2&tid=$tid", "entry=/e2e/ui/a | rate:{$sid}2:3 | Item.");
+ok($r['status'] === 201, 'POST /votes rate second sid → 201');
+$r = post('/votes', "sid=$sid&tid=$tid", "entry=/e2e/ui/a | rate:$sid:9 | Item.");
+ok($r['status'] === 400, 'POST /votes invalid rate only → 400');
+$r = get('/votes', "sid=$sid&tid=$tid&format=json&refresh");
+$ui = $r['json']['/e2e/ui/a'] ?? [];
+ok(($ui['sets']['rate'][$sid] ?? '') === '5', 'GET /votes own rate (got ' . json_encode($ui) . ')');
+ok(($ui['sets']['rate']['others'] ?? '') === '3=1', 'GET /votes rate histogram of others');
+ok(($ui['attrs']['signers'] ?? '') === $sid, 'GET /votes signers listed');
+
 // ─── 7. Dumps ─────────────────────────────────────────────────────────────────
 
 section('Dumps');
@@ -459,6 +473,9 @@ ok(str_starts_with((string)($r['json']['votePageTopic'] ?? ''), '/'), 'config: v
 ok(array_key_exists('votePageType', $r['json'] ?? []),                         'config: has votePageType');
 ok(in_array($r['json']['votePageType'] ?? '', ['fakt', 'gegenfrage'], true), 'config: votePageType is fakt|gegenfrage');
 ok(array_key_exists('votePageTitle', $r['json'] ?? []),                        'config: has votePageTitle');
+ok(array_key_exists('voteMobileTid', $r['json'] ?? []),                        'config: has voteMobileTid (UI2610)');
+ok(array_key_exists('voteMobileTopic', $r['json'] ?? []),                      'config: has voteMobileTopic (UI2610)');
+ok(array_key_exists('voteMobileTitle', $r['json'] ?? []),                      'config: has voteMobileTitle (UI2610)');
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
