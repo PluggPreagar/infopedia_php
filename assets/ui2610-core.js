@@ -228,10 +228,26 @@ function nextPairs(list, compared, limit = 5) {
     return cand.slice(0, limit).map(c => c.pair);
 }
 
+// ── Topics (REQ-UI2610-31) ───────────────────────────────────────────────────
+/** Topic = entry `<base>/<slug> | kind:topic | <Title>.` — its Items live below it. */
+const isTopicEntry = e => !!e && !!e.attrs && e.attrs.kind === 'topic';
+function slugify(name) {
+    return String(name).toLowerCase()
+        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+}
+function topicsOf(entries, base) {
+    const prefix = base === '/' ? '/' : base + '/';
+    return Object.entries(entries || {})
+        .filter(([k, e]) => k.startsWith(prefix) && !k.slice(prefix.length).includes('/') && isTopicEntry(e))
+        .map(([key, e]) => ({ key, title: String(e.message || '').replace(/[.!?>-]+$/, '').trim() || key }))
+        .sort((a, b) => a.title.localeCompare(b.title));
+}
+
 if (typeof module !== 'undefined') {
     module.exports = {
         parseHist, parseIndHist, parseInd, formatInd, ratingStats,
         pooledAxis, groupInd, isFit, stateGrid, boxRect, SEVERITY, cellStyle, MAGNITUDE, magnitudeRect, iconSvg,
-        cellAt, dragInd, growLo, growHi, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
+        cellAt, dragInd, growLo, growHi, isTopicEntry, slugify, topicsOf, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
     };
 }

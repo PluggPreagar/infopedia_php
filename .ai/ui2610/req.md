@@ -10,6 +10,7 @@ These are product requirements, separate from the process requirements `REQ-S<st
 | --- | --- |
 | Item | A votable thing; ≤ 50 per Session |
 | Session | One topic folder `/t` in one tenant |
+| Topic | A Session folder, entry `/<base>/<slug> \| kind:topic \| Title.` (e.g. Klima, Rente) |
 | Voter | Participant, identified by `sid` |
 | Triage | Step 1: is the Item relevant to judge? Values In / Open / Out. Not a score |
 | Rating | Step 2: score 1–5 |
@@ -38,6 +39,9 @@ These are product requirements, separate from the process requirements `REQ-S<st
 - **REQ-UI2610-8 (MUST):** one mode per step (D9): Triage = card stack (swipe right = In · left = Out · up = Open, plus buttons; undo toast for 4 s, the POST is delayed until then) · Rate = list with 1–5 chips + Sign · Fine-tune = two cards, tap the more important one, or Tie. -- user 2026-10-04
 - **REQ-UI2610-9 (MUST):** an Overview tab shows the Group Ranking. Tapping an Item opens the Item sheet with all own controls (Triage, Rating, Sign, Indicator), so any earlier decision can be changed ("jump back"). The Overview also holds the own Name and the Trust toggles. -- user 2026-10-04
 - **REQ-UI2610-19 (MUST):** Triage filter "new only" shows only Items without an own Triage (it hides Items the Voter marked Open). -- user 2026-10-04
+
+- **REQ-UI2610-31 (MUST):** the Voter selects or creates a topic. Items, Comparisons and Trust are separated per topic; the current topic is kept in `?topic=` and in localStorage. -- ADR-7
+- **REQ-UI2610-32 (MUST):** related choices are one segmented button group with one active part: step tabs · Triage (Raus/Offen/Relevant) · Rating 1–5. -- user 2026-10-04
 
 UI labels (German): Triage = "Sichten" · Rate = "Bewerten" · Fine-tune = "Feinschliff" · In / Open / Out = "Relevant / Offen / Raus" · Sign = "signieren".
 

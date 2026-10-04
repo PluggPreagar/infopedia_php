@@ -114,5 +114,19 @@ eq('nextPairs: adjacent, never compared first', C.nextPairs([{ id: 'a', r: 5 }, 
 
 
 
+// ── Topics (REQ-UI2610-31) ───────────────────────────────────────────────────
+eq('slugify', [C.slugify('Klima'), C.slugify('Rente & Pflege 2030'), C.slugify('  Über-Größe  '), C.slugify('!!')], ['klima', 'rente-pflege-2030', 'ueber-groesse', '']);
+const ent = {
+    '/b/klima':      { message: 'Klima.', attrs: { kind: 'topic' } },
+    '/b/klima/n1':   { message: 'Hitze.', attrs: {} },
+    '/b/rente':      { message: 'Rente.', attrs: { kind: 'topic' } },
+    '/b/loose':      { message: 'Altes Item.', attrs: {} },
+    '/b/klima/x/y':  { message: 'tief.', attrs: { kind: 'topic' } },
+    '/other/t':      { message: 'Anders.', attrs: { kind: 'topic' } },
+};
+eq('topicsOf: direct kind:topic children, by title', C.topicsOf(ent, '/b'), [{ key: '/b/klima', title: 'Klima' }, { key: '/b/rente', title: 'Rente' }]);
+eq('topicsOf: root /', C.topicsOf({ '/k': { message: 'K.', attrs: { kind: 'topic' } } }, '/'), [{ key: '/k', title: 'K' }]);
+eq('isTopicEntry', [C.isTopicEntry(ent['/b/klima']), C.isTopicEntry(ent['/b/loose'])], [true, false]);
+
 console.log(`${fail === 0 ? 'OK' : 'FAIL'} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

@@ -19,8 +19,16 @@
     .muted { color: var(--color-neutral-600); font-size: var(--text-sm); }
     .row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
     .grow { flex: 1; min-width: 0; }
-    #tab-bar { flex-wrap: nowrap; overflow-x: auto; }
-    #tab-bar .chip { flex: none; padding-inline: var(--space-2); font-size: var(--text-sm); }
+    /* Button group (segmented): one frame, equal parts, one active (REQ-UI2610-32) */
+    .seg { display: flex; border: 1px solid var(--color-interactive-600); border-radius: var(--radius-md); overflow: hidden; background: #fff; }
+    .seg > button { flex: 1 1 0; min-width: 0; min-height: 40px; border: 0; border-left: 1px solid var(--color-interactive-600); background: #fff; color: var(--color-interactive-700);
+                    font: inherit; font-size: var(--text-sm); padding: 6px 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .seg > button:first-child { border-left: 0; }
+    .seg > button.active { background: var(--color-interactive-600); color: #fff; }
+    .seg.rate { max-width: 260px; flex: 1; }
+    #tab-bar { margin: var(--space-2) var(--space-3) 0; }
+    .topic-bar { padding: var(--space-2) var(--space-3) 0; max-width: 640px; margin: 0 auto; width: 100%; }
+    .topic-bar select { flex: 1; min-width: 0; }
     .tab-count { font-size: var(--text-xs); opacity: .8; margin-left: 2px; }
     .item-title { font-weight: var(--font-weight-bold); overflow-wrap: anywhere; }
     .ind-pair { display: flex; align-items: center; gap: 4px; cursor: pointer; background: none; border: 0; padding: 2px; }
@@ -28,13 +36,10 @@
     svg.ind { display: block; background: #fff; }
     svg.ind.fit { outline: 2px solid var(--color-interactive-600); outline-offset: 2px; border-radius: 2px; }
     .ind-empty { width: 32px; height: 32px; border: 1px dashed var(--color-neutral-400); border-radius: 4px; display: grid; place-items: center; font-size: var(--text-xs); color: var(--color-neutral-600); }
-    .rate-chips { display: flex; gap: 6px; }
-    .rate-chips .chip { min-width: 40px; justify-content: center; }
     .chip.active { background: var(--color-interactive-600); color: #fff; border-color: var(--color-interactive-600); }
     .sign-chip { font-size: var(--text-xs); padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-interactive-50); color: var(--color-interactive-700); }
     /* Triage stack */
     #stack .card { touch-action: none; min-height: 160px; display: flex; flex-direction: column; justify-content: center; }
-    .tri-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-2); }
     /* Fine-tune pair */
     .pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
     .pair .card { cursor: pointer; min-height: 140px; }
@@ -59,11 +64,17 @@
   <button id="btn-reload" class="btn-icon" aria-label="Neu laden">↻</button>
 </nav>
 
-<div class="chip-bar" id="tab-bar">
-  <button class="chip chip-scope" data-step="triage">1 Sichten<span class="tab-count" id="cnt-triage"></span></button>
-  <button class="chip chip-scope" data-step="rate">2 Bewerten<span class="tab-count" id="cnt-rate"></span></button>
-  <button class="chip chip-scope" data-step="tune">3 Feinschliff<span class="tab-count" id="cnt-tune"></span></button>
-  <button class="chip chip-scope" data-step="over">Übersicht</button>
+<div class="row topic-bar">
+  <label class="muted" for="topic-select">Thema</label>
+  <select id="topic-select" class="select" aria-label="Thema wählen"></select>
+  <button class="btn btn-ghost" data-act="topic-new">+ Thema</button>
+</div>
+
+<div class="seg" id="tab-bar" role="tablist">
+  <button data-step="triage">Sichten<span class="tab-count" id="cnt-triage"></span></button>
+  <button data-step="rate">Bewerten<span class="tab-count" id="cnt-rate"></span></button>
+  <button data-step="tune">Feinschliff<span class="tab-count" id="cnt-tune"></span></button>
+  <button data-step="over">Übersicht</button>
 </div>
 
 <main id="view"></main>
@@ -80,7 +91,7 @@
 <script src="assets/ui2610-core.js"></script>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-let tenantId = "", topicRoot = "/", sid = "www";
+let tenantId = "", baseRoot = "/", topicRoot = "/", sid = "www";   // base = cfg folder holding the topics
 let entries = {};          // GET /entries (json)
 let votes = {};            // GET /votes  (json, with `sets`)
 let step = "triage";
@@ -98,7 +109,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 function itemIds() {
     const prefix = topicRoot === "/" ? "/" : topicRoot + "/";
     return Object.keys(entries)
-        .filter(k => k.startsWith(prefix) && !k.slice(prefix.length).includes("/") && !k.includes("~"))
+        .filter(k => k.startsWith(prefix) && !k.slice(prefix.length).includes("/") && !k.includes("~") && !isTopicEntry(entries[k]))
         .sort((a, b) => (entries[a].timestamp || "").localeCompare(entries[b].timestamp || ""))
         .map(nodeId);
 }
@@ -195,8 +206,8 @@ function signsHtml(id) {
 }
 function rateChips(id) {
     const r = own(itemKey(id), "rate");
-    return `<div class="rate-chips">` + [1, 2, 3, 4, 5].map(n =>
-        `<button class="chip${String(n) === r ? " active" : ""}" data-rate="${id}" data-v="${n}">${n}</button>`).join("") + `</div>`;
+    return `<div class="seg rate" role="group" aria-label="Bewertung">` + [1, 2, 3, 4, 5].map(n =>
+        `<button class="${String(n) === r ? "active" : ""}" data-rate="${id}" data-v="${n}">${n}</button>`).join("") + `</div>`;
 }
 function signBtn(id) {
     const p = itemKey(id);
@@ -223,7 +234,8 @@ function nextPair() {
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function render() {
-    document.querySelectorAll("#tab-bar .chip").forEach(c => c.classList.toggle("active", c.dataset.step === step));
+    document.querySelectorAll("#tab-bar button").forEach(c => c.classList.toggle("active", c.dataset.step === step));
+    renderTopics();
     document.getElementById("cnt-triage").textContent = " " + triageIds().length;
     document.getElementById("cnt-rate").textContent = " " + rateIds().filter(id => !own(itemKey(id), "rate")).length;
     document.getElementById("cnt-tune").textContent = nextPair() ? " •" : "";
@@ -248,10 +260,10 @@ function viewTriage() {
             <div class="row"><span class="item-title grow">${esc(titleOf(id))}</span>${indHtml(id)}</div>
             ${t === "open" ? `<span class="muted">bisher: Offen</span>` : ""}
         </div></div></div>
-        <div class="tri-buttons">
-            <button class="btn btn-secondary" data-tri="${id}" data-v="out">← Raus</button>
-            <button class="btn btn-ghost" data-tri="${id}" data-v="open">Offen</button>
-            <button class="btn btn-primary" data-tri="${id}" data-v="in">Relevant →</button>
+        <div class="seg" role="group" aria-label="Sichten">
+            <button data-tri="${id}" data-v="out">← Raus</button>
+            <button class="${t === "open" ? "active" : ""}" data-tri="${id}" data-v="open">Offen</button>
+            <button data-tri="${id}" data-v="in">Relevant →</button>
         </div><p class="muted">Wischen: rechts = Relevant · links = Raus · hoch = Offen</p>`;
 }
 
@@ -309,6 +321,49 @@ function viewOver() {
         </div></div>`;
 }
 
+// ── Topics (REQ-UI2610-31) ───────────────────────────────────────────────────
+function topicOptions() {
+    const list = topicsOf(entries, baseRoot);
+    const loose = (() => { const keep = topicRoot; topicRoot = baseRoot; const n = itemIds().length; topicRoot = keep; return n; })();
+    if (loose || !list.length) list.unshift({ key: baseRoot, title: list.length ? "(ohne Thema)" : "Allgemein" });
+    if (!list.some(t => t.key === topicRoot)) list.push({ key: topicRoot, title: nodeId(topicRoot) || topicRoot });
+    return list;
+}
+function renderTopics() {
+    const sel = document.getElementById("topic-select");
+    sel.innerHTML = topicOptions().map(t => `<option value="${esc(t.key)}"${t.key === topicRoot ? " selected" : ""}>${esc(t.title)}</option>`).join("");
+}
+function switchTopic(key) {
+    if (key === topicRoot) return;
+    topicRoot = key;
+    saveSettings({ ui2610Topic: key });
+    const url = new URL(location.href); url.searchParams.set("topic", key); history.replaceState(null, "", url);   // shareable link
+    if (step === "tune" || step === "over") step = "triage";
+    render();
+}
+function openTopicNew() {
+    openSheet(sheetHead("Neues Thema") + `<label class="form-label" for="topic-name">Name</label>
+        <input id="topic-name" class="input" maxlength="40" placeholder="z. B. Klima, Rente">
+        <p class="muted">Jedes Thema hat eigene Einträge, Vergleiche und Vertrauen.</p>
+        <div class="row" style="justify-content:flex-end"><button class="btn btn-primary" data-act="topic-save">Anlegen</button></div>`);
+    document.getElementById("topic-name").focus();
+}
+async function saveTopicNew() {
+    const name = document.getElementById("topic-name").value.trim().replace(/\s*\|\s*/g, " / ");
+    const slug = slugify(name);
+    if (!slug) { showToast("Bitte einen Namen mit Buchstaben oder Ziffern eingeben.", "error"); return; }
+    const key = fullKey(baseRoot, slug);
+    if (entries[key]) { closeSheet(); switchTopic(key); showToast("Thema gibt es schon — gewechselt.", "info", 2000); return; }
+    const message = /[.!?>-]$/.test(name) ? name : name + ".";
+    try {
+        const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body: new URLSearchParams({ entry: `${key} | kind:topic | ${message}` }) });
+        if (!res.ok) { console.error("[ui2610] POST topic:", res.status, (await res.text()).slice(0, 500)); showToast("Thema konnte nicht angelegt werden.", "error"); return; }
+        const json = await res.json().catch(() => ({}));
+        entries[key] = { timestamp: json.timestamp || "", message, attrs: { kind: "topic" } };
+        closeSheet(); switchTopic(key); showToast(`Thema „${name}“ angelegt.`, "success", 1500);
+    } catch (err) { console.error("[ui2610] POST topic:", err); showToast("Verbindung unterbrochen.", "error"); }
+}
+
 // ── Sheets: Item (jump back) · Indicator editor · add ─────────────────────────
 function openSheet(html) {
     document.getElementById("sheet").innerHTML = html;
@@ -325,8 +380,8 @@ const sheetHead = t => `<div class="sheet-header"><h3>${esc(t)}</h3><button clas
 function openItem(id) {
     const p = itemKey(id), t = own(p, "tri");
     openSheet(sheetHead(titleOf(id)) + `
-        <p class="form-label">Sichten</p><div class="row">${["in", "open", "out"].map(v =>
-            `<button class="chip${t === v ? " active" : ""}" data-tri="${id}" data-v="${v}" data-stay="1">${TRI_LABEL[v]}</button>`).join("")}</div>
+        <p class="form-label">Sichten</p><div class="seg" role="group" aria-label="Sichten">${["out", "open", "in"].map(v =>
+            `<button class="${t === v ? "active" : ""}" data-tri="${id}" data-v="${v}" data-stay="1">${TRI_LABEL[v]}</button>`).join("")}</div>
         <p class="form-label">Bewerten</p><div class="row">${rateChips(id)}${signBtn(id)}</div>
         <p class="form-label">Indikator</p><div class="row">${indHtml(id)}<button class="btn btn-ghost" data-edit="${id}">bearbeiten</button></div>`);
     sheetItem = id;
@@ -471,6 +526,8 @@ function onClick(e) {
         const id = editor.id; saveSet(id, "ind", formatInd(editor.draft)); closeSheet();
     }
     else if (d.act === "add-save") saveAdd();
+    else if (d.act === "topic-new") openTopicNew();
+    else if (d.act === "topic-save") saveTopicNew();
 }
 
 // ── Data + settings ───────────────────────────────────────────────────────────
@@ -482,6 +539,8 @@ async function loadData() {
         if (!eRes.ok || !vRes.ok) throw new Error(`entries ${eRes.status} / votes ${vRes.status}`);
         entries = await jsonOrEmpty(eRes);
         votes = await jsonOrEmpty(vRes);
+        const topics = topicsOf(entries, baseRoot);
+        if (topicRoot === baseRoot && topics.length && !itemIds().length) topicRoot = topics[0].key;   // start in the first topic
         render();
         document.getElementById("fab").hidden = false;
     } catch (err) {
@@ -507,17 +566,21 @@ async function init() {
     });
     document.getElementById("fab").addEventListener("click", openAdd);
     document.getElementById("btn-reload").addEventListener("click", loadData);
+    document.getElementById("topic-select").addEventListener("change", e => switchTopic(e.target.value));
     document.getElementById("sheet-backdrop").addEventListener("click", e => { if (e.target.id === "sheet-backdrop") closeSheet(); });
     document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
     let cfg = {};
     try { cfg = await (await fetch("config.php")).json(); } catch (err) { console.warn("[ui2610] config.php:", err); }
     const params = new URLSearchParams(location.search);
     tenantId  = params.get("tid") || cfg.voteMobileTid || "";
-    topicRoot = (params.get("topic") || cfg.voteMobileTopic || "/").replace(/\/+$/, "") || "/";
+    const norm = t => (t || "").replace(/\/+$/, "") || "/";
     const settings = loadSettings();
+    baseRoot  = norm(params.get("base") || cfg.voteMobileTopic || "/");
+    topicRoot = norm(params.get("topic") || settings.ui2610Topic || baseRoot);
+    if (topicRoot !== baseRoot && !topicRoot.startsWith(baseRoot === "/" ? "/" : baseRoot + "/") && !params.get("topic")) topicRoot = baseRoot;   // stale setting from another base
     sid = ensureSid(settings);
     myName = settings.ui2610Name || "";
-    const title = cfg.voteMobileTitle || "Abstimmen · " + topicRoot;
+    const title = cfg.voteMobileTitle || "Abstimmen · " + baseRoot;
     document.getElementById("nav-title").textContent = title;
     document.title = title + " — fayf";
     if (!TID_RE.test(tenantId)) {
