@@ -64,6 +64,14 @@ eq('cellStyle: single point → faded own colour', C.cellStyle(one, 3, 1), { fil
 eq('iconSvg: black core rect', C.iconSvg(wide).includes('fill="#14171A"'), true);
 eq('iconSvg: single point has no black', C.iconSvg(one).includes('#14171A'), false);
 
+// ── Magnitude area V2 (UI2610-ADR-6): grey rectangle from 0,0 to the core ──────
+eq('magnitudeRect origin', C.magnitudeRect({ kP: 0, kI: 0 }), { x: 0, y: 4, w: 1, h: 1 });
+eq('magnitudeRect mid', C.magnitudeRect({ kP: 2, kI: 1 }), { x: 0, y: 3, w: 3, h: 2 });
+eq('magnitudeRect max', C.magnitudeRect({ kP: 4, kI: 4 }), { x: 0, y: 0, w: 5, h: 5 });
+const svgM = C.iconSvg({ kP: 2, kI: 1, sPm: 0, sPp: 0, sIm: 0, sIp: 0 });
+eq('iconSvg draws grey area first (below the box)', svgM.indexOf(`fill="${C.MAGNITUDE}"`) > 0 && svgM.indexOf(`fill="${C.MAGNITUDE}"`) < svgM.indexOf('fill="' + C.SEVERITY[3] + '"'), true);
+eq('iconSvg grey area geometry (icon offset y+1)', svgM.includes(`<rect x="0" y="4" width="3" height="2" fill="${C.MAGNITUDE}"/>`), true);
+
 // boxRect: range as one rectangle in grid coords (x = kP, y = row 0 top), clipped — editor group outline
 eq('boxRect sym 1', C.boxRect({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 1, sIp: 1 }), { x: 1, y: 1, w: 3, h: 3 });
 eq('boxRect asym', C.boxRect({ kP: 1, kI: 2, sPm: 0, sPp: 2, sIm: 1, sIp: 0 }), { x: 1, y: 2, w: 3, h: 2 });

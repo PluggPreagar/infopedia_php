@@ -120,11 +120,20 @@ function cellStyle(v, kP, kI) {
     return { fill: SEVERITY[kP + kI], opacity: RING_OPACITY[tone] };
 }
 
+/** Magnitude area (UI2610-ADR-6, V2): grey rectangle from 0,0 (unlikely, marginal) to the core —
+ *  its area grows with P × I. Grid coords: x = kP, y = row (0 = top). */
+const MAGNITUDE = '#E4E6E1';
+function magnitudeRect(v) {
+    return { x: 0, y: 4 - v.kI, w: v.kP + 1, h: v.kI + 1 };
+}
+
 function iconSvg(v, opts = {}) {
     const { size = 32, fit = false, faint = false } = opts;
     const label = `P ${v.kP + 1}/5, Impact ${v.kI + 1}/5, σ P −${v.sPm} +${v.sPp}, σ I −${v.sIm} +${v.sIp}`;
     let s = `<svg class="ind${fit ? ' fit' : ''}${faint ? ' faint' : ''}" width="${size}" height="${size}" viewBox="0 0 6 6" shape-rendering="crispEdges" role="img" aria-label="${label}">`;
     s += `<rect x="5" y="0" width="1" height="6" fill="${FRAME}"/><rect x="0" y="0" width="5" height="1" fill="${FRAME}"/>`;
+    const m = magnitudeRect(v);
+    s += `<rect x="${m.x}" y="${m.y + 1}" width="${m.w}" height="${m.h}" fill="${MAGNITUDE}"/>`;
     for (let kI = 0; kI < 5; kI++) for (let kP = 0; kP < 5; kP++) {
         const st = cellStyle(v, kP, kI);
         if (st) s += `<rect x="${kP}" y="${1 + 4 - kI}" width="1" height="1" fill="${st.fill}"${st.opacity < 1 ? ` fill-opacity="${st.opacity}"` : ''}/>`;
@@ -222,7 +231,7 @@ function nextPairs(list, compared, limit = 5) {
 if (typeof module !== 'undefined') {
     module.exports = {
         parseHist, parseIndHist, parseInd, formatInd, ratingStats,
-        pooledAxis, groupInd, isFit, stateGrid, boxRect, SEVERITY, cellStyle, iconSvg,
+        pooledAxis, groupInd, isFit, stateGrid, boxRect, SEVERITY, cellStyle, MAGNITUDE, magnitudeRect, iconSvg,
         cellAt, dragInd, growLo, growHi, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
     };
 }

@@ -64,4 +64,5 @@ UI labels (German): Triage = "Sichten" · Rate = "Bewerten" · Fine-tune = "Fein
 - **REQ-UI2610-26 (MUST):** every Voter can edit their own Indicator. -- user
 - **REQ-UI2610-28 (MUST):** group Indicator = rounded mean Core + pooled σ per side (formula in ADR-3), computed in the frontend from the histograms. -- ADR-3
 - **REQ-UI2610-29 (MUST):** cell colour = severity by P+I score (green → amber → red); core = black square; a single point (all σ 0) = its own severity colour, faded. -- ADR-5
+- **REQ-UI2610-30 (MUST):** a grey area from 0,0 to the core, P[0, kP] × I[0, kI], is drawn below the box, in icons and in the editor. -- ADR-6
 - **REQ-UI2610-27 (SHOULD):** later, one combined icon for own vs group. -- idea

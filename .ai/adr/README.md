@@ -40,3 +40,4 @@ A log of **significant, hard-to-reverse** decisions. Template adapted from
 | UI2610-ADR-3 | Indicator model: 5×5 grid, asymmetric σ, group + own | accepted; icon part superseded by UI2610-ADR-4 |
 | UI2610-ADR-4 | Box indicator: σ range as a filled rectangle | accepted; tone part superseded by UI2610-ADR-5 |
 | UI2610-ADR-5 | Severity colour per cell, black core | accepted |
+| UI2610-ADR-6 | Magnitude area: grey rectangle 0,0 … core | accepted |

@@ -371,6 +371,7 @@ function drawEditor() {
     const group = groupInd(editor.draft, parseIndHist(others(p, "ind")));
     // Low noise (ADR-4): own value = one solid box like the icon; group = one dashed outline; no nested squares
     let s = "";
+    if (editor.draft) { const m = magnitudeRect(editor.draft); s += `<rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" fill="${MAGNITUDE}"/>`; }
     if (editor.draft) for (let kI = 0; kI < 5; kI++) for (let kP = 0; kP < 5; kP++) {
         const st = cellStyle(editor.draft, kP, kI);
         if (st) s += `<rect x="${kP}" y="${4 - kI}" width="1" height="1" fill="${st.fill}" fill-opacity="${st.opacity}"/>`;
