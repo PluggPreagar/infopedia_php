@@ -4,6 +4,8 @@
  * Usage: ?token=<upgradeToken from infopedia.cfg>
  */
 
+require_once __DIR__ . '/util_deploy.php';
+
 // ── Config ────────────────────────────────────────────────────────────────────
 $ini      = file_exists(__DIR__ . '/infopedia.cfg') ? parse_ini_file(__DIR__ . '/infopedia.cfg', true) : [];
 $u        = $ini['upgrade'] ?? [];
@@ -56,7 +58,14 @@ if ($zip->open($tmp) !== true) {
 // Detect top-level prefix, e.g. "infopedia_php-dev/" and read commit metadata
 $prefix      = '';
 $commitSha   = $zip->comment ?: '(unknown)';
-$commitMtime = $zip->count() > 0 ? ($zip->statIndex(0)['mtime'] ?? 0) : 0;
+$commitMtime = $zip->count() > 0 ? ($zip->statIndex(0)['mtime'] ?? 0) : 0;   // fallback only: no timezone in ZIP
+$timeSource  = 'zip, server tz';
+if (preg_match('/^[0-9a-f]{40}$/', $commitSha)) {
+    // Real commit time from GitHub; the ZIP mtime is read in the server's timezone (was 9 h off)
+    $ctx = stream_context_create(['http' => ['timeout' => 5, 'header' => "User-Agent: infopedia-deploy\r\nAccept: application/vnd.github+json\r\n"]]);
+    $apiTime = deploy_commit_time((string) @file_get_contents('https://api.github.com/repos/' . $repo . '/commits/' . $commitSha, false, $ctx));
+    if ($apiTime > 0) { $commitMtime = $apiTime; $timeSource = 'GitHub'; }
+}
 if ($zip->count() > 0) {
     $first = $zip->getNameIndex(0);
     if (($pos = strpos($first, '/')) !== false) {
@@ -119,7 +128,7 @@ header('Content-Type: text/html; charset=utf-8');
 <h2>deploy — <?= htmlspecialchars($branch) ?></h2>
 <p>
   commit: <code><?= htmlspecialchars($commitSha) ?></code><br>
-  time: <?= $commitMtime ? gmdate('Y-m-d H:i:s', $commitMtime) . ' UTC' : '(unknown)' ?><br>
+  time: <?= $commitMtime ? gmdate('Y-m-d H:i:s', $commitMtime) . ' UTC' : '(unknown)' ?> <small>(<?= $timeSource ?>)</small><br>
   <a href="<?= htmlspecialchars($zipUrl) ?>">GitHub ZIP</a>
 </p>
 <table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;width:100%">
