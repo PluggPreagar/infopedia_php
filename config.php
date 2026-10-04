@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $ini   = file_exists(__DIR__ . '/infopedia.cfg') ? parse_ini_file(__DIR__ . '/infopedia.cfg', true) : [];
 $issue = $ini['issue']     ?? [];
 $vote  = $ini['vote_page'] ?? [];
+$vmob  = $ini['vote_mobile'] ?? [];   // UI2610 vote-mobile.html
 
 echo json_encode([
     'issueGithubUrl' => $issue['github_url'] ?? '',
@@ -20,4 +21,7 @@ echo json_encode([
     'votePageTopic'  => $vote['topic']       ?? '/',
     'votePageType'   => $vote['type']        ?? 'fakt',
     'votePageTitle'  => $vote['title']       ?? '',
+    'voteMobileTid'   => $vmob['tid']        ?? '',
+    'voteMobileTopic' => $vmob['topic']      ?? '/',
+    'voteMobileTitle' => $vmob['title']      ?? '',
 ]);

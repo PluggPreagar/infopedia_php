@@ -32,7 +32,8 @@ function votes_sumup_merge_line(array $nodes, string $line): array {
     $parsed = parseEntry($entry);
     $path = $parsed['path'];
 
-    $is_vote_row = !empty($parsed['votes']) || !empty($parsed['signed']);
+    $sets = parseSetKinds($parsed);
+    $is_vote_row = !empty($parsed['votes']) || !empty($parsed['signed']) || !empty($sets);
     $is_delete = ($parsed['type'] === '--');
 
     // Delete marker removes node
@@ -57,10 +58,31 @@ function votes_sumup_merge_line(array $nodes, string $line): array {
             $nodes[$path]['by_sid'][$sid] = ($nodes[$path]['by_sid'][$sid] ?? 0) + $count;
         }
 
-        // Merge signers (unique per sid with val > 0)
+        // Signers: latest value per sid wins; 0 = withdrawn (UI2610-ADR-2)
         foreach ($parsed['signed'] as $sid => $val) {
+            if ($ts < ($nodes[$path]['signed_ts'][$sid] ?? '')) {
+                continue;
+            }
+            $nodes[$path]['signed_ts'][$sid] = $ts;
             if ($val > 0) {
                 $nodes[$path]['signers'][$sid] = 1;
+                // by:<name> in the same row = this Signer's public name (UI2610-ADR-2)
+                $by = trim($parsed['attrs']['by'] ?? '');
+                if (preg_match('/^[^|;=,]{1,40}$/u', $by)) {
+                    $nodes[$path]['names'][$sid] = $by;
+                }
+            } else {
+                unset($nodes[$path]['signers'][$sid], $nodes[$path]['names'][$sid]);
+            }
+        }
+
+        // Set-kinds: latest value per sid wins (UI2610-ADR-2)
+        foreach ($sets as $kind => $by_sid) {
+            foreach ($by_sid as $sid => $val) {
+                if ($ts < ($nodes[$path]['sets'][$kind][$sid]['ts'] ?? '')) {
+                    continue;
+                }
+                $nodes[$path]['sets'][$kind][$sid] = ['v' => $val, 'ts' => $ts];
             }
         }
 
@@ -87,6 +109,53 @@ function votes_sumup_merge_line(array $nodes, string $line): array {
     }
 
     return $nodes;
+}
+
+/**
+ * Columns for one set-kind: " | <kind>:<own-sid>:<v> | <kind>:others:<histogram>".
+ * Histogram: "<v>=<n>;..." sorted by value; ind: one fixed-width bin list per component.
+ * Cleared values (rate 0) are skipped. Pure — testable (CA6).
+ *
+ * @param array $by_sid sid => ['v' => value, 'ts' => ts]
+ */
+function votes_set_cols(string $kind, array $by_sid, string $session_id): string {
+    $cleared = fn($v) => $kind === 'rate' && $v === '0';
+    $cols = '';
+    $own = $by_sid[$session_id]['v'] ?? null;
+    if ($own !== null && !$cleared($own)) {
+        $cols .= " | $kind:$session_id:$own";
+    }
+
+    $others = [];
+    foreach ($by_sid as $sid => $rec) {
+        if ($sid !== $session_id && !$cleared($rec['v'])) {
+            $others[] = $rec['v'];
+        }
+    }
+    if (empty($others)) {
+        return $cols;
+    }
+
+    if ($kind === 'ind') {
+        $names = ['kP', 'kI', 'sP-', 'sP+', 'sI-', 'sI+'];
+        $parts = [];
+        foreach ($names as $i => $name) {
+            $bins = array_fill(0, $i < 2 ? 5 : 4, 0);
+            foreach ($others as $v) {
+                $bins[(int)explode(',', $v)[$i]]++;
+            }
+            $parts[] = $name . '=' . implode(',', $bins);
+        }
+        return $cols . " | ind:others:" . implode(';', $parts);
+    }
+
+    $hist = array_count_values($others);
+    uksort($hist, 'strnatcmp');
+    $bins = [];
+    foreach ($hist as $v => $n) {
+        $bins[] = "$v=$n";
+    }
+    return $cols . " | $kind:others:" . implode(';', $bins);
 }
 
 /**
@@ -126,6 +195,26 @@ function votes_sumup_project(array $nodes, string $session_id): string {
             $signed_count = count($node['signers']);
             if ($signed_count > 0) {
                 $vote_cols .= ' | signed_count:' . $signed_count;
+            }
+
+            // Set-kinds: own value + histogram of others; signers only on set rows (UI2610-ADR-2)
+            $node_sets = $node['sets'] ?? [];
+            foreach (array_keys(SET_KINDS) as $kind) {
+                if (!empty($node_sets[$kind])) {
+                    $vote_cols .= votes_set_cols($kind, $node_sets[$kind], $session_id);
+                }
+            }
+            if (!empty($node_sets) && $signed_count > 0) {
+                $vote_cols .= ' | signers:' . implode(',', array_keys($node['signers']));
+                $names = [];
+                foreach (array_keys($node['signers']) as $sid) {
+                    if (isset($node['names'][$sid])) {
+                        $names[] = $sid . '=' . $node['names'][$sid];
+                    }
+                }
+                if (!empty($names)) {
+                    $vote_cols .= ' | names:' . implode(';', $names);
+                }
             }
 
             $entry = $path . $vote_cols . ' | ' . $node['content'];

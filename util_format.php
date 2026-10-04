@@ -83,7 +83,7 @@ function _parse_csv_rows(string $csv): array {
             continue;
         }
 
-        $rows[] = ['outer_ts' => $outer_ts, 'parsed' => $parsed];
+        $rows[] = ['outer_ts' => $outer_ts, 'parsed' => $parsed, 'entry' => $entry_raw];
     }
 
     return $rows;
@@ -114,6 +114,13 @@ function csv_to_json(string $csv): array {
 
         if (!empty($parsed['votes'])) {
             $entry['votes'] = $parsed['votes'];
+        }
+
+        // UI2610-ADR-2: own + others per set-kind; drop the collapsed attrs keys
+        $sets = projectedSetKinds($row['entry']);
+        if (!empty($sets)) {
+            $entry['sets'] = $sets;
+            $entry['attrs'] = array_diff_key($entry['attrs'], $sets);
         }
 
         $result[$parsed['path']] = $entry;
