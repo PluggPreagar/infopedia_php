@@ -40,28 +40,18 @@ eq('isFit equal', C.isFit(own, { ...own }), true);
 eq('isFit differs', C.isFit(own, { ...own, sPp: 1 }), false);
 eq('isFit null', C.isFit(null, own), false);
 
-// ── asymmetric satellites (REQ-UI2610-22) ────────────────────────────────────
-// Schema F reference: satellites(k,d) with d = step 1 → 1, step 2|3 → 2
-eq('sat sym = Schema F (k2 d1)', C.satellites(2, 1, 1), [1, 3]);
-eq('sat sym = Schema F (k0 d2): edge shift', C.satellites(0, 2, 2), [1, 2]);
-eq('sat sym = Schema F (k4 d1)', C.satellites(4, 1, 1), [3, 2]);
-eq('sat asym k2 −1 +2', C.satellites(2, 1, 2), [1, 4]);
-eq('sat step 0 one side', C.satellites(2, 0, 2), [4]);
-eq('sat both 0', C.satellites(2, 0, 0), []);
-eq('stepDist', [0,1,2,3].map(C.stepDist), [0,1,2,2]);
+// ── Box indicator (UI2610-ADR-4): every cell in the σ range is filled ───────
+// grid rows: row 0 = kI 4 (top). g[row][kP]
+const T = (g) => g.map(r => r.map(t => (t ? t[0] : '.')).join('')).join('/');   // d/m/h/. per cell
+eq('box: σ 0 = core only', T(C.stateGrid({ kP: 2, kI: 2, sPm: 0, sPp: 0, sIm: 0, sIp: 0 })), '...../...../..d../...../.....');
+eq('box: σ 1 all sides = 3×3', T(C.stateGrid({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 1, sIp: 1 })), '...../.mmm./.mdm./.mmm./.....');
+eq('box: σ 2 all sides = 5×5, ring 2 light', T(C.stateGrid({ kP: 2, kI: 2, sPm: 2, sPp: 2, sIm: 2, sIp: 2 })), 'hhhhh/hmmmh/hmdmh/hmmmh/hhhhh');
+eq('box: asym P −0 +2, I −1 +0', T(C.stateGrid({ kP: 1, kI: 2, sPm: 0, sPp: 2, sIm: 1, sIp: 0 })), '...../...../.dmh./.mmh./.....');
+eq('box: clipped at edge', T(C.stateGrid({ kP: 0, kI: 4, sPm: 3, sPp: 1, sIm: 1, sIp: 3 })), 'dm.../mm.../...../...../.....');
+eq('box: step 3 reaches 3 cells', T(C.stateGrid({ kP: 0, kI: 0, sPm: 0, sPp: 3, sIm: 0, sIp: 0 })), '...../...../...../...../dmhh.');
+eq('box: entwertet all 3 → core light', C.stateGrid({ kP: 2, kI: 2, sPm: 3, sPp: 3, sIm: 3, sIp: 3 })[2][2], 'hell');
+eq('box: symmetric is a subset (P −1 +1 == both sides)', T(C.stateGrid({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 0, sIp: 0 })), '...../...../.mdm./...../.....');
 
-// state grid: symmetric input equals Schema F stateGrid (F2)
-const g = C.stateGrid({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 2, sIp: 2 });
-eq('grid core', g[2][2], 'dunkel');
-eq('grid P satellites σ1 → mittel', [g[2][1], g[2][3]], ['mittel', 'mittel']);
-eq('grid I satellites σ2 → hell', [g[0][2], g[4][2]], ['hell', 'hell']);
-const ge = C.stateGrid({ kP: 2, kI: 2, sPm: 3, sPp: 3, sIm: 3, sIp: 3 });
-eq('grid entwertet all 3', ge[2][2], 'hell');
-const ga = C.stateGrid({ kP: 2, kI: 2, sPm: 0, sPp: 1, sIm: 0, sIp: 0 });
-eq('grid asym only right', [ga[2][1], ga[2][3]], [null, 'mittel']);
-
-const gx = C.stateGrid({ kP: 0, kI: 2, sPm: 1, sPp: 3, sIm: 0, sIp: 0 });
-eq('grid edge shift keeps side tone', [gx[2][1], gx[2][2]], ['mittel', 'hell']);
 const svg = C.iconSvg({ kP: 2, kI: 2, sPm: 1, sPp: 1, sIm: 1, sIp: 1 }, { size: 32 });
 eq('iconSvg is svg', svg.startsWith('<svg') && svg.endsWith('</svg>'), true);
 eq('iconSvg fit class', C.iconSvg({ kP: 0, kI: 0, sPm: 0, sPp: 0, sIm: 0, sIp: 0 }, { fit: true }).includes('class="ind fit"'), true);
@@ -98,37 +88,7 @@ eq('rank: BT breaks tie', C.rank(items, { 'a~b': { '-1': 2 } }, 15).map(x => x.i
 eq('nextPairs: adjacent, never compared first', C.nextPairs([{ id: 'a', r: 5 }, { id: 'b', r: 5 }, { id: 'c', r: 4 }, { id: 'd', r: 2 }], { 'a~b': 1 }, 2),
    [['a', 'c'], ['b', 'c']]);
 
-// ── Golden: symmetric σ == Schema F (icon-schema-f-weiss-3ton.html, verbatim, F2) ─
-function refSatellites(k, d) {
-    const used = new Set([k]), out = [];
-    [k - d, k + d].forEach(want => {
-        let pos = want;
-        if (pos < 0 || pos > 4 || used.has(pos)) {
-            const dir = want < 0 ? 1 : -1, start = want < 0 ? 0 : 4;
-            for (let c = start; c >= 0 && c <= 4; c += dir) if (!used.has(c)) { pos = c; break; }
-        }
-        if (pos < 0 || pos > 4 || used.has(pos)) { for (let c = 0; c < 5; c++) if (!used.has(c)) { pos = c; break; } }
-        used.add(pos); out.push(pos);
-    });
-    return out;
-}
-function refStateGrid(kP, kI, stP, stI) {
-    const dOf = s => (s === 1 ? 1 : 2);
-    const g = Array.from({ length: 5 }, () => Array(5).fill(null));
-    const row = r => 4 - r;
-    const satTone = st => (st === 1 ? 'mittel' : 'hell');
-    refSatellites(kP, dOf(stP)).forEach(c => g[row(kI)][c] = satTone(stP));
-    refSatellites(kI, dOf(stI)).forEach(r => g[row(r)][kP] = satTone(stI));
-    const entwertet = stP === 3 && stI === 3;
-    g[row(kI)][kP] = entwertet ? 'hell' : 'dunkel';
-    return g;
-}
-let goldenFail = 0;
-for (let kP = 0; kP < 5; kP++) for (let kI = 0; kI < 5; kI++) for (let sP = 1; sP <= 3; sP++) for (let sI = 1; sI <= 3; sI++) {
-    const a = JSON.stringify(C.stateGrid({ kP, kI, sPm: sP, sPp: sP, sIm: sI, sIp: sI }));
-    if (a !== JSON.stringify(refStateGrid(kP, kI, sP, sI))) goldenFail++;
-}
-eq('golden: 225 symmetric grids == Schema F', goldenFail, 0);
+
 
 console.log(`${fail === 0 ? 'OK' : 'FAIL'} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

@@ -1,6 +1,6 @@
 # UI2610-ADR-3: Indicator model: 5×5 grid, asymmetric σ, group + own
 
-- **Status:** accepted
+- **Status:** accepted; icon part (satellites, σ step ↔ Schema F distance) superseded by UI2610-ADR-4
 - **Date:** 2026-10-04
 - **Deciders:** user (Mart) + Claude
 - **Relates to:** REQ-UI2610-20..27, `../icon-schema-f-weiss-3ton.html` (Waage, Schema F)

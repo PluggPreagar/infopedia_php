@@ -55,9 +55,9 @@ UI labels (German): Triage = "Sichten" · Rate = "Bewerten" · Fine-tune = "Fein
 
 ## Indicator
 
-- **REQ-UI2610-20 (MUST):** every Item card shows the group Indicator (Schema F, variant F2). -- ADR-3
+- **REQ-UI2610-20 (MUST):** every Item card shows the group Indicator (box indicator; colours/frame from Schema F). -- ADR-3, ADR-4
 - **REQ-UI2610-21 (MUST):** values snap to the 5×5 grid: kP, kI in 0..4; σ step per side 0..3. -- ADR-3
-- **REQ-UI2610-22 (MUST):** asymmetric σ via `satellites(k, dMinus, dPlus)`. Symmetric input renders the same icon as Schema F today. -- ADR-3
+- **REQ-UI2610-22 (MUST):** the σ range is drawn as a filled box P[kP−σP−, kP+σP+] × I[kI−σI−, kI+σI+]; σ step = cells, clipped at the grid edge; tone = ring distance. -- ADR-4 (was: Schema F satellites, ADR-3)
 - **REQ-UI2610-23 (MUST):** the editor is a 2-dimensional matrix, P on x and Impact on y. Tap sets the Core; dragging towards the lower left sets a symmetric σ; continuing towards the upper right sets σ+. -- ADR-3
 - **REQ-UI2610-24 (MUST):** the editor shows the own value over a faint group layer. -- ADR-3
 - **REQ-UI2610-25 (MUST):** Fit → one icon instance, highlighted. -- ADR-3

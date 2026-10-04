@@ -37,4 +37,5 @@ A log of **significant, hard-to-reverse** decisions. Template adapted from
 | --- | --- | --- |
 | UI2610-ADR-1 | Standalone POC page in infopedia_php | accepted |
 | UI2610-ADR-2 | Set-kinds on the votes SumUp | accepted |
-| UI2610-ADR-3 | Indicator model: 5×5 grid, asymmetric σ, group + own | accepted |
+| UI2610-ADR-3 | Indicator model: 5×5 grid, asymmetric σ, group + own | accepted; icon part superseded by UI2610-ADR-4 |
+| UI2610-ADR-4 | Box indicator: σ range as a filled rectangle | accepted |

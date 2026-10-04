@@ -1,7 +1,7 @@
 /**
  * assets/ui2610-core.js — pure helpers for vote-mobile.html (UI2610).
  * No DOM, no fetch. Plain globals in the browser; module.exports under node (tests).
- * Decisions: .ai/adr/ui2610-adr-2-set-kinds.md, ui2610-adr-3-indicator-model.md
+ * Decisions: .ai/adr/ui2610-adr-2-set-kinds.md, ui2610-adr-3-indicator-model.md, ui2610-adr-4-box-indicator.md
  */
 
 // ── Histograms (backend projection "<v>=<n>;…") ──────────────────────────────
@@ -79,43 +79,27 @@ function isFit(a, b) {
     return !!a && !!b && formatInd(a) === formatInd(b);
 }
 
-// ── Icon (Schema F, variant F2, asymmetric extension) ────────────────────────
+// ── Icon (box indicator, ADR-4; colours + frame from Schema F) ───────────────
 const TONE = {
     pro:    { dunkel: '#0E7A66', mittel: '#4E9E8C', hell: '#79BDAE' },
     contra: { dunkel: '#C03A72', mittel: '#D5709A', hell: '#E599BB' },
 };
 const FRAME = '#C6CBD0';
 
-/** σ step → satellite distance (Schema F: level 1 → 1, 2|3 → 2); 0 = none. */
-const stepDist = s => (s === 0 ? 0 : s === 1 ? 1 : 2);
-
-/** Schema F satellites(k, d), extended to (k, stepMinus, stepPlus). Edge: shift to next free cell.
- *  Returns [{pos, step}] so the tone follows the side it came from, even after an edge shift. */
-function satellitesSided(k, stepMinus, stepPlus) {
-    const used = new Set([k]), out = [];
-    [[k - stepDist(stepMinus), stepMinus], [k + stepDist(stepPlus), stepPlus]].forEach(([want, step]) => {
-        if (step === 0) return;
-        let pos = want;
-        if (pos < 0 || pos > 4 || used.has(pos)) {
-            const dir = want < 0 ? 1 : -1, start = want < 0 ? 0 : 4;
-            for (let c = start; c >= 0 && c <= 4; c += dir) if (!used.has(c)) { pos = c; break; }
-        }
-        if (pos < 0 || pos > 4 || used.has(pos)) { for (let c = 0; c < 5; c++) if (!used.has(c)) { pos = c; break; } }
-        used.add(pos); out.push({ pos, step });
-    });
-    return out;
-}
-const satellites = (k, sm, sp) => satellitesSided(k, sm, sp).map(x => x.pos);
-
-/** 5×5 tone grid, row 0 = highest Impact. null = white. */
+/** Box indicator (UI2610-ADR-4, supersedes Schema F satellites): every cell in
+ *  P[kP−sPm, kP+sPp] × I[kI−sIm, kI+sIp] is filled — every combination in the range is valid.
+ *  σ step = cells (0..3), clipped at the grid edge. Tone = distance (F2 idea): core dunkel ·
+ *  ring 1 mittel · ring ≥ 2 hell. Core hell ("entwertet") only when all four sides are 3.
+ *  5×5 grid, row 0 = highest Impact; null = white. */
 function stateGrid(v) {
     const g = Array.from({ length: 5 }, () => Array(5).fill(null));
-    const row = kI => 4 - kI;
-    const tone = step => (step === 1 ? 'mittel' : 'hell');
-    satellitesSided(v.kP, v.sPm, v.sPp).forEach(x => { g[row(v.kI)][x.pos] = tone(x.step); });
-    satellitesSided(v.kI, v.sIm, v.sIp).forEach(x => { g[row(x.pos)][v.kP] = tone(x.step); });
-    const entwertet = v.sPm === 3 && v.sPp === 3 && v.sIm === 3 && v.sIp === 3;
-    g[row(v.kI)][v.kP] = entwertet ? 'hell' : 'dunkel';
+    for (let kI = Math.max(0, v.kI - v.sIm); kI <= Math.min(4, v.kI + v.sIp); kI++) {
+        for (let kP = Math.max(0, v.kP - v.sPm); kP <= Math.min(4, v.kP + v.sPp); kP++) {
+            const ring = Math.max(Math.abs(kP - v.kP), Math.abs(kI - v.kI));
+            g[4 - kI][kP] = ring === 0 ? 'dunkel' : ring === 1 ? 'mittel' : 'hell';
+        }
+    }
+    if (v.sPm === 3 && v.sPp === 3 && v.sIm === 3 && v.sIp === 3) g[4 - v.kI][v.kP] = 'hell';
     return g;
 }
 
@@ -224,7 +208,7 @@ function nextPairs(list, compared, limit = 5) {
 if (typeof module !== 'undefined') {
     module.exports = {
         parseHist, parseIndHist, parseInd, formatInd, ratingStats,
-        pooledAxis, groupInd, isFit, stepDist, satellites, stateGrid, iconSvg,
+        pooledAxis, groupInd, isFit, stateGrid, iconSvg,
         cellAt, dragInd, growLo, growHi, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
     };
 }
