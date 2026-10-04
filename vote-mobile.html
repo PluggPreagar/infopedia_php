@@ -395,14 +395,32 @@ function openTopics() {
         <div class="row" style="justify-content:space-between"><button class="btn btn-ghost" data-act="reload">↻ Neu laden</button>
         <button class="btn btn-primary" data-act="topic-new">+ Unterthema</button></div>`);
 }
-function switchTopic(key) {
-    if (key === topicRoot) return;
-    topicRoot = key;
-    saveSettings({ ui2610Topic: key });
-    const url = new URL(location.href); url.searchParams.set("topic", key); history.replaceState(null, "", url);   // shareable link
-    if (step === "tune" || step === "over") step = "triage";
+// ── History: back/forward = Zurück/Vor (REQ-UI2610-38) ───────────────────────
+// Entry = {topic, step}; an open sheet adds one entry {…, sheet: 1} so "back" closes it first.
+const STEPS = ["triage", "rate", "tune", "over"];
+function navUrl(topic, st) {
+    const url = new URL(location.href);
+    url.searchParams.set("topic", topic); url.searchParams.set("step", st);
+    return url;
+}
+/** Show topic/step; how = "push" (new history entry) · "replace" (overwrite current) · "none" (from popstate). */
+function go(topic, st, how = "push") {
+    if (topic === topicRoot && st === step && how === "push") return;
+    topicRoot = topic; step = STEPS.includes(st) ? st : "triage";
+    saveSettings({ ui2610Topic: topic });
+    if (how === "push") history.pushState({ topic, step }, "", navUrl(topic, step));
+    if (how === "replace") history.replaceState({ topic, step }, "", navUrl(topic, step));
     render();
 }
+function switchTopic(key, how = "push") {
+    go(key, step === "tune" || step === "over" ? "triage" : step, how);
+}
+window.addEventListener("popstate", e => {
+    hideSheet();
+    const st = e.state || {};
+    const params = new URLSearchParams(location.search);
+    go(st.topic || params.get("topic") || topicRoot, st.step || params.get("step") || "triage", "none");
+});
 function openTopicNew() {
     openSheet(sheetHead("Neues Thema") + `<label class="form-label" for="topic-name">Name</label>
         <input id="topic-name" class="input" maxlength="40" placeholder="z. B. Klima, Rente">
@@ -416,27 +434,40 @@ async function saveTopicNew() {
     const slug = slugify(name);
     if (!slug) { showToast("Bitte einen Namen mit Buchstaben oder Ziffern eingeben.", "error"); return; }
     const key = fullKey(topicRoot, slug);   // new topic = child of the current one
-    if (entries[key]) { closeSheet(); switchTopic(key); showToast("Thema gibt es schon — gewechselt.", "info", 2000); return; }
+    if (entries[key]) { sheetGo(key); showToast("Thema gibt es schon — gewechselt.", "info", 2000); return; }
     const message = /[.!?>-]$/.test(name) ? name : name + ".";
     try {
         const res = await fetch("entries?" + new URLSearchParams({ sid, tid: tenantId }), { method: "POST", body: new URLSearchParams({ entry: `${key} | kind:topic | ${message}` }) });
         if (!res.ok) { console.error("[ui2610] POST topic:", res.status, (await res.text()).slice(0, 500)); showToast("Thema konnte nicht angelegt werden.", "error"); return; }
         const json = await res.json().catch(() => ({}));
         entries[key] = { timestamp: json.timestamp || "", message, attrs: { kind: "topic" } };
-        closeSheet(); switchTopic(key); showToast(`Thema „${name}“ angelegt.`, "success", 1500);
+        sheetGo(key); showToast(`Thema „${name}“ angelegt.`, "success", 1500);
     } catch (err) { console.error("[ui2610] POST topic:", err); showToast("Verbindung unterbrochen.", "error"); }
 }
 
 // ── Sheets: Item (jump back) · Indicator editor · add ─────────────────────────
+const sheetOpen = () => document.getElementById("sheet").classList.contains("open");
 function openSheet(html) {
+    if (!sheetOpen()) history.pushState({ topic: topicRoot, step, sheet: 1 }, "", location.href);   // back = close sheet
     document.getElementById("sheet").innerHTML = html;
     document.getElementById("sheet-backdrop").classList.add("open");
     document.getElementById("sheet").classList.add("open");
 }
-function closeSheet() {
+function hideSheet() {
     document.getElementById("sheet-backdrop").classList.remove("open");
     document.getElementById("sheet").classList.remove("open");
-    editor = null;
+    editor = null; sheetItem = null;
+}
+/** Close via UI: leave the sheet's history entry with back() (popstate hides it). */
+function closeSheet() {
+    if (!sheetOpen()) return;
+    if (history.state && history.state.sheet) history.back(); else hideSheet();
+}
+/** Navigate from inside a sheet: reuse the sheet's entry for the target (no dangling entry). */
+function sheetGo(topic) {
+    const how = history.state && history.state.sheet ? "replace" : "push";
+    hideSheet();
+    switchTopic(topic, how);
 }
 const sheetHead = t => `<div class="sheet-header"><h3>${esc(t)}</h3><button class="btn-icon" data-act="close" aria-label="Schließen">✕</button></div>`;
 
@@ -568,9 +599,9 @@ function onClick(e) {
     const t = e.target.closest("[data-tri],[data-rate],[data-sign],[data-cmp],[data-trust],[data-edit],[data-open],[data-go],[data-act],[data-step],[data-topic]");
     if (!t) return;
     const d = t.dataset;
-    if (d.step) { step = d.step; render(); }
-    else if (d.topic) { closeSheet(); switchTopic(d.topic); }
-    else if (d.go) { step = d.go; render(); }
+    if (d.step) go(topicRoot, d.step);
+    else if (d.topic) { if (sheetOpen()) sheetGo(d.topic); else switchTopic(d.topic); }
+    else if (d.go) go(topicRoot, d.go);
     else if (d.tri) triage(d.tri, d.v, !d.stay);
     else if (d.rate) { saveSet(d.rate, "rate", own(itemKey(d.rate), "rate") === d.v ? "0" : d.v).then(refreshSheet); refreshSheet(); }
     else if (d.sign) sign(d.sign);
@@ -640,6 +671,8 @@ async function init() {
     baseRoot  = norm(params.get("base") || cfg.voteMobileTopic || "/");
     topicRoot = norm(params.get("topic") || settings.ui2610Topic || baseRoot);
     if (topicRoot !== baseRoot && !topicRoot.startsWith(baseRoot === "/" ? "/" : baseRoot + "/") && !params.get("topic")) topicRoot = baseRoot;   // stale setting from another base
+    if (STEPS.includes(params.get("step"))) step = params.get("step");
+    history.replaceState({ topic: topicRoot, step }, "", navUrl(topicRoot, step));   // first history entry
     sid = ensureSid(settings);
     myName = settings.ui2610Name || "";
     const title = cfg.voteMobileTitle || "Abstimmen";
