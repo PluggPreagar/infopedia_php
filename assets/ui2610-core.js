@@ -274,10 +274,20 @@ function effectiveInd(own, def) {
     return { ind: null, isDefault: false };
 }
 
+/** All Item keys below a topic, any depth (topics and ~cmp/~trust paths excluded), sorted. */
+function subtreeItems(entries, key) {
+    const prefix = key === '/' ? '/' : key + '/';
+    return Object.keys(entries || {}).filter(k => k.startsWith(prefix) && !k.includes('~') && !isTopicEntry(entries[k])).sort();
+}
+function subtreeTopicCount(entries, key) {
+    const prefix = key === '/' ? '/' : key + '/';
+    return Object.keys(entries || {}).filter(k => k.startsWith(prefix) && isTopicEntry(entries[k])).length;
+}
+
 if (typeof module !== 'undefined') {
     module.exports = {
         parseHist, parseIndHist, parseInd, formatInd, ratingStats,
         pooledAxis, groupInd, isFit, stateGrid, boxRect, SEVERITY, cellStyle, MAGNITUDE, magnitudeRect, iconSvg,
-        cellAt, dragInd, growLo, growHi, isTopicEntry, slugify, topicsOf, crumbPath, seeKeys, parseSrc, effectiveInd, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
+        cellAt, dragInd, growLo, growHi, isTopicEntry, slugify, topicsOf, crumbPath, seeKeys, parseSrc, effectiveInd, subtreeItems, subtreeTopicCount, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
     };
 }

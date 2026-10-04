@@ -155,5 +155,20 @@ eq('seed: argument row', sl[2], '/b/s/r/s01 | src:[DRV 2026](https://x.de/a) | i
 const pe = require('../assets/ui2610-core.js');
 eq('seed src parses back', pe.parseSrc('[DRV 2026](https://x.de/a)'), { name: 'DRV 2026', url: 'https://x.de/a' });
 
+// ── Topic cards: subtree counts (REQ-UI2610-37) ──────────────────────────────
+const tree = {
+    '/b/s':        { message: 'Soziales.', attrs: { kind: 'topic' } },
+    '/b/s/r':      { message: 'Rente.', attrs: { kind: 'topic' } },
+    '/b/s/r/n':    { message: 'Niveau.', attrs: { kind: 'topic' } },
+    '/b/s/r/n/a1': { message: 'Arg 1.', attrs: {} },
+    '/b/s/r/a2':   { message: 'Arg 2.', attrs: {} },
+    '/b/s/p':      { message: 'Pflege.', attrs: { kind: 'topic' } },
+    '/b/w':        { message: 'Welt.', attrs: { kind: 'topic' } },
+    '/b/s/~cmp/x': { message: 'Vergleich.', attrs: {} },
+};
+eq('subtree: topics + items, any depth', C.subtreeItems(tree, '/b/s'), ['/b/s/r/a2', '/b/s/r/n/a1']);
+eq('subtree: topic count', C.subtreeTopicCount(tree, '/b/s'), 3);
+eq('subtree: leaf topic', [C.subtreeItems(tree, '/b/s/p'), C.subtreeTopicCount(tree, '/b/s/p')], [[], 0]);
+
 console.log(`${fail === 0 ? 'OK' : 'FAIL'} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

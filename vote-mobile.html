@@ -33,8 +33,11 @@
     #crumb .lvl { opacity: .75; overflow: hidden; text-overflow: ellipsis; max-width: 6ch; min-width: 2ch; flex: 0 6 auto; }   /* parents shrink first */
     #crumb .cur { font-weight: var(--font-weight-bold); overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
     #crumb .sep { opacity: .6; flex: none; }
-    .sub-topics { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
-    .sub-topics .chip { flex: none; }
+    .topic-cards { display: flex; flex-direction: column; gap: var(--space-2); }
+    .topic-card { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; padding: var(--space-3) var(--space-4);
+                  border: 1px solid var(--color-neutral-200); background: var(--color-surface-card, #fff); font: inherit; color: inherit; cursor: pointer; }
+    .topic-card .chev { font-size: 24px; color: var(--color-interactive-600); flex: none; }
+    .section-head { margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--color-neutral-600); font-weight: var(--font-weight-bold); }
     .src { font-size: var(--text-xs); color: var(--color-neutral-600); }
     .src a { color: var(--color-interactive-700); }
     .nav .seg { border-color: rgba(255,255,255,.55); background: transparent; flex: none; }
@@ -253,7 +256,12 @@ function render() {
     document.getElementById("cnt-tune").textContent = nextPair() ? "•" : "";
     const v = document.getElementById("view");
     const head = { triage: "1 Sichten", rate: "2 Bewerten", tune: "3 Feinschliff", over: "Übersicht" }[step];
-    v.innerHTML = `<h2 class="step-head">${head}</h2>` + subTopicsHtml() + ({ triage: viewTriage, rate: viewRate, tune: viewTune, over: viewOver })[step]();
+    const body = ({ triage: viewTriage, rate: viewRate, tune: viewTune, over: viewOver })[step]();
+    const topics = subTopicsHtml();
+    // no own Items here → topic cards are the content (top); else Items first, sub-topics below
+    v.innerHTML = `<h2 class="step-head">${head}</h2>` + (!itemIds().length && step !== "over"   // Overview keeps Name + Trust
+        ? (topics ? `<p class="muted">Thema wählen:</p>` + topics : body)
+        : body + (topics ? `<h3 class="section-head">Unterthemen</h3>` + topics : ""));
     const stack = document.getElementById("stack");
     if (stack) {
         // buttons inside the card (Indicator) keep their tap: card-swipe.js would capture the pointer and swallow the click
@@ -360,9 +368,19 @@ function renderTopics() {
                     : `<button class="lvl" data-topic="${esc(k)}">${esc(topicTitle(k))}</button>`);
     }).join("");
 }
+/** Sub-topics as large cards, top-down like Items (REQ-UI2610-37). */
 function subTopicsHtml() {
     const kids = topicsOf(entries, topicRoot);
-    return kids.length ? `<div class="sub-topics">${kids.map(t => `<button class="chip" data-topic="${esc(t.key)}">${esc(t.title)}</button>`).join("")}</div>` : "";
+    if (!kids.length) return "";
+    return `<div class="topic-cards">${kids.map(t => {
+        const items = subtreeItems(entries, t.key), nTop = subtreeTopicCount(entries, t.key);
+        const open = items.filter(k => { const v = own(k, "tri"); return v === undefined || v === "open"; }).length;
+        const see = seeKeys(((entries[t.key] || {}).attrs || {}).see, baseRoot).filter(k => entries[k]).map(k => topicTitle(k));
+        return `<button class="card topic-card" data-topic="${esc(t.key)}"><span class="grow">
+            <span class="item-title">${esc(t.title)}</span><br>
+            <span class="muted">${nTop ? nTop + (nTop === 1 ? " Unterthema · " : " Unterthemen · ") : ""}${items.length} ${items.length === 1 ? "Eintrag" : "Einträge"}${open ? ` · <b>${open} offen</b>` : ""}</span>
+            ${see.length ? `<br><span class="muted">↔ ${see.map(esc).join(", ")}</span>` : ""}</span><span class="chev">›</span></button>`;
+    }).join("")}</div>`;
 }
 function openTopics() {
     const path = crumbPath(baseRoot, topicRoot), parent = path.length > 1 ? path[path.length - 2] : null;
