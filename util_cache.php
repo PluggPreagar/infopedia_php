@@ -13,10 +13,12 @@ function isCacheValid(string $file, int $maxAge, ?string $outdatedFile, int $del
         return false;
     }
     // Outdated signal: external writer bumps this file to force a refresh.
-    // Only counts if the signal is newer than when the cache was written + delay,
-    // giving the cache writer a grace window to settle before the signal takes effect.
+    // Any write after the cache was built counts; $delay only rate-limits rebuilds
+    // (the cache is served for at least $delay seconds). Before 2026-10-04 a write
+    // within $delay of the cache build was ignored until maxAge (UI2610: lost writes).
     if ($outdatedFile !== null && file_exists($outdatedFile)) {
-        if (filemtime($outdatedFile) > $fileMtime + $delay) {
+        clearstatcache(true, $outdatedFile);
+        if (filemtime($outdatedFile) > $fileMtime && (time() - $fileMtime) >= $delay) {
             return false;
         }
     }

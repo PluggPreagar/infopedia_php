@@ -43,6 +43,14 @@ touch($cache, time() - 20);      // cache is 20s old
 touch($outdated);                 // outdated just touched (now > cache + 5s delay)
 iv(isCacheValid($cache, 3600, $outdated, 5), false, 'outdated newer than cache+delay → invalid');
 
+// UI2610 fix: a write within the grace window must not be lost
+touch($cache, time() - 2);        // cache built 2s ago
+touch($outdated, time() - 1);     // write 1s ago, inside the 5s window
+iv(isCacheValid($cache, 3600, $outdated, 5), true, 'write inside delay window → cache still served (grace)');
+touch($cache, time() - 7);        // same write, but the cache is now older than delay
+touch($outdated, time() - 6);     // write came 1s after the cache was built
+iv(isCacheValid($cache, 3600, $outdated, 5), false, 'write 1s after cache build → invalid once cache older than delay (was: stale up to maxAge)');
+
 // ─── readCache ────────────────────────────────────────────────────────────────
 // Input:  file path
 // Output: file contents, or '' if file missing
