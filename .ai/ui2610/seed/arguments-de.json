@@ -1,0 +1,902 @@
+[
+ {
+  "path": "wirtschaft/inflation",
+  "text": "Wegen steigender Energiepreise bleibt die Inflationsrate in Deutschland bis Ende 2026 über 3 %.",
+  "source": {
+   "name": "Destatis, 30.09.2026",
+   "url": "https://www.destatis.de/DE/Presse/Pressemitteilungen/2026/09/PD26_348_611.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Sept. 2026 bei 3,3 %, Energie +14,9 % und beschleunigend; Kerninflation nur 2,4 %.",
+  "verified": true
+ },
+ {
+  "path": "wirtschaft/standort/industrie",
+  "text": "Die deutsche Industrie baut 2026 erneut mehr als 100.000 Arbeitsplätze ab.",
+  "source": {
+   "name": "EY Industriebarometer Q1 2026, 25.05.2026",
+   "url": "https://www.ey.com/de_de/newsroom/2026/05/ey-industriebarometer-q1-2026"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Q1 2026 minus 127.300 Jobs zum Vorjahr; Umsatz erstmals leicht im Plus, Erholung unsicher.",
+  "verified": true
+ },
+ {
+  "path": "wirtschaft/standort/buerokratie",
+  "text": "Die Bundesregierung verfehlt ihr Ziel, die Bürokratiekosten der Wirtschaft bis 2029 um 25 % zu senken.",
+  "source": {
+   "name": "DIW Wochenbericht 47/2025",
+   "url": "https://www.diw.de/documents/publikationen/73/diw_01.c.987917.de/25-47-5.pdf"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "DIW sieht Stückwerk, neue Pflichten zehren Entlastungen auf; NKR meldet erste Netto-Entlastung.",
+  "verified": true
+ },
+ {
+  "path": "wirtschaft/standort/energiepreise",
+  "text": "Im Winter 2026/27 kommt es wegen knapper Gasspeicher zu Gasengpässen oder Lieferkürzungen für die Industrie.",
+  "source": {
+   "name": "zdfheute.de, 23.09.2026",
+   "url": "https://www.zdfheute.de/politik/deutschland/gasspeicher-fuellstaende-gasmangel-winter-100.html"
+  },
+  "ind": {
+   "kP": 1,
+   "kI": 3,
+   "sPm": 1,
+   "sPp": 2,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Speicher bei 57 % statt 70 %-Ziel; Experten sehen Risiko eher für Industrie, abhängig von Winter und Importen.",
+  "verified": true
+ },
+ {
+  "path": "wirtschaft/haushalt/schuldenbremse",
+  "text": "Eine Reform der Schuldenbremse kommt in dieser Legislaturperiode nicht zustande.",
+  "source": {
+   "name": "Stuttgarter Zeitung, 07.07.2026",
+   "url": "https://www.stuttgarter-zeitung.de/politik/kommission-bei-der-schuldenbremse-ist-keine-loesung-in-sicht-79279728.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 2
+  },
+  "rationale": "Expertenkommission ohne gemeinsame Linie, Union und SPD uneins; Folgen für Investitionen umstritten.",
+  "verified": true
+ },
+ {
+  "path": "wirtschaft/haushalt/kuerzungen",
+  "text": "Um Haushaltslücken von rund 140 Mrd. Euro bis 2030 zu schließen, kürzt der Bund spürbar bei Sozialleistungen und Rentenzuschüssen.",
+  "source": {
+   "name": "zdfheute.de, 29.04.2026",
+   "url": "https://www.zdfheute.de/politik/deutschland/bundeshaushalt-2027-schulden-regierung-finanzen-100.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Eckpunkte nennen Lücken bis 60 Mrd./Jahr und geplante Kürzungen bei Rentenzuschuss, Eltern- und Wohngeld.",
+  "verified": true
+ },
+ {
+  "path": "wirtschaft/arbeitsmarkt",
+  "text": "Die Zahl der Arbeitslosen in Deutschland steigt im Winter 2026/27 wieder über 3 Millionen.",
+  "source": {
+   "name": "Bundesagentur für Arbeit, Monatsbericht September 2026",
+   "url": "https://www.arbeitsagentur.de/news/arbeitsmarkt"
+  },
+  "ind": {
+   "kP": 4,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "September 2,994 Mio. Arbeitslose, schwache Herbstbelebung; saisonaler Winteranstieg üblich.",
+  "verified": true
+ },
+ {
+  "path": "soziales/armut",
+  "text": "Die Armutsgefährdungsquote in Deutschland steigt 2026 erneut über die 16,1 % des Vorjahres.",
+  "source": {
+   "name": "Destatis, Februar 2026",
+   "url": "https://www.destatis.de/DE/Presse/Pressemitteilungen/2026/02/PD26_039_63.html"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 0,
+   "sIp": 1
+  },
+  "rationale": "Quote stieg 2025 von 15,5 auf 16,1 %; Energiepreise und schwacher Arbeitsmarkt sprechen für weiteren Anstieg.",
+  "verified": true
+ },
+ {
+  "path": "soziales/rente/rentenniveau",
+  "text": "Nach Auslaufen der Haltelinie 2031 sinkt das Rentenniveau bis 2039 auf rund 46 %.",
+  "source": {
+   "name": "Bundesregierung, Rentenversicherungsbericht 2025",
+   "url": "https://www.bundesregierung.de/breg-de/aktuelles/rentenbericht-2025-2394260"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Modellrechnung: 48 % bis 2031, dann 46,3 % in 2039; abhängig von Folgereform der Rentenkommission.",
+  "verified": true
+ },
+ {
+  "path": "soziales/rente/generationen",
+  "text": "Der Rentenbeitragssatz steigt bis 2028 auf 19,8 % und belastet vor allem die junge Generation.",
+  "source": {
+   "name": "zdfheute.de, 20.11.2025",
+   "url": "https://www.zdfheute.de/wirtschaft/rente-generationengerechtigkeit-steigende-beitraege-100.html"
+  },
+  "ind": {
+   "kP": 4,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Rentenbericht und Ökonomen erwarten 19,8 % in 2028; Börsch-Supan sieht Lasten einseitig bei Jungen.",
+  "verified": true
+ },
+ {
+  "path": "soziales/pflege",
+  "text": "Ohne weitere Reform steigt das Defizit der Pflegeversicherung bis 2030 auf über 17 Mrd. Euro.",
+  "source": {
+   "name": "zdfheute.de, 30.09.2026",
+   "url": "https://www.zdfheute.de/politik/deutschland/reform-pflegeversicherung-finanzen-milliarden-defizit-100.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 3,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Lücke 2026 4,2 Mrd., 2027 rund 8 Mrd.; Reform 2027 stopft nur kurzfristig.",
+  "verified": true
+ },
+ {
+  "path": "soziales/pflege",
+  "text": "Der Eigenanteil im Pflegeheim steigt bis Mitte 2027 im ersten Jahr auf über 3.500 Euro im Monat.",
+  "source": {
+   "name": "vdek, 14.07.2026",
+   "url": "https://www.vdek.com/presse/pressemitteilungen/2026/stationaere-pflege-eigenanteile-juli-2026.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Juli 2026: 3.364 Euro, +256 Euro (+7,6 %) zum Vorjahr; gleicher Trend ergäbe rund 3.600 Euro.",
+  "verified": true
+ },
+ {
+  "path": "soziales/grundsicherung",
+  "text": "Die neue Grundsicherung mit härteren Sanktionen spart dem Staat nur Millionen statt Milliarden.",
+  "source": {
+   "name": "Tagesspiegel, 2026",
+   "url": "https://www.tagesspiegel.de/politik/ab-1-juli-mehr-druck-mehr-sanktionen-burgergeld-wird-grundsicherung-15775864.html"
+  },
+  "ind": {
+   "kP": 4,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Reform seit 1.7.2026; erwartete Einsparung zweistelliger Millionenbetrag statt versprochener Milliarden.",
+  "verified": true
+ },
+ {
+  "path": "soziales/wohnen",
+  "text": "Die Angebotsmieten in Deutschland steigen 2026 erneut um 4 % oder mehr gegenüber dem Vorjahr.",
+  "source": {
+   "name": "IW-Wohnindex Q2 2026, 20.07.2026",
+   "url": "https://www.iwkoeln.de/studien/pekka-sagner-michael-voigtlaender-mehr-auswahl-beim-kauf-anhaltender-druck-auf-dem-mietmarkt.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Q2 2026 +4,0 % zum Vorjahr, Mietinserate 12 % unter 2022; Neubau schwach.",
+  "verified": true
+ },
+ {
+  "path": "soziales/demografie",
+  "text": "Bis 2035 ist ein Viertel der Bevölkerung in Deutschland 67 Jahre oder älter.",
+  "source": {
+   "name": "Destatis, 16. koordinierte Bevölkerungsvorausberechnung",
+   "url": "https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Bevoelkerung/Bevoelkerungsvorausberechnung/_inhalt.html"
+  },
+  "ind": {
+   "kP": 4,
+   "kI": 3,
+   "sPm": 0,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Demografisch weitgehend festgelegt; Folgen für Rente, Pflege und Arbeitsmarkt erheblich.",
+  "verified": true
+ },
+ {
+  "path": "gesundheit/versorgung",
+  "text": "Bis 2030 schreiben rund 70 % der Kliniken Verluste, vor allem auf dem Land drohen Schließungen.",
+  "source": {
+   "name": "AOK-Gesundheitspolitik, 25.06.2026 (Krankenhaus Rating Report 2026)",
+   "url": "https://www.aok.de/pp/gg/update/krankenhaeuser-insolvenzen-rating/"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 3,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Rating Report: 60 % defizitär 2027, ca. 70 % 2030, rund 400 Standorte existenzbedroht.",
+  "verified": true
+ },
+ {
+  "path": "gesundheit/beitraege",
+  "text": "Trotz Sparpaket steigt der durchschnittliche GKV-Zusatzbeitrag 2027 über die heutigen 3,1 %.",
+  "source": {
+   "name": "GKV-Spitzenverband, 19.07.2026",
+   "url": "https://www.gkv-spitzenverband.de/media/dokumente/presse/pressemitteilungen/2026/20260719_dpa_Meldung_Blatt_Sparpaket.pdf"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Sparpaket deckt 18,8 Mrd.-Lücke 2027 exakt, Blatt: Beiträge stabil möglich, aber keine Luft.",
+  "verified": true
+ },
+ {
+  "path": "migration/asyl/begrenzung",
+  "text": "Die Zahl der Asylerstanträge in Deutschland bleibt 2026 deutlich unter dem Vorjahresniveau.",
+  "source": {
+   "name": "Nordkurier (dpa), 13.09.2026",
+   "url": "https://www.nordkurier.de/politik/weniger-asylantraege-hoehere-schutzquote-4861107"
+  },
+  "ind": {
+   "kP": 4,
+   "kI": 2,
+   "sPm": 0,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "H1 2026: 39.646 Erstanträge statt 72.818 im Vorjahreszeitraum.",
+  "verified": true
+ },
+ {
+  "path": "migration/asyl/begrenzung",
+  "text": "Zurückweisungen von Asylsuchenden an deutschen Binnengrenzen werden gerichtlich als EU-rechtswidrig gestoppt.",
+  "source": {
+   "name": "LTO, 09.07.2025",
+   "url": "https://www.lto.de/recht/hintergruende/h/drei-weitere-klagen-gegen-zurueckweisungen"
+  },
+  "ind": {
+   "kP": 1,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 2,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "VG Berlin hielt Zurückweisungen für unionsrechtswidrig, Hauptsacheverfahren stocken, Praxis läuft weiter.",
+  "verified": true
+ },
+ {
+  "path": "migration/asyl/eu-reform",
+  "text": "Die GEAS-Reform verringert ab 2026 die Weiterwanderung von Asylsuchenden nach Deutschland spürbar.",
+  "source": {
+   "name": "Bundesregierung, 12.06.2026",
+   "url": "https://www.bundesregierung.de/breg-de/aktuelles/migration-geas-2382758"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 2,
+   "sPm": 2,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Regierung erwartet Entlastung durch Grenzverfahren und Eurodac, Wirkung ist noch unbelegt.",
+  "verified": true
+ },
+ {
+  "path": "migration/integration",
+  "text": "Ukrainische Geflüchtete finden deutlich schneller Arbeit als frühere Geflüchtetengruppen.",
+  "source": {
+   "name": "IAB-Kurzbericht 3/2026",
+   "url": "https://doku.iab.de/kurzber/2026/kb2026-03.pdf"
+  },
+  "ind": {
+   "kP": 4,
+   "kI": 2,
+   "sPm": 0,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "50 Prozent nach 3,5 Jahren beschäftigt, Kohorte 2015 brauchte rund 6 Jahre.",
+  "verified": true
+ },
+ {
+  "path": "migration/fachkraefte",
+  "text": "Ohne Zuwanderung schrumpft das Arbeitskräfteangebot in Deutschland ab 2026 dauerhaft.",
+  "source": {
+   "name": "Volksstimme (dpa/BA), 14.07.2026",
+   "url": "https://www.volksstimme.de/deutschland-und-welt/wirtschaft/auslander-stabilisieren-deutschen-arbeitsmarkt-4285114"
+  },
+  "ind": {
+   "kP": 4,
+   "kI": 3,
+   "sPm": 0,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "BA: Erwerbspotenzial sinkt 2026, Beschäftigungswachstum stammt zu großem Teil von Ausländern.",
+  "verified": true
+ },
+ {
+  "path": "sicherheit/kriminalitaet",
+  "text": "Die polizeilich registrierte Kriminalität in Deutschland geht weiter zurück.",
+  "source": {
+   "name": "zdfheute.de, 20.04.2026",
+   "url": "https://www.zdfheute.de/politik/vorstellung-kriminalstatistik-polizei-2025-100.html"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "PKS 2025: minus 5,6 Prozent, teils Cannabis-Effekt, Hellfeld bildet Realität nur begrenzt ab.",
+  "verified": true
+ },
+ {
+  "path": "sicherheit/kriminalitaet",
+  "text": "Sexualdelikte und Vergewaltigungen nehmen in Deutschland weiter zu.",
+  "source": {
+   "name": "beck-aktuell, 20.04.2026",
+   "url": "https://www.beck-aktuell.de/heute-im-recht/rechtsgeschehen/polizeistatistik-2025-gewaltkriminalitaet-tatverdaechtige-kinder-2026-04-20"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Vergewaltigungen +9 Prozent 2025, +72 Prozent seit 2018, Anzeigeverhalten beeinflusst Zahlen.",
+  "verified": true
+ },
+ {
+  "path": "sicherheit/terror",
+  "text": "In Deutschland kommt es erneut zu islamistisch motivierten Anschlägen mit Todesopfern.",
+  "source": {
+   "name": "zdfheute.de, 28.07.2026",
+   "url": "https://www.zdfheute.de/politik/deutschland/bundeskriminalamt-islamistische-gefaehrder-100.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 3,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Anschlag auf Berliner CSD im Juli 2026, BKA zählt 410 islamistische Gefährder.",
+  "verified": true
+ },
+ {
+  "path": "sicherheit/terror",
+  "text": "Linksextreme Sabotage an kritischer Infrastruktur wie dem Stromnetz nimmt zu.",
+  "source": {
+   "name": "Bundesregierung, 30.06.2026",
+   "url": "https://www.bundesregierung.de/breg-de/aktuelles/verfassungsschutzbericht-2025-2445498"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Verfassungsschutzbericht 2025: linksextreme Gewalt steigt, Brandanschläge auf Berliner Stromnetz.",
+  "verified": true
+ },
+ {
+  "path": "sicherheit/verteidigung/bundeswehr",
+  "text": "Die Bundeswehr erreicht bis Mitte der 2030er Jahre 260.000 aktive Soldatinnen und Soldaten.",
+  "source": {
+   "name": "Schwäbische Zeitung, 20.01.2026",
+   "url": "https://www.schwaebische.de/politik/pistorius-aktive-truppe-so-gross-wie-seit-12-jahren-nicht-4285260"
+  },
+  "ind": {
+   "kP": 1,
+   "kI": 3,
+   "sPm": 1,
+   "sPp": 2,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Ende 2025 erst 184.200 Aktive, Wachstum rund 3.000 pro Jahr, hohe Abbrecherquote.",
+  "verified": true
+ },
+ {
+  "path": "sicherheit/verteidigung/wehrdienst",
+  "text": "Der Bundestag aktiviert eine Bedarfswehrpflicht, weil sich nicht genug Freiwillige melden.",
+  "source": {
+   "name": "zdfheute.de, 05.12.2025",
+   "url": "https://www.zdfheute.de/politik/deutschland/bundestag-wehrdienst-einfuehrung-musterung-100.html"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 3,
+   "sPm": 2,
+   "sPp": 2,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Gesetz erlaubt Pflicht nur per weiterem Bundestagsbeschluss, Freiwilligenziele 2025 knapp verfehlt.",
+  "verified": true
+ },
+ {
+  "path": "sicherheit/verteidigung/wehrdienst",
+  "text": "Die Zahl der Kriegsdienstverweigerer steigt durch den neuen Wehrdienst stark an.",
+  "source": {
+   "name": "evangelisch.de, 14.07.2026",
+   "url": "https://www.evangelisch.de/inhalte/257200/14-07-2026/deutlich-mehr-antraege-auf-kriegsdienstverweigerung"
+  },
+  "ind": {
+   "kP": 4,
+   "kI": 1,
+   "sPm": 0,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "H1 2026 bereits 5.862 Anträge, mehr als im gesamten Jahr 2025.",
+  "verified": true
+ },
+ {
+  "path": "klima/klimaschutz",
+  "text": "Deutschland verfehlt sein Klimaziel 2030 ohne zusätzliche Maßnahmen.",
+  "source": {
+   "name": "Expertenrat für Klimafragen 2026",
+   "url": "https://expertenrat-klima.de/fileadmin/ERK/Pressemitteilungen_Meldungen/ERK2026_Pr%C3%BCfbericht-2026_Pressemitteilung.pdf"
+  },
+  "ind": {
+   "kP": 4,
+   "kI": 2,
+   "sPm": 0,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "ERK erwartet Überschreitung des Budgets um 60 bis 100 Mt, Regierungsprojektion sieht knappe Einhaltung.",
+  "verified": true
+ },
+ {
+  "path": "klima/energiewende",
+  "text": "Der Offshore-Windausbau stockt und gefährdet die Ausbauziele der Energiewende.",
+  "source": {
+   "name": "Agora Energiewende, 07.01.2026",
+   "url": "https://www.agora-energiewende.de/fileadmin/Projekte/2025/2025-28_DE_JAW25/2026-01-07_PM_Jahresauswertung_2025_AEW.pdf"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "2025 kaum neue Offshore-Leistung, Solar und Onshore-Wind wachsen dagegen deutlich.",
+  "verified": true
+ },
+ {
+  "path": "klima/verkehr/bahn",
+  "text": "Die Deutsche Bahn verfehlt 2026 ihr Ziel von 60 Prozent Pünktlichkeit im Fernverkehr.",
+  "source": {
+   "name": "t-online (dpa), 2026",
+   "url": "https://www.t-online.de/finanzen/aktuelles/id_101369848/bahnchefin-puenktlichkeit-im-ersten-halbjahr-bei-59-prozent.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Erstes Halbjahr 2026 bei 58,7 Prozent, Ziel ist knapp verfehlt.",
+  "verified": true
+ },
+ {
+  "path": "klima/verkehr/auto",
+  "text": "Elektroautos erreichen 2026 dauerhaft über 30 Prozent der Pkw-Neuzulassungen.",
+  "source": {
+   "name": "electrive.net, 03.09.2026",
+   "url": "https://www.electrive.net/2026/09/03/kba-zahlen-324-prozent-aller-neuwagen-fahren-vollelektrisch/"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "August 2026 erstmals 32,4 Prozent, getrieben durch neue Förderung seit Mai 2026.",
+  "verified": true
+ },
+ {
+  "path": "klima/landwirtschaft",
+  "text": "Die Treibhausgasemissionen der Landwirtschaft steigen wieder, weil der Abbau der Tierbestände endet.",
+  "source": {
+   "name": "Umweltbundesamt 2026",
+   "url": "https://www.umweltbundesamt.de/daten/land-forstwirtschaft/beitrag-der-landwirtschaft-zu-den-treibhausgas"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "UBA: 2025 Anstieg gegenüber 2024, Tierbestände sinken nicht mehr, Sektorziel aber eingehalten.",
+  "verified": true
+ },
+ {
+  "path": "bildung/schule/lehrermangel",
+  "text": "In der Sekundarstufe I und an beruflichen Schulen fehlen bis 2035 dauerhaft mehr Lehrkräfte als ausgebildet werden.",
+  "source": {
+   "name": "KMK, 11.02.2025",
+   "url": "https://www.kmk.org/aktuelles-1/artikelansicht/gute-einstellungschancen-fuer-lehramtsbewerberinnen-und-lehramtsbewerber-im-schulsystem.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "KMK-Prognose sieht anhaltende Lücke in Sek I und beruflichen Lehrämtern, Kritiker halten Zahlen für zu optimistisch.",
+  "verified": true
+ },
+ {
+  "path": "bildung/schule/pisa",
+  "text": "Rund ein Drittel der 15-Jährigen verfehlt auch künftig die Mindeststandards in Mathematik und Lesen.",
+  "source": {
+   "name": "BMBFSFJ, 08.09.2026",
+   "url": "https://www.bmbfsfj.bund.de/bmbfsfj/aktuelles/pressemitteilungen/pisa-2025-zeigt-deutlich-basiskompetenzen-staerken-bildungschancen-verbessern-293974"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 3,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 0
+  },
+  "rationale": "PISA 2025 zeigt Tiefstwerte und ein Drittel Risikoschüler, Trendumkehr ist nicht absehbar.",
+  "verified": true
+ },
+ {
+  "path": "bildung/ausbildung",
+  "text": "Die Zahl unversorgter Ausbildungsbewerber steigt 2026 erneut über den Höchststand von rund 84.000 aus dem Vorjahr.",
+  "source": {
+   "name": "BIBB 2025",
+   "url": "https://www.bibb.de/de/pressemitteilung_215396.php"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "2025 höchster Wert seit 2010 bei schrumpfendem Angebot, Entwicklung hängt an der Konjunktur.",
+  "verified": true
+ },
+ {
+  "path": "bildung/digitalisierung",
+  "text": "Trotz Digitalpakt 2.0 haben die meisten Schulen auch 2030 noch kein zuverlässiges WLAN.",
+  "source": {
+   "name": "Bitkom, 18.12.2025",
+   "url": "https://www.bitkom.org/Presse/Presseinformation/Bitkom-zu-Digitalpakt-2-0"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "59 % der Schüler melden schlechtes WLAN, 5 Mrd. Euro über fünf Jahre gelten als Durchbruch, Umsetzung offen.",
+  "verified": true
+ },
+ {
+  "path": "bildung/digitalisierung",
+  "text": "Die Nutzung von KI bei Hausaufgaben schwächt die eigenständigen Lernfähigkeiten von Schülerinnen und Schülern.",
+  "source": {
+   "name": "zdfheute.de, 26.05.2025",
+   "url": "https://www.zdfheute.de/panorama/ki-schueler-lehrer-hausaufgaben-100.html"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 2,
+   "sPm": 2,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "48 % der Schüler fürchten, durch KI schlechter zu werden, 53 % sehen Verbesserung, Debatte offen.",
+  "verified": true
+ },
+ {
+  "path": "demokratie/vertrauen",
+  "text": "Weniger als die Hälfte der Deutschen vertraut dem demokratischen System, und dieser Anteil sinkt weiter.",
+  "source": {
+   "name": "Körber-Stiftung, 10.09.2025",
+   "url": "https://koerber-stiftung.de/site/assets/files/48829/250910_pm_demokratie_umfrage_deutsche_blicken_verunsichert_auf_die_zukunft.pdf"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 3,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Nur 45 % vertrauen dem System, Kontrollvertrauen fiel um 19 Punkte, Messungen schwanken je nach Studie.",
+  "verified": true
+ },
+ {
+  "path": "demokratie/vertrauen",
+  "text": "Der Anteil der Menschen, die meinen, die Demokratie funktioniere gut, fällt unter 50 Prozent.",
+  "source": {
+   "name": "zdfheute.de, 06.11.2025",
+   "url": "https://www.zdfheute.de/politik/deutschland/mitte-studie-demokratie-rechtsextremismus-100.html"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 3,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Mitte-Studie: 52 % und Tiefstwert seit 2016, zugleich sehen sich 79 % als überzeugte Demokraten.",
+  "verified": true
+ },
+ {
+  "path": "demokratie/polarisierung",
+  "text": "Migration spaltet die Gesellschaft stärker als jedes andere Thema und verhärtet die politischen Lager.",
+  "source": {
+   "name": "MIDEM/TU Dresden, 14.10.2025",
+   "url": "https://tu-dresden.de/gsw/phil/powi/sprof-vorlaender/die-professur/news/studie-polarisierungsbarometer-2025"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Über 81 % sehen die Gesellschaft gespalten, Migration hat das größte Spaltungspotenzial.",
+  "verified": true
+ },
+ {
+  "path": "demokratie/medien",
+  "text": "Das Vertrauen in die Medien bleibt trotz lauter Kritik stabil bei knapp der Hälfte der Bevölkerung.",
+  "source": {
+   "name": "zdfheute.de, 22.05.2025",
+   "url": "https://www.zdfheute.de/panorama/medien-vertrauen-studie-mainz-2024-100.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Mainzer Langzeitstudie: 47 % Vertrauen, Misstrauen sank auf 20 %, Körber-Umfrage misst deutlich weniger.",
+  "verified": true
+ },
+ {
+  "path": "demokratie/medien",
+  "text": "Fast alle Deutschen stoßen auf Falschnachrichten, was die demokratische Meinungsbildung spürbar beeinträchtigt.",
+  "source": {
+   "name": "Bitkom 2026",
+   "url": "https://www.bitkom.org/Bitkom/Publikationen/Social-Media-Desinformation-und-Deepfakes"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 2
+  },
+  "rationale": "9 von 10 begegnen Fake News, wie stark das Meinungsbildung und Wahlen verändert, ist umstritten.",
+  "verified": true
+ },
+ {
+  "path": "demokratie/gleichstellung",
+  "text": "Der unbereinigte Gender Pay Gap liegt auch 2030 noch über 10 Prozent.",
+  "source": {
+   "name": "Destatis, 12/2025",
+   "url": "https://www.destatis.de/DE/Presse/Pressemitteilungen/2025/12/PD25_453_621.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Lücke 2025 unverändert bei 16 %, bereinigt 6 %, Rückgang verläuft nur langsam.",
+  "verified": true
+ },
+ {
+  "path": "demokratie/gleichstellung",
+  "text": "Ohne gesetzliche Parität bleibt der Frauenanteil im Bundestag dauerhaft unter einem Drittel.",
+  "source": {
+   "name": "evangelisch.de, 28.02.2026",
+   "url": "https://www.evangelisch.de/inhalte/253215/28-02-2026/frauen-im-parlament-paritaetsgesetze-bleiben-umstritten"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 0,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Anteil zuletzt gesunken, Paritätsgesetze verfassungsrechtlich umstritten und in Ländern gekippt.",
+  "verified": true
+ },
+ {
+  "path": "welt/ukraine",
+  "text": "Der Krieg in der Ukraine dauert bis Ende 2026 ohne Waffenstillstand mit unverminderter Intensität an.",
+  "source": {
+   "name": "zdfheute.de, 07.01.2026",
+   "url": "https://www.zdfheute.de/politik/ausland/militaeranalyse-ukraine-krieg-russland-ausblick-2026-100.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 3,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Analysten erwarten statische Front und kein Einlenken Moskaus, Kriegsende 2026 gilt als möglich, aber unwahrscheinlich.",
+  "verified": true
+ },
+ {
+  "path": "welt/handel",
+  "text": "US-Zölle kosten die deutsche Wirtschaft 2026 rund 0,6 Prozentpunkte Wachstum.",
+  "source": {
+   "name": "Tagesspiegel (ifo-Prognose), 11.12.2025",
+   "url": "https://www.tagesspiegel.de/wirtschaft/konjunktur-ifo-senkt-wirtschaftsprognose-erosion-des-standorts-droht-15041540.html"
+  },
+  "ind": {
+   "kP": 3,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "ifo beziffert den Zolleffekt auf 0,6 Punkte bei nur 0,8 % Wachstum, Unsicherheit bleibt hoch.",
+  "verified": true
+ },
+ {
+  "path": "welt/handel",
+  "text": "Das EU-Mercosur-Abkommen eröffnet deutschen Auto- und Chemieexporten deutlich neue Absatzmärkte.",
+  "source": {
+   "name": "zdfheute.de, 27.02.2026",
+   "url": "https://www.zdfheute.de/politik/ausland/eu-mercosur-abkommen-handel-anwendung-100.html"
+  },
+  "ind": {
+   "kP": 2,
+   "kI": 1,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Vorläufige Anwendung geplant, aber EuGH-Prüfung und Widerstand aus Frankreich und Landwirtschaft.",
+  "verified": true
+ },
+ {
+  "path": "welt/nahost",
+  "text": "Die Hamas wird bis Ende 2026 unter internationaler Aufsicht weitgehend entwaffnet.",
+  "source": {
+   "name": "t-online.de (dpa), 30.07.2026",
+   "url": "https://www.t-online.de/nachrichten/ausland/id_101367616/berichte-fortschritte-bei-gespraechen-ueber-hamas-entwaffnung.html"
+  },
+  "ind": {
+   "kP": 1,
+   "kI": 2,
+   "sPm": 1,
+   "sPp": 1,
+   "sIm": 1,
+   "sIp": 1
+  },
+  "rationale": "Fortschritte beim 15-Punkte-Fahrplan, aber Israel verlangt vollständige Entwaffnung vor jedem Rückzug.",
+  "verified": true
+ }
+]

@@ -32,6 +32,10 @@ test-file file:
 ui2610-core:
     node test/ui2610_core_test.js
 
+# UI2610 seed: topic tree + arguments into a tenant (e.g. just ui2610-seed https://fayf.info/dev ui2610play)
+ui2610-seed url tid base='/ui2610':
+    node tools/ui2610-seed.js {{url}} {{tid}} {{base}}
+
 # Full suite: unit + e2e  (CI entry point — exits non-zero on failure)
 ci: unit e2e
 

@@ -28,12 +28,17 @@
     .seg.rate { max-width: 260px; flex: 1; }
     /* Nav: breadcrumb (topic) left · steps as action group right (REQ-UI2610-33) */
     .nav { padding-inline: var(--space-3); }
-    #crumb { margin-right: auto; min-width: 0; max-width: 55%; background: none; border: 0; color: #fff; font: inherit; font-size: var(--text-sm);
-             display: flex; align-items: center; gap: 4px; min-height: 44px; cursor: pointer; padding: 0; }
-    #crumb .base { opacity: .75; white-space: nowrap; }
-    #crumb .topic { font-weight: var(--font-weight-bold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #crumb { margin-right: auto; min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 2px; min-height: 44px; font-size: 13px; }
+    #crumb button { background: none; border: 0; color: #fff; font: inherit; padding: 2px 1px; cursor: pointer; white-space: nowrap; min-width: 0; }
+    #crumb .lvl { opacity: .75; overflow: hidden; text-overflow: ellipsis; max-width: 6ch; min-width: 2ch; flex: 0 6 auto; }   /* parents shrink first */
+    #crumb .cur { font-weight: var(--font-weight-bold); overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+    #crumb .sep { opacity: .6; flex: none; }
+    .sub-topics { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    .sub-topics .chip { flex: none; }
+    .src { font-size: var(--text-xs); color: var(--color-neutral-600); }
+    .src a { color: var(--color-interactive-700); }
     .nav .seg { border-color: rgba(255,255,255,.55); background: transparent; flex: none; }
-    .nav .seg > button { flex: none; width: 42px; min-height: 34px; padding: 0; background: transparent; color: #fff; border-left-color: rgba(255,255,255,.55);
+    .nav .seg > button { flex: none; width: 36px; min-height: 34px; padding: 0; background: transparent; color: #fff; border-left-color: rgba(255,255,255,.55);
                          font-size: 17px; position: relative; overflow: visible; }
     .nav .seg > button.active { background: #fff; color: var(--color-interactive-700); }
     .nav .seg .tab-count { position: absolute; top: -6px; right: -4px; font-size: 10px; line-height: 14px; min-width: 14px; padding: 0 3px; border-radius: 7px;
@@ -72,7 +77,7 @@
 </head>
 <body>
 <nav class="nav">
-  <button id="crumb" data-act="topics" aria-label="Thema wechseln"><span class="base" id="nav-title">VoteUI</span><span class="base">›</span><span class="topic" id="crumb-topic">…</span><span>▾</span></button>
+  <div id="crumb" aria-label="Themenpfad"></div>
   <div class="seg" id="tab-bar" role="tablist" aria-label="Schritte">
     <button data-step="triage" title="1 Sichten" aria-label="1 Sichten">⇆<span class="tab-count" id="cnt-triage"></span></button>
     <button data-step="rate" title="2 Bewerten" aria-label="2 Bewerten">★<span class="tab-count" id="cnt-rate"></span></button>
@@ -148,9 +153,10 @@ const pairPath = (a, b) => topicRoot.replace(/\/$/, "") + "/~cmp/" + pairKey(a, 
 
 function indOf(id) {
     const p = itemKey(id);
-    const mine = parseInd(own(p, "ind"));
+    const eff = effectiveInd(own(p, "ind"), ((entries[p] || {}).attrs || {}).ind_default);   // own, else seed default (REQ-UI2610-36)
+    const mine = eff.ind;
     const group = groupInd(mine, parseIndHist(others(p, "ind")));
-    return { mine, group };
+    return { mine, group, isDefault: eff.isDefault };
 }
 function statsOf(id) { const p = itemKey(id); return ratingStats(own(p, "rate"), others(p, "rate")); }
 function ranked() { return rank(itemIds().map(id => ({ id, mean: statsOf(id).mean })), cmpMap(), 15); }
@@ -197,11 +203,12 @@ function showToast(message, type = "info", duration = 3000, action = null) {
 
 /** Card icon: group Indicator; own one beside it unless Fit (then one, highlighted). */
 function indHtml(id) {
-    const { mine, group } = indOf(id);
+    const { mine, group, isDefault } = indOf(id);
     if (!group) return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator setzen"><span class="ind-empty">+</span></button>`;
-    if (mine && isFit(mine, group)) return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator (Fit)">${iconSvg(group, { fit: true })}<small>Fit</small></button>`;
+    const who = isDefault ? "Start" : "ich";   // "Start" = seed default, Voter has not set an own value
+    if (mine && isFit(mine, group)) return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator (${isDefault ? "Startwert" : "Fit"})">${iconSvg(group, { fit: !isDefault })}<small>${isDefault ? "Start" : "Fit"}</small></button>`;
     return `<button class="ind-pair" data-edit="${id}" aria-label="Indikator">${iconSvg(group)}`
-        + (mine ? `<small>ich</small>${iconSvg(mine, { size: 20 })}` : `<small>+</small>`) + `</button>`;
+        + (mine ? `<small>${who}</small>${iconSvg(mine, { size: 20 })}` : `<small>+</small>`) + `</button>`;
 }
 function signsHtml(id) {
     const p = itemKey(id);
@@ -246,7 +253,7 @@ function render() {
     document.getElementById("cnt-tune").textContent = nextPair() ? "•" : "";
     const v = document.getElementById("view");
     const head = { triage: "1 Sichten", rate: "2 Bewerten", tune: "3 Feinschliff", over: "Übersicht" }[step];
-    v.innerHTML = `<h2 class="step-head">${head}</h2>` + ({ triage: viewTriage, rate: viewRate, tune: viewTune, over: viewOver })[step]();
+    v.innerHTML = `<h2 class="step-head">${head}</h2>` + subTopicsHtml() + ({ triage: viewTriage, rate: viewRate, tune: viewTune, over: viewOver })[step]();
     const stack = document.getElementById("stack");
     if (stack) {
         // buttons inside the card (Indicator) keep their tap: card-swipe.js would capture the pointer and swallow the click
@@ -273,9 +280,13 @@ function viewTriage() {
         </div><p class="muted">Wischen: rechts = Relevant · links = Raus · hoch = Offen</p>`;
 }
 
+function srcHtml(id) {
+    const src = parseSrc(((entries[itemKey(id)] || {}).attrs || {}).src);
+    return src ? `<div class="src">Quelle: <a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.name)}</a></div>` : "";
+}
 function itemCard(id, body) {
     return `<div class="card"><div class="card-body">
-        <div class="row"><span class="item-title grow" data-open="${id}">${esc(titleOf(id))}</span>${indHtml(id)}</div>${body}</div></div>`;
+        <div class="row"><span class="item-title grow" data-open="${id}">${esc(titleOf(id))}</span>${indHtml(id)}</div>${srcHtml(id)}${body}</div></div>`;
 }
 
 function viewRate() {
@@ -328,22 +339,43 @@ function viewOver() {
 }
 
 // ── Topics (REQ-UI2610-31) ───────────────────────────────────────────────────
-function topicOptions() {
-    const list = topicsOf(entries, baseRoot);
-    const loose = (() => { const keep = topicRoot; topicRoot = baseRoot; const n = itemIds().length; topicRoot = keep; return n; })();
-    if (loose || !list.length) list.unshift({ key: baseRoot, title: list.length ? "(ohne Thema)" : "Allgemein" });
-    if (!list.some(t => t.key === topicRoot)) list.push({ key: topicRoot, title: nodeId(topicRoot) || topicRoot });
-    return list;
+let baseTitle = "VoteUI";
+function topicTitle(key) {
+    if (key === baseRoot) return baseTitle;
+    const e = entries[key];
+    return e ? stripTypeSuffix(e.message) || nodeId(key) : nodeId(key) || key;
 }
+function itemCount(key) {
+    const keep = topicRoot; topicRoot = key; const n = itemIds().length; topicRoot = keep; return n;
+}
+/** Breadcrumb: every level clickable; long paths fold the middle into "…" (REQ-UI2610-34). */
 function renderTopics() {
-    const t = topicOptions().find(x => x.key === topicRoot);
-    document.getElementById("crumb-topic").textContent = t ? t.title : topicRoot;
+    const path = crumbPath(baseRoot, topicRoot);
+    const shown = path.length > 3 ? [null, ...path.slice(-2)] : path;   // deep: … › parent › current (… = one level further up)
+    document.getElementById("crumb").innerHTML = shown.map((k, i) => {
+        const last = i === shown.length - 1;
+        if (k === null) return `<button class="lvl" data-topic="${esc(path[path.length - 3])}" aria-label="eine Ebene höher">…</button>`;
+        return (i ? `<span class="sep">›</span>` : "")
+            + (last ? `<button class="cur" data-act="topics" aria-label="Thema: ${esc(topicTitle(k))} — Unterthemen">${esc(topicTitle(k))} ▾</button>`
+                    : `<button class="lvl" data-topic="${esc(k)}">${esc(topicTitle(k))}</button>`);
+    }).join("");
+}
+function subTopicsHtml() {
+    const kids = topicsOf(entries, topicRoot);
+    return kids.length ? `<div class="sub-topics">${kids.map(t => `<button class="chip" data-topic="${esc(t.key)}">${esc(t.title)}</button>`).join("")}</div>` : "";
 }
 function openTopics() {
-    openSheet(sheetHead("Thema") + `<div class="topic-list" style="display:flex;flex-direction:column;gap:6px">${topicOptions().map(t =>
-        `<button class="btn ${t.key === topicRoot ? "btn-primary" : "btn-secondary"}" data-topic="${esc(t.key)}">${t.key === topicRoot ? "✓ " : ""}${esc(t.title)}</button>`).join("")}</div>
+    const path = crumbPath(baseRoot, topicRoot), parent = path.length > 1 ? path[path.length - 2] : null;
+    const kids = topicsOf(entries, topicRoot);
+    const see = seeKeys(((entries[topicRoot] || {}).attrs || {}).see, baseRoot).filter(k => entries[k]);
+    const btn = (k, label) => `<button class="btn btn-secondary" data-topic="${esc(k)}">${label}</button>`;
+    openSheet(sheetHead(topicTitle(topicRoot)) + `<div class="topic-list" style="display:flex;flex-direction:column;gap:6px">
+        ${parent ? btn(parent, "⬆ " + esc(topicTitle(parent))) : ""}
+        ${kids.length ? `<p class="form-label">Unterthemen</p>` + kids.map(t => btn(t.key, `${esc(t.title)} <span class="muted">(${itemCount(t.key)})</span>`)).join("") : ""}
+        ${see.length ? `<p class="form-label">Siehe auch</p>` + see.map(k => btn(k, "↔ " + esc(topicTitle(k)))).join("") : ""}
+        </div>
         <div class="row" style="justify-content:space-between"><button class="btn btn-ghost" data-act="reload">↻ Neu laden</button>
-        <button class="btn btn-primary" data-act="topic-new">+ Thema</button></div>`);
+        <button class="btn btn-primary" data-act="topic-new">+ Unterthema</button></div>`);
 }
 function switchTopic(key) {
     if (key === topicRoot) return;
@@ -356,6 +388,7 @@ function switchTopic(key) {
 function openTopicNew() {
     openSheet(sheetHead("Neues Thema") + `<label class="form-label" for="topic-name">Name</label>
         <input id="topic-name" class="input" maxlength="40" placeholder="z. B. Klima, Rente">
+        <p class="muted">Wird angelegt unter: ${esc(topicTitle(topicRoot))}</p>
         <p class="muted">Jedes Thema hat eigene Einträge, Vergleiche und Vertrauen.</p>
         <div class="row" style="justify-content:flex-end"><button class="btn btn-primary" data-act="topic-save">Anlegen</button></div>`);
     document.getElementById("topic-name").focus();
@@ -364,7 +397,7 @@ async function saveTopicNew() {
     const name = document.getElementById("topic-name").value.trim().replace(/\s*\|\s*/g, " / ");
     const slug = slugify(name);
     if (!slug) { showToast("Bitte einen Namen mit Buchstaben oder Ziffern eingeben.", "error"); return; }
-    const key = fullKey(baseRoot, slug);
+    const key = fullKey(topicRoot, slug);   // new topic = child of the current one
     if (entries[key]) { closeSheet(); switchTopic(key); showToast("Thema gibt es schon — gewechselt.", "info", 2000); return; }
     const message = /[.!?>-]$/.test(name) ? name : name + ".";
     try {
@@ -554,8 +587,6 @@ async function loadData() {
         if (!eRes.ok || !vRes.ok) throw new Error(`entries ${eRes.status} / votes ${vRes.status}`);
         entries = await jsonOrEmpty(eRes);
         votes = await jsonOrEmpty(vRes);
-        const topics = topicsOf(entries, baseRoot);
-        if (topicRoot === baseRoot && topics.length && !itemIds().length) topicRoot = topics[0].key;   // start in the first topic
         render();
         document.getElementById("fab").hidden = false;
     } catch (err) {
@@ -594,7 +625,7 @@ async function init() {
     sid = ensureSid(settings);
     myName = settings.ui2610Name || "";
     const title = cfg.voteMobileTitle || "Abstimmen";
-    document.getElementById("nav-title").textContent = title;   // breadcrumb root
+    baseTitle = title;   // breadcrumb root
     document.title = title + " — fayf";
     if (!TID_RE.test(tenantId)) {
         console.error("[ui2610] invalid tid:", JSON.stringify(tenantId));

@@ -128,5 +128,32 @@ eq('topicsOf: direct kind:topic children, by title', C.topicsOf(ent, '/b'), [{ k
 eq('topicsOf: root /', C.topicsOf({ '/k': { message: 'K.', attrs: { kind: 'topic' } } }, '/'), [{ key: '/k', title: 'K' }]);
 eq('isTopicEntry', [C.isTopicEntry(ent['/b/klima']), C.isTopicEntry(ent['/b/loose'])], [true, false]);
 
+// ── Nested topics, sources, default indicator (REQ-UI2610-34..36) ───────────
+eq('crumbPath base', C.crumbPath('/b', '/b'), ['/b']);
+eq('crumbPath 3 levels', C.crumbPath('/b', '/b/soziales/rente/rentenniveau'), ['/b', '/b/soziales', '/b/soziales/rente', '/b/soziales/rente/rentenniveau']);
+eq('crumbPath root /', C.crumbPath('/', '/k/x'), ['/', '/k', '/k/x']);
+eq('crumbPath outside base', C.crumbPath('/b', '/other/t'), ['/other/t']);
+eq('topicsOf nested children', C.topicsOf({ '/b/s': { message: 'S.', attrs: { kind: 'topic' } }, '/b/s/r': { message: 'Rente.', attrs: { kind: 'topic' } }, '/b/s/r/x': { message: 'X.', attrs: {} } }, '/b/s'), [{ key: '/b/s/r', title: 'Rente' }]);
+eq('seeKeys relative to base', C.seeKeys('soziales/armut,gesundheit/beitraege', '/b'), ['/b/soziales/armut', '/b/gesundheit/beitraege']);
+eq('seeKeys empty', C.seeKeys('', '/b'), []);
+eq('parseSrc md link', C.parseSrc('[Destatis, 30.09.2026](https://www.destatis.de/x.html)'), { name: 'Destatis, 30.09.2026', url: 'https://www.destatis.de/x.html' });
+eq('parseSrc bare url', C.parseSrc('https://a.de/b'), { name: 'a.de', url: 'https://a.de/b' });
+eq('parseSrc non-http rejected', C.parseSrc('[x](javascript:alert(1))'), null);
+eq('parseSrc empty', C.parseSrc(''), null);
+const def = C.parseInd('3,2,1,1,1,1');
+eq('effectiveInd own wins', C.effectiveInd('1,1,0,0,0,0', '3,2,1,1,1,1'), { ind: C.parseInd('1,1,0,0,0,0'), isDefault: false });
+eq('effectiveInd default when none', C.effectiveInd(undefined, '3,2,1,1,1,1'), { ind: def, isDefault: true });
+eq('effectiveInd invalid default ignored', C.effectiveInd(undefined, '9,9'), { ind: null, isDefault: false });
+
+// ── Seed lines (REQ-UI2610-35) ───────────────────────────────────────────────
+const { seedLines } = require('../tools/ui2610-seed.js');
+const sl = seedLines('/b', [{ path: 's/r', title: 'Rente' }, { path: 's', title: 'Soziales', see: ['g/x', 'w'] }],
+    [{ path: 's/r', text: 'Rentenniveau sinkt | stark', source: { name: 'DRV [2026]', url: 'https://x.de/a' }, ind: { kP: 3, kI: 2, sPm: 1, sPp: 0, sIm: 1, sIp: 1 } }]);
+eq('seed: parent topic first, see attr', sl[0], '/b/s | kind:topic | see:g/x,w | Soziales.');
+eq('seed: child topic', sl[1], '/b/s/r | kind:topic | Rente.');
+eq('seed: argument row', sl[2], '/b/s/r/s01 | src:[DRV 2026](https://x.de/a) | ind_default:3,2,1,0,1,1 | Rentenniveau sinkt / stark.');
+const pe = require('../assets/ui2610-core.js');
+eq('seed src parses back', pe.parseSrc('[DRV 2026](https://x.de/a)'), { name: 'DRV 2026', url: 'https://x.de/a' });
+
 console.log(`${fail === 0 ? 'OK' : 'FAIL'} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

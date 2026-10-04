@@ -1,0 +1,69 @@
+{
+  "_doc": "UI2610 seed: German societal topics, 3 levels. path = slugs below the base folder. see = cross-references (paths). Sources for the selection: Ipsos Sorgenbarometer Aug 2026, R+V Ängste der Deutschen 2026, ZDF-Politbarometer.",
+  "topics": [
+    { "path": "wirtschaft", "title": "Wirtschaft & Finanzen" },
+    { "path": "wirtschaft/inflation", "title": "Inflation & Lebenshaltungskosten", "see": ["soziales/armut", "gesundheit/beitraege"] },
+    { "path": "wirtschaft/standort", "title": "Konjunktur & Standort" },
+    { "path": "wirtschaft/standort/industrie", "title": "Industrie" },
+    { "path": "wirtschaft/standort/buerokratie", "title": "Bürokratie" },
+    { "path": "wirtschaft/standort/energiepreise", "title": "Energiepreise", "see": ["klima/energiewende"] },
+    { "path": "wirtschaft/haushalt", "title": "Staatshaushalt & Steuern" },
+    { "path": "wirtschaft/haushalt/schuldenbremse", "title": "Schuldenbremse & Sondervermögen" },
+    { "path": "wirtschaft/haushalt/kuerzungen", "title": "Steuern & Leistungskürzungen" },
+    { "path": "wirtschaft/arbeitsmarkt", "title": "Arbeitsmarkt & Fachkräfte", "see": ["migration/fachkraefte", "bildung/ausbildung"] },
+
+    { "path": "soziales", "title": "Soziales" },
+    { "path": "soziales/armut", "title": "Armut & Ungleichheit" },
+    { "path": "soziales/rente", "title": "Rente & Alterssicherung" },
+    { "path": "soziales/rente/rentenniveau", "title": "Rentenniveau" },
+    { "path": "soziales/rente/generationen", "title": "Generationengerechtigkeit", "see": ["soziales/demografie"] },
+    { "path": "soziales/pflege", "title": "Pflege", "see": ["gesundheit/versorgung"] },
+    { "path": "soziales/grundsicherung", "title": "Grundsicherung / Bürgergeld" },
+    { "path": "soziales/wohnen", "title": "Wohnen & Mieten" },
+    { "path": "soziales/demografie", "title": "Demografischer Wandel" },
+
+    { "path": "gesundheit", "title": "Gesundheit" },
+    { "path": "gesundheit/versorgung", "title": "Krankenhäuser & Versorgung" },
+    { "path": "gesundheit/beitraege", "title": "Kassenbeiträge & Finanzierung", "see": ["wirtschaft/inflation"] },
+
+    { "path": "migration", "title": "Migration & Integration" },
+    { "path": "migration/asyl", "title": "Asyl & Flucht" },
+    { "path": "migration/asyl/begrenzung", "title": "Begrenzung & Grenzkontrollen" },
+    { "path": "migration/asyl/eu-reform", "title": "EU-Asylreform (GEAS)" },
+    { "path": "migration/integration", "title": "Integration", "see": ["bildung/schule"] },
+    { "path": "migration/fachkraefte", "title": "Fachkräfteeinwanderung", "see": ["wirtschaft/arbeitsmarkt"] },
+
+    { "path": "sicherheit", "title": "Sicherheit" },
+    { "path": "sicherheit/kriminalitaet", "title": "Kriminalität & Gewalt" },
+    { "path": "sicherheit/terror", "title": "Terrorismus & Extremismus", "see": ["demokratie/polarisierung"] },
+    { "path": "sicherheit/verteidigung", "title": "Verteidigung" },
+    { "path": "sicherheit/verteidigung/bundeswehr", "title": "Bundeswehr & Ausrüstung" },
+    { "path": "sicherheit/verteidigung/wehrdienst", "title": "Wehrdienst", "see": ["welt/ukraine"] },
+
+    { "path": "klima", "title": "Klima, Energie & Umwelt" },
+    { "path": "klima/klimaschutz", "title": "Klimaschutz & Klimafolgen" },
+    { "path": "klima/energiewende", "title": "Energiewende & Energiepreise", "see": ["wirtschaft/standort/energiepreise"] },
+    { "path": "klima/verkehr", "title": "Verkehr" },
+    { "path": "klima/verkehr/bahn", "title": "Bahn & Deutschlandticket" },
+    { "path": "klima/verkehr/auto", "title": "Auto & Verbrenner" },
+    { "path": "klima/landwirtschaft", "title": "Landwirtschaft & Natur" },
+
+    { "path": "bildung", "title": "Bildung & Digitales" },
+    { "path": "bildung/schule", "title": "Schule & Kita" },
+    { "path": "bildung/schule/lehrermangel", "title": "Lehrermangel" },
+    { "path": "bildung/schule/pisa", "title": "Leistung & PISA" },
+    { "path": "bildung/ausbildung", "title": "Ausbildung & Hochschule", "see": ["wirtschaft/arbeitsmarkt"] },
+    { "path": "bildung/digitalisierung", "title": "Digitalisierung & KI", "see": ["demokratie/medien"] },
+
+    { "path": "demokratie", "title": "Demokratie & Gesellschaft" },
+    { "path": "demokratie/vertrauen", "title": "Vertrauen in Staat & Politik" },
+    { "path": "demokratie/polarisierung", "title": "Polarisierung & Extremismus", "see": ["sicherheit/terror"] },
+    { "path": "demokratie/medien", "title": "Medien & Desinformation" },
+    { "path": "demokratie/gleichstellung", "title": "Gleichstellung & Vielfalt" },
+
+    { "path": "welt", "title": "Europa & Welt" },
+    { "path": "welt/ukraine", "title": "Ukraine-Krieg & Russland", "see": ["sicherheit/verteidigung"] },
+    { "path": "welt/handel", "title": "EU, Handel & Zölle", "see": ["wirtschaft/standort"] },
+    { "path": "welt/nahost", "title": "Nahost" }
+  ]
+}

@@ -244,10 +244,40 @@ function topicsOf(entries, base) {
         .sort((a, b) => a.title.localeCompare(b.title));
 }
 
+/** Breadcrumb keys from base down to key (each level clickable). Outside base → [key]. */
+function crumbPath(base, key) {
+    if (key === base) return [base];
+    const prefix = base === '/' ? '/' : base + '/';
+    if (!key.startsWith(prefix)) return [key];
+    const out = [base];
+    let cur = base === '/' ? '' : base;
+    for (const seg of key.slice(prefix.length).split('/')) { cur += '/' + seg; out.push(cur); }
+    return out;
+}
+/** `see:` cross-references, slugs relative to base, comma-separated. */
+function seeKeys(see, base) {
+    return String(see || '').split(',').map(x => x.trim()).filter(Boolean).map(x => (base === '/' ? '' : base) + '/' + x.replace(/^\/+/, ''));
+}
+/** `src:` attr → {name, url}; markdown link or bare URL; only http(s). */
+function parseSrc(src) {
+    const s = String(src || '').trim();
+    const m = s.match(/^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/);
+    if (m) return { name: m[1], url: m[2] };
+    if (/^https?:\/\/\S+$/.test(s)) return { name: s.replace(/^https?:\/\/(www\.)?/, '').split('/')[0], url: s };
+    return null;
+}
+/** Own indicator, else the Item's default (`ind_default:` from the seed). REQ-UI2610-36 */
+function effectiveInd(own, def) {
+    const ok = v => /^[0-4],[0-4],[0-3],[0-3],[0-3],[0-3]$/.test(v || '');
+    if (ok(own)) return { ind: parseInd(own), isDefault: false };
+    if (ok(def)) return { ind: parseInd(def), isDefault: true };
+    return { ind: null, isDefault: false };
+}
+
 if (typeof module !== 'undefined') {
     module.exports = {
         parseHist, parseIndHist, parseInd, formatInd, ratingStats,
         pooledAxis, groupInd, isFit, stateGrid, boxRect, SEVERITY, cellStyle, MAGNITUDE, magnitudeRect, iconSvg,
-        cellAt, dragInd, growLo, growHi, isTopicEntry, slugify, topicsOf, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
+        cellAt, dragInd, growLo, growHi, isTopicEntry, slugify, topicsOf, crumbPath, seeKeys, parseSrc, effectiveInd, visibleSigns, pairKey, bradleyTerry, rank, nextPairs,
     };
 }
