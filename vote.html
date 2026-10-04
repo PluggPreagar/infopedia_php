@@ -166,13 +166,6 @@ function pageTitle(configured, topic) {
     return "Abstimmen · " + (String(topic || "/").replace(/^\//, "") || "Alles");
 }
 
-// Strip exactly the suffix getTypeFromMessage() recognises — "Ist das so?!" edits as
-// "Ist das so?" (the /[.!?@>\-]+$/ regex in buildVoteCard would eat both characters).
-function stripTypeSuffix(message) {
-    const s = getTypeFromMessage(message);
-    return (s ? message.slice(0, -s.length) : String(message || "")).trim();
-}
-
 // Inverse of normaliseSourceMd(): one markdown link → { url, name }; a bare URL → { url };
 // anything else (several links, plain text) goes verbatim into url — v1: one source per entry.
 function parseSourceMd(value) {
