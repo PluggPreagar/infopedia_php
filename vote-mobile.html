@@ -131,7 +131,7 @@ let step = "triage";
 let newOnly = false;       // Triage: only Items without own Triage
 let myName = "";
 const TID_RE = /^[a-zA-Z0-9_-]{1,30}$/;
-const TRI_LABEL = { in: "Relevant", open: "Später", out: "Raus" };   // UI labels for In / Open / Out (REQ-UI2610-40)
+const TRI_LABEL = { in: "Relevant", open: "Später", out: "Egal" };   // UI labels for In / Open / Out (REQ-UI2610-40)
 const TRI_ICON = { in: "✓", open: "↑", out: "✗" };
 const UNDO_MS = 4000;
 
@@ -305,10 +305,10 @@ function viewTriage() {
             ${t === "open" ? `<span class="muted">bisher: Später</span>` : ""}
         </div>
         <span class="stamp stamp-right" aria-hidden="true">RELEVANT ✓</span>
-        <span class="stamp stamp-left" aria-hidden="true">RAUS ✗</span>
+        <span class="stamp stamp-left" aria-hidden="true">EGAL ✗</span>
         <span class="stamp stamp-up" aria-hidden="true">SPÄTER ↑</span></div></div>
         <div class="seg" role="group" aria-label="Sichten">
-            <button data-tri="${id}" data-v="out">${TRI_ICON.out} Raus</button>
+            <button data-tri="${id}" data-v="out">${TRI_ICON.out} Egal</button>
             <button class="${t === "open" ? "active" : ""}" data-tri="${id}" data-v="open">${TRI_ICON.open} Später</button>
             <button data-tri="${id}" data-v="in">${TRI_ICON.in} Relevant</button>
         </div>`;
