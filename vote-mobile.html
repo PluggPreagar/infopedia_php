@@ -45,7 +45,7 @@
     .nav .seg > button { flex: none; width: 36px; min-height: 34px; padding: 0; background: transparent; color: #fff; border-left-color: rgba(255,255,255,.55);
                          font-size: 17px; position: relative; overflow: visible; }
     .nav .seg > button.active { background: #fff; color: var(--color-interactive-700); }
-    .nav .seg .tab-count { position: absolute; top: -6px; right: -4px; font-size: 10px; line-height: 14px; min-width: 14px; padding: 0 3px; border-radius: 7px;
+    .nav .seg .tab-count { position: absolute; top: 1px; right: 1px;   /* inside the button: .seg clips overflow */ font-size: 10px; line-height: 14px; min-width: 14px; padding: 0 3px; border-radius: 7px;
                            background: #F59E0B; color: #14171A; opacity: 1; margin: 0; }
     .nav .seg .tab-count:empty { display: none; }
     .step-head { margin: 0; font-size: var(--text-base); font-weight: var(--font-weight-bold); }
@@ -62,6 +62,9 @@
     .chip.active { background: var(--color-interactive-600); color: #fff; border-color: var(--color-interactive-600); }
     .sign-chip { font-size: var(--text-xs); padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-interactive-50); color: var(--color-interactive-700); }
     /* Triage stack */
+    /* components.css gives every .card touch-action:none (for card-swipe) → no scrolling over cards on Android.
+       Only the triage stack swipes; all other cards let a vertical drag scroll the page. */
+    .card { touch-action: pan-y; }
     #stack .card { touch-action: none; min-height: 160px; display: flex; flex-direction: column; justify-content: center; }
     /* Fine-tune pair */
     .pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
