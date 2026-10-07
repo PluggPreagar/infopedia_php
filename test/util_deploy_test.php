@@ -9,3 +9,9 @@ assert_eq(gmmktime(16, 18, 59, 10, 4, 2026), deploy_commit_time('{"commit":{"com
 assert_eq(0, deploy_commit_time(''), 'deploy_commit_time: empty → 0');
 assert_eq(0, deploy_commit_time('{"message":"API rate limit exceeded"}'), 'deploy_commit_time: API error → 0');
 assert_eq(0, deploy_commit_time('not json'), 'deploy_commit_time: garbage → 0');
+
+// ─── deploy_zip_utc: ZIP mtime (UTC wall clock, read as server-local) → real UTC timestamp ──
+// fayf.info 2026-10-07: commit 05:43:14 UTC, PHP read the ZIP as UTC+9 → 2026-10-06 20:43:14 UTC
+assert_eq(gmmktime(5, 43, 14, 10, 7, 2026), deploy_zip_utc(gmmktime(20, 43, 14, 10, 6, 2026), 9 * 3600), 'deploy_zip_utc: server UTC+9');
+assert_eq(gmmktime(5, 43, 14, 10, 7, 2026), deploy_zip_utc(gmmktime(5, 43, 14, 10, 7, 2026), 0), 'deploy_zip_utc: server UTC unchanged');
+assert_eq(0, deploy_zip_utc(0, 7200), 'deploy_zip_utc: unknown stays 0');

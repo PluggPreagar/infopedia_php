@@ -19,3 +19,16 @@ function deploy_commit_time(string $json): int {
     $ts = strtotime($date);
     return $ts === false ? 0 : $ts;
 }
+
+/**
+ * ZIP mtime → real UTC timestamp. GitHub writes the ZIP's DOS time fields as
+ * UTC wall clock; PHP reads them in the server's zone. Adding that zone's
+ * offset undoes it (fayf.info: UTC+9 → shown 9 h early).
+ *
+ * @param int $mtime  statIndex()['mtime'] (0 = unknown)
+ * @param int $offset server UTC offset in seconds at $mtime (date('Z', $mtime))
+ * @return int Unix timestamp (UTC), 0 when unknown.
+ */
+function deploy_zip_utc(int $mtime, int $offset): int {
+    return $mtime > 0 ? $mtime + $offset : 0;
+}
