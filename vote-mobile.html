@@ -17,6 +17,7 @@
     body { display: flex; flex-direction: column; min-height: 100dvh; }
     main { flex: 1; width: 100%; max-width: 640px; margin: 0 auto; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
     .muted { color: var(--color-neutral-600); font-size: var(--text-sm); }
+    .hint { color: var(--color-neutral-600); font-size: var(--text-xs); text-align: center; margin: 6px 0 0; }
     .row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
     .grow { flex: 1; min-width: 0; }
     /* Button group (segmented): one frame, equal parts, one active (REQ-UI2610-32) */
@@ -333,7 +334,7 @@ function viewTriage() {
             <button data-tri="${id}" data-v="out">${TRI_ICON.out} Egal</button>
             <button class="${t === "open" ? "active" : ""}" data-tri="${id}" data-v="open">${TRI_ICON.open} Später</button>
             <button data-tri="${id}" data-v="in">${TRI_ICON.in} Relevant</button>
-        </div></div>`;
+        </div>${swipedOnce ? "" : `<p class="hint">Tipp: Karte in Richtung des Knopfs wischen ← ↑ →</p>`}</div>`;
 }
 
 function srcHtml(id) {
@@ -390,6 +391,10 @@ function viewOver() {
           <label class="form-label" for="my-name">Mein Name (für Signaturen)</label>
           <div class="row"><input id="my-name" class="input grow" maxlength="40" value="${esc(myName)}" placeholder="z. B. Mart">
           <button class="btn btn-secondary" data-act="name">OK</button></div>
+          <p class="form-label">Meine ID (zum Testen)</p>
+          <div class="row"><code class="grow">#${esc(sid)}</code>
+          <button class="btn btn-ghost" data-act="reset-sid">${Date.now() < resetArmedUntil ? "Sicher? Nochmal tippen" : "↺ Zurücksetzen"}</button></div>
+          <p class="hint" style="text-align:left">Neue ID = leere eigene Daten (Sichten, Bewerten, Indikator, Vertrauen, Name). Alte Stimmen bleiben anonym in der Gruppe.</p>
           <p class="form-label">Ich vertraue (Signaturen sichtbar):</p><div class="row">${trustRows || '<span class="muted">noch keine Unterzeichner</span>'}</div>
         </div></div>`;
 }
@@ -680,6 +685,7 @@ function onClick(e) {
         if (v && !/^[^|;=,]{1,40}$/.test(v)) { showToast("Name: max. 40 Zeichen, ohne | ; = ,", "error"); return; }
         myName = v; saveSettings({ ui2610Name: v }); showToast("Name gespeichert.", "success", 1500);
     }
+    else if (d.act === "reset-sid") resetSid();
     else if (d.act === "ind-save") {
         if (!editor || !editor.draft) { closeSheet(); return; }
         const id = editor.id; saveSet(id, "ind", formatInd(editor.draft)); closeSheet();
@@ -709,7 +715,21 @@ async function loadData() {
 }
 function loadSettings() { try { return JSON.parse(localStorage.getItem("fayf_settings") || "{}"); } catch { return {}; } }
 function saveSettings(patch) { try { localStorage.setItem("fayf_settings", JSON.stringify({ ...loadSettings(), ...patch })); } catch { /* private mode */ } }
+let swipedOnce = false, resetArmedUntil = 0;
+/** REQ-UI2610-43: new sid = empty own data (tap twice within 4 s). Page-local key, the shared fayf `sid` stays. */
+function resetSid() {
+    if (Date.now() >= resetArmedUntil) { resetArmedUntil = Date.now() + 4000; render(); setTimeout(render, 4100); return; }
+    resetArmedUntil = 0;
+    if (pendingTri) { clearTimeout(pendingTri.timer); pendingTri = null; document.querySelectorAll(".toast-pending").forEach(t => t.remove()); }   // never post under the new sid
+    sid = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    myName = ""; swipedOnce = false;
+    saveSettings({ ui2610Sid: sid, ui2610Name: "", ui2610Swiped: false });
+    showToast("Neue ID #" + sid + " · eigene Daten leer", "success", 2500);
+    loadData();
+}
 function ensureSid(s) {
+    if (s.ui2610Sid) return s.ui2610Sid;   // set by "Zurücksetzen"
+
     if (s.sid) return s.sid;
     const fresh = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     saveSettings({ sid: fresh });
@@ -721,7 +741,7 @@ async function init() {
     document.getElementById("view").addEventListener("cardswipe:action", e => {
         const id = e.target.closest("[data-tri-card]")?.dataset.triCard;
         const v = { right: "in", left: "out", up: "open" }[e.detail.direction];
-        if (id && v) triage(id, v, true);
+        if (id && v) { if (!swipedOnce) { swipedOnce = true; saveSettings({ ui2610Swiped: true }); } triage(id, v, true); }
     });
     document.getElementById("fab").addEventListener("click", openAdd);
     document.getElementById("sheet-backdrop").addEventListener("click", e => { if (e.target.id === "sheet-backdrop") closeSheet(); });
@@ -739,6 +759,7 @@ async function init() {
     history.replaceState({ topic: topicRoot, step }, "", navUrl(topicRoot, step));   // first history entry
     sid = ensureSid(settings);
     myName = settings.ui2610Name || "";
+    swipedOnce = !!settings.ui2610Swiped;
     const title = cfg.voteMobileTitle || "Abstimmen";
     baseTitle = title;   // breadcrumb root
     document.title = title + " — fayf";
