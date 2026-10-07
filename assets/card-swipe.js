@@ -10,6 +10,8 @@
 //   activateRatio — fraction of card size to reach ACTIVATE (default: 0.5)
 //   rubberRatio   — slowdown factor beyond ACTIVATE threshold (default: 0.4)
 //   showTray      — inject tray icons and animate them on drag (default: true)
+//   relock        — re-pick the direction on every move, so overshooting to the
+//                   other side switches the target without releasing (default: false = locked)
 //
 // Exposed pure functions for testing:
 //   cardSwipeDirection(dx, dy, minPx) → 'left'|'right'|'up'|'down'|null
@@ -78,6 +80,7 @@ function initCardSwipe(root, opts) {
     const ACTIVATE_RATIO = opts.activateRatio  != null ? opts.activateRatio : 0.5;
     const RUBBER_RATIO   = opts.rubberRatio    != null ? opts.rubberRatio   : 0.4;
     const SHOW_TRAY      = opts.showTray       !== false;
+    const RELOCK         = opts.relock === true;
     const SNAP_MS        = 250;
 
     // Wrap each .card in .card-wrap and inject tray icon elements
@@ -171,9 +174,14 @@ function initCardSwipe(root, opts) {
         const dx = e.clientX - drag.x0;
         const dy = e.clientY - drag.y0;
 
-        if (!drag.dir) {
+        if (!drag.dir || RELOCK) {
             drag.dir = cardSwipeDirection(dx, dy, REVEAL_PX);
-            if (!drag.dir) return;
+            if (!drag.dir) {   // back near the centre (relock only): neutral, nothing fires
+                drag.state = 'CLOSED';
+                card.style.transform = '';
+                card.classList.remove('swiping-left', 'swiping-right', 'swiping-up', 'swiping-down', 'swipe-activate');
+                return;
+            }
         }
 
         const horiz   = drag.dir === 'left' || drag.dir === 'right';

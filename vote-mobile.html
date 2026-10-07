@@ -26,6 +26,11 @@
     .seg > button:first-child { border-left: 0; }
     .seg > button.active { background: var(--color-interactive-600); color: #fff; }
     .seg.rate { max-width: 260px; flex: 1; }
+    /* Später = yellow tint (REQ-UI2610-41) */
+    .seg > button[data-tri][data-v="open"] { background: #FEF9C3; color: #854D0E; }
+    #stack .card.swiping-up { border-top-color: #EAB308; background: #FEF9C3; }
+    #stack .card-tray-up { color: #CA8A04; }
+    .seg > button[data-tri][data-v="open"].active { background: #EAB308; color: #422006; }
     /* Nav: breadcrumb (topic) left · steps as action group right (REQ-UI2610-33) */
     .nav { padding-inline: var(--space-3); }
     #crumb { margin-right: auto; min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 2px; min-height: 44px; font-size: 13px; }
@@ -71,7 +76,7 @@
     /* stamp sits on the edge that stays on screen: swipe right → stamp top-left, swipe left → top-right */
     .stamp-right { left: 12px;  color: #16A34A; transform: rotate(-10deg) scale(.9); }
     .stamp-left  { right: 12px; color: #DC2626; transform: rotate(10deg) scale(.9); }
-    .stamp-up    { left: 50%; color: #B45309; transform: translateX(-50%) scale(.9); }
+    .stamp-up    { top: auto; bottom: 12px; left: 50%; color: #CA8A04; transform: translateX(-50%) scale(.9); }
     .card.swiping-right .stamp-right, .card.swiping-left .stamp-left, .card.swiping-up .stamp-up { opacity: .4; }
     .card.swiping-right.swipe-activate .stamp-right { opacity: 1; transform: rotate(-10deg) scale(1.08); }
     .card.swiping-left.swipe-activate .stamp-left   { opacity: 1; transform: rotate(10deg) scale(1.08); }
@@ -289,7 +294,7 @@ function render() {
     if (stack) {
         // buttons inside the card (Indicator) keep their tap: card-swipe.js would capture the pointer and swallow the click
         stack.addEventListener("pointerdown", e => { if (e.target.closest("button")) e.stopPropagation(); }, true);
-        initCardSwipe(stack, {});
+        initCardSwipe(stack, { relock: true });   // overshoot to the other side switches the decision (REQ-UI2610-41)
     }
 }
 
