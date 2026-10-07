@@ -10,8 +10,14 @@ assert_eq(0, deploy_commit_time(''), 'deploy_commit_time: empty → 0');
 assert_eq(0, deploy_commit_time('{"message":"API rate limit exceeded"}'), 'deploy_commit_time: API error → 0');
 assert_eq(0, deploy_commit_time('not json'), 'deploy_commit_time: garbage → 0');
 
-// ─── deploy_zip_utc: ZIP mtime (UTC wall clock, read as server-local) → real UTC timestamp ──
-// fayf.info 2026-10-07: commit 05:43:14 UTC, PHP read the ZIP as UTC+9 → 2026-10-06 20:43:14 UTC
-assert_eq(gmmktime(5, 43, 14, 10, 7, 2026), deploy_zip_utc(gmmktime(20, 43, 14, 10, 6, 2026), 9 * 3600), 'deploy_zip_utc: server UTC+9');
-assert_eq(gmmktime(5, 43, 14, 10, 7, 2026), deploy_zip_utc(gmmktime(5, 43, 14, 10, 7, 2026), 0), 'deploy_zip_utc: server UTC unchanged');
-assert_eq(0, deploy_zip_utc(0, 7200), 'deploy_zip_utc: unknown stays 0');
+// ─── deploy_zip_ut: UT extra field (0x5455) of the first local header → UTC ──
+// Real GitHub zip of 8878aea (commit 2026-10-07T05:56:06Z): DOS fields say 2026-10-06 22:56:06 (Pacific), UT = exact UTC
+$lh = fn(string $name, string $extra) => "PK\x03\x04" . str_repeat("\0", 22) . pack('vv', strlen($name), strlen($extra)) . $name . $extra;
+$ut = pack('vv', 0x5455, 5) . "\x01" . pack('V', gmmktime(5, 56, 6, 10, 7, 2026));
+assert_eq(gmmktime(5, 56, 6, 10, 7, 2026), deploy_zip_ut($lh('infopedia_php-dev/', $ut)), 'deploy_zip_ut: GitHub UT field');
+assert_eq(gmmktime(5, 56, 6, 10, 7, 2026), deploy_zip_ut($lh('x/', pack('vv', 0x7875, 3) . "abc" . $ut)), 'deploy_zip_ut: UT after another field');
+assert_eq(0, deploy_zip_ut($lh('x/', '')), 'deploy_zip_ut: no extra → 0');
+assert_eq(0, deploy_zip_ut($lh('x/', pack('vv', 0x5455, 5) . "\x00abcd")), 'deploy_zip_ut: mtime flag not set → 0');
+assert_eq(0, deploy_zip_ut('not a zip'), 'deploy_zip_ut: garbage → 0');
+$real = @file_get_contents('/tmp/claude-0/t.zip');   // optional: local git archive
+if ($real) assert_eq(true, deploy_zip_ut($real) > gmmktime(0, 0, 0, 1, 1, 2026), 'deploy_zip_ut: real git-archive zip');

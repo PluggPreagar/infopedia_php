@@ -58,9 +58,8 @@ if ($zip->open($tmp) !== true) {
 // Detect top-level prefix, e.g. "infopedia_php-dev/" and read commit metadata
 $prefix      = '';
 $commitSha   = $zip->comment ?: '(unknown)';
-$zipMtime    = $zip->count() > 0 ? (int) ($zip->statIndex(0)['mtime'] ?? 0) : 0;
-$commitMtime = deploy_zip_utc($zipMtime, $zipMtime ? (int) date('Z', $zipMtime) : 0);   // fallback: ZIP time, server-tz offset undone
-$timeSource  = 'zip';
+$commitMtime = deploy_zip_ut($bytes);   // fallback: UT extra field (UTC); DOS time fields are Pacific time, read in server tz
+$timeSource  = $commitMtime ? 'zip' : 'unknown';
 if (preg_match('/^[0-9a-f]{40}$/', $commitSha)) {
     // Real commit time from GitHub (exact); ZIP time above is the fallback (API down / rate limit)
     $ctx = stream_context_create(['http' => ['timeout' => 5, 'header' => "User-Agent: infopedia-deploy\r\nAccept: application/vnd.github+json\r\n"]]);
