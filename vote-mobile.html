@@ -65,6 +65,21 @@
     /* components.css gives every .card touch-action:none (for card-swipe) → no scrolling over cards on Android.
        Only the triage stack swipes; all other cards let a vertical drag scroll the page. */
     .card { touch-action: pan-y; }
+    /* Triage stamps (REQ-UI2610-40): 1 neutral = hidden · 2 dragging = faint (reversible) · at trigger point = full */
+    .stamp { position: absolute; top: 12px; padding: 2px 8px; border: 3px solid currentColor; border-radius: 6px; font-weight: 800; font-size: 15px;
+             letter-spacing: .03em; opacity: 0; transition: opacity .12s, transform .12s; pointer-events: none; background: rgba(255,255,255,.85); }
+    /* stamp sits on the edge that stays on screen: swipe right → stamp top-left, swipe left → top-right */
+    .stamp-right { left: 12px;  color: #16A34A; transform: rotate(-10deg) scale(.9); }
+    .stamp-left  { right: 12px; color: #DC2626; transform: rotate(10deg) scale(.9); }
+    .stamp-up    { left: 50%; color: #B45309; transform: translateX(-50%) scale(.9); }
+    .card.swiping-right .stamp-right, .card.swiping-left .stamp-left, .card.swiping-up .stamp-up { opacity: .4; }
+    .card.swiping-right.swipe-activate .stamp-right { opacity: 1; transform: rotate(-10deg) scale(1.08); }
+    .card.swiping-left.swipe-activate .stamp-left   { opacity: 1; transform: rotate(10deg) scale(1.08); }
+    .card.swiping-up.swipe-activate .stamp-up       { opacity: 1; transform: translateX(-50%) scale(1.08); }
+    /* Toast stages: pending (amber, countdown, undo) → committed (green ✓) */
+    .toast.toast-pending { border-left: 4px solid #F59E0B; position: relative; overflow: hidden; }
+    .toast.toast-pending .bar { position: absolute; left: 0; bottom: 0; height: 3px; background: #F59E0B; width: 100%; animation: drain linear forwards; }
+    @keyframes drain { to { width: 0; } }
     #stack .card { touch-action: none; min-height: 160px; display: flex; flex-direction: column; justify-content: center; }
     /* Fine-tune pair */
     .pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
@@ -116,7 +131,8 @@ let step = "triage";
 let newOnly = false;       // Triage: only Items without own Triage
 let myName = "";
 const TID_RE = /^[a-zA-Z0-9_-]{1,30}$/;
-const TRI_LABEL = { in: "Relevant", open: "Offen", out: "Raus" };   // UI labels for In / Open / Out
+const TRI_LABEL = { in: "Relevant", open: "Später", out: "Raus" };   // UI labels for In / Open / Out (REQ-UI2610-40)
+const TRI_ICON = { in: "✓", open: "↑", out: "✗" };
 const UNDO_MS = 4000;
 
 // ── Model access ──────────────────────────────────────────────────────────────
@@ -286,13 +302,16 @@ function viewTriage() {
     const t = own(itemKey(id), "tri");
     return filter + `<div id="stack"><div class="card" data-tri-card="${id}"><div class="card-body">
             <div class="row"><span class="item-title grow">${esc(titleOf(id))}</span>${indHtml(id)}</div>
-            ${t === "open" ? `<span class="muted">bisher: Offen</span>` : ""}
-        </div></div></div>
+            ${t === "open" ? `<span class="muted">bisher: Später</span>` : ""}
+        </div>
+        <span class="stamp stamp-right" aria-hidden="true">RELEVANT ✓</span>
+        <span class="stamp stamp-left" aria-hidden="true">RAUS ✗</span>
+        <span class="stamp stamp-up" aria-hidden="true">SPÄTER ↑</span></div></div>
         <div class="seg" role="group" aria-label="Sichten">
-            <button data-tri="${id}" data-v="out">← Raus</button>
-            <button class="${t === "open" ? "active" : ""}" data-tri="${id}" data-v="open">Offen</button>
-            <button data-tri="${id}" data-v="in">Relevant →</button>
-        </div><p class="muted">Wischen: rechts = Relevant · links = Raus · hoch = Offen</p>`;
+            <button data-tri="${id}" data-v="out">${TRI_ICON.out} Raus</button>
+            <button class="${t === "open" ? "active" : ""}" data-tri="${id}" data-v="open">${TRI_ICON.open} Später</button>
+            <button data-tri="${id}" data-v="in">${TRI_ICON.in} Relevant</button>
+        </div>`;
 }
 
 function srcHtml(id) {
@@ -568,16 +587,31 @@ async function saveAdd() {
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 let pendingTri = null;   // delayed POST so "Rückgängig" can cancel (append-only store)
+/** Stage 2 (reversible): amber toast with countdown + Rückgängig. Stage 3 (commit): green ✓ after the server confirmed. */
+function pendingToast(text, ms, onUndo) {
+    const el = document.createElement("div");
+    el.className = "toast toast-pending";
+    el.innerHTML = `<span>${esc(text)} · wird gespeichert …</span><button class="btn btn-ghost">Rückgängig</button><span class="bar" style="animation-duration:${ms}ms"></span>`;
+    el.querySelector("button").onclick = () => { onUndo(); el.remove(); };
+    document.getElementById("toast-container").appendChild(el);
+    return el;
+}
 function triage(id, v, delayed) {
     const p = itemKey(id), prev = own(p, "tri") ?? null;
     if (pendingTri) { clearTimeout(pendingTri.timer); pendingTri.commit(); }
     setOwnLocal(p, "tri", v); render(); refreshSheet();
-    const commit = () => { pendingTri = null; postVotes(p, [`tri:${sid}:${v}`], (entries[p] || {}).message || "Item.").then(ok => { if (!ok) { setOwnLocal(p, "tri", prev); render(); } }); };
+    const label = `${TRI_ICON[v]} ${TRI_LABEL[v]}`, short = titleOf(id).slice(0, 40) + (titleOf(id).length > 40 ? "…" : "");
+    let toast = null;
+    const commit = () => {
+        pendingTri = null; if (toast) toast.remove();
+        postVotes(p, [`tri:${sid}:${v}`], (entries[p] || {}).message || "Item.").then(ok => {
+            if (!ok) { setOwnLocal(p, "tri", prev); render(); return; }
+            showToast(`✓ gespeichert: ${TRI_LABEL[v]} · ${short}`, "success", 1800);   // stage 3: logged on the server
+        });
+    };
     if (!delayed) return commit();
+    toast = pendingToast(`${label}: ${short}`, UNDO_MS, () => { clearTimeout(pendingTri.timer); pendingTri = null; setOwnLocal(p, "tri", prev); render(); });
     pendingTri = { commit, timer: setTimeout(commit, UNDO_MS) };
-    showToast(`${TRI_LABEL[v]}: ${titleOf(id)}`, "info", UNDO_MS, { label: "Rückgängig", run: () => {
-        clearTimeout(pendingTri.timer); pendingTri = null; setOwnLocal(p, "tri", prev); render();
-    } });
 }
 function sign(id) {
     const p = itemKey(id), list = attrOf(p, "signers").split(",").filter(Boolean), on = !list.includes(sid);

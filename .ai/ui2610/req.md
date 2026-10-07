@@ -12,7 +12,7 @@ These are product requirements, separate from the process requirements `REQ-S<st
 | Session | One topic folder `/t` in one tenant |
 | Topic | A Session folder, entry `/<base>/<slug> \| kind:topic \| Title.` (e.g. Klima, Rente) |
 | Voter | Participant, identified by `sid` |
-| Triage | Step 1: is the Item relevant to judge? Values In / Open / Out. Not a score |
+| Triage | Step 1: is the Item relevant to judge? Values In / Open / Out (UI: Relevant / Später / Raus). Not a score |
 | Rating | Step 2: score 1–5 |
 | Sign | The Voter's own Rating, shown publicly with their name |
 | Signer | A Voter who gave a Sign |
@@ -36,21 +36,22 @@ These are product requirements, separate from the process requirements `REQ-S<st
 - **REQ-UI2610-6 (MUST):** Trust is a filter only. A Sign by a trusted Signer is shown with the name. A Sign by any other Signer is shown as not signed. Trust never changes a Rating or a Ranking. -- D2
 - **REQ-UI2610-7 (MUST):** the Group Ranking is built from the Rating histograms plus the Bradley–Terry ranking from the `cmp` histograms; computed in the frontend. -- ADR-2
 
-- **REQ-UI2610-8 (MUST):** one mode per step (D9): Triage = card stack (swipe right = In · left = Out · up = Open, plus buttons; undo toast for 4 s, the POST is delayed until then) · Rate = list with 1–5 chips + Sign · Fine-tune = two cards, tap the more important one, or Tie. -- user 2026-10-04
+- **REQ-UI2610-8 (MUST):** one mode per step (D9): Triage = card stack (swipe right = In · left = Out · up = Open, plus buttons ✗ Raus · ↑ Später · ✓ Relevant; stages per REQ-40) · Rate = list with 1–5 chips + Sign · Fine-tune = two cards, tap the more important one, or Tie. -- user 2026-10-04
 - **REQ-UI2610-9 (MUST):** an Overview tab shows the Group Ranking. Tapping an Item opens the Item sheet with all own controls (Triage, Rating, Sign, Indicator), so any earlier decision can be changed ("jump back"). The Overview also holds the own Name and the Trust toggles. -- user 2026-10-04
 - **REQ-UI2610-19 (MUST):** Triage filter "new only" shows only Items without an own Triage (it hides Items the Voter marked Open). -- user 2026-10-04
 
 - **REQ-UI2610-31 (MUST):** the Voter selects or creates a topic. Items, Comparisons and Trust are separated per topic; the current topic is kept in `?topic=` and in localStorage. -- ADR-7
-- **REQ-UI2610-32 (MUST):** related choices are one segmented button group with one active part: step tabs · Triage (Raus/Offen/Relevant) · Rating 1–5. -- user 2026-10-04
+- **REQ-UI2610-32 (MUST):** related choices are one segmented button group with one active part: step tabs · Triage (Raus/Später/Relevant) · Rating 1–5. -- user 2026-10-04
 - **REQ-UI2610-33 (MUST):** nav: the topic is a clickable breadcrumb top left ("VoteUI › Klima ▾" → topic sheet with all topics, "+ Thema", "Neu laden"); the steps are an action group top right (⇆ Sichten · ★ Bewerten · ⚖ Feinschliff · ☰ Übersicht) with count badges; the step name is a heading above the content. -- user 2026-10-04
 - **REQ-UI2610-34 (MUST):** topics at any depth; the breadcrumb links every level (deep: "… › parent › current"); the topic sheet has ⬆ parent, sub-topics with Item counts, "Siehe auch" (`see:`) and "+ Unterthema"; sub-topic cards (REQ-37). -- ADR-8
 - **REQ-UI2610-35 (MUST):** seeded arguments carry `src:[Name](url)`, shown as a "Quelle" link; seed via `just ui2610-seed <url> <tid>`. -- ADR-8
 - **REQ-UI2610-36 (MUST):** `ind_default:` on an Item is the Voter's indicator until they set their own (labelled "guess" below the icon; counts in the group value; pre-fills the editor). Card indicator 44 px, own value 28 px, label below. -- ADR-8
 - **REQ-UI2610-37 (MUST):** sub-topics are large cards in a top-down list, like Items (title · n Unterthemen · m Einträge · k offen · ↔ refs · ›). A level without own Items shows only the cards; otherwise Items come first, then the "Unterthemen" section. Counts cover the whole subtree. -- user 2026-10-04
 - **REQ-UI2610-38 (MUST):** browser back/forward (Zurück/Vor, Android back gesture) navigates topic + step: each change is one history entry (`?topic=…&step=…`, deep links work). An open sheet adds one entry, so back closes it first; navigating from inside a sheet reuses that entry (no ghost entries). -- user 2026-10-04
+- **REQ-UI2610-40 (MUST):** a Triage decision has 3 stages: (1) neutral: no stamp; (2) pending, reversible: while dragging, the stamp for the direction shows faint (0.4) and snaps back on release below the threshold; on release past the threshold, or on a button tap, the stamp shows fully and an amber toast "… · wird gespeichert …" appears with a countdown bar and "Rückgängig" (4 s, no POST yet); (3) committed: after the server confirms the POST, a green toast "✓ gespeichert: <label> · <title>"; on failure the old value is restored. A new decision commits the pending one first. No swipe help text: the stamps are the help. -- user 2026-10-04
 - **REQ-UI2610-39 (MUST):** each leaf topic holds 20 entries from the 21st-term Bundestag protocols (claims, and options starting "Option: "), each with `src:` (protocol link + speaker + faction/office) and `quote:` (verbatim, shown in the Item sheet); pipeline in `tools/ui2610-bt21-extract.py`. -- ADR-9
 
-UI labels (German): Triage = "Sichten" · Rate = "Bewerten" · Fine-tune = "Feinschliff" · In / Open / Out = "Relevant / Offen / Raus" · Sign = "signieren".
+UI labels (German): Triage = "Sichten" · Rate = "Bewerten" · Fine-tune = "Feinschliff" · In / Open / Out = "Relevant / Später / Raus" · Sign = "signieren".
 
 ## Backend (set-kinds)
 
