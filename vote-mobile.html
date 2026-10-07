@@ -26,11 +26,28 @@
     .seg > button:first-child { border-left: 0; }
     .seg > button.active { background: var(--color-interactive-600); color: #fff; }
     .seg.rate { max-width: 260px; flex: 1; }
-    /* Später = yellow tint (REQ-UI2610-41) */
-    .seg > button[data-tri][data-v="open"] { background: #FEF9C3; color: #854D0E; }
-    #stack .card.swiping-up { border-top-color: #EAB308; background: #FEF9C3; }
-    #stack .card-tray-up { color: #CA8A04; }
-    .seg > button[data-tri][data-v="open"].active { background: #EAB308; color: #422006; }
+    /* Triage colours, one set per decision (REQ-UI2610-42): strong = stamp, ring, card border, button text/fill · light = card tint, button tint */
+    :root { --tri-in: #16A34A; --tri-in-bg: #DCFCE7; --tri-out: #DC2626; --tri-out-bg: #FEE2E2; --tri-open: #CA8A04; --tri-open-bg: #FEF9C3; }
+    .seg > button[data-tri][data-v="in"]   { background: var(--tri-in-bg);   color: #14532D; }
+    .seg > button[data-tri][data-v="out"]  { background: var(--tri-out-bg);  color: #7F1D1D; }
+    .seg > button[data-tri][data-v="open"] { background: var(--tri-open-bg); color: #713F12; }
+    .seg > button[data-tri][data-v="in"].active   { background: var(--tri-in);   color: #fff; }
+    .seg > button[data-tri][data-v="out"].active  { background: var(--tri-out);  color: #fff; }
+    .seg > button[data-tri][data-v="open"].active { background: var(--tri-open); color: #422006; }
+    #stack .card.swiping-right { border-left: 4px solid var(--tri-in);    background: var(--tri-in-bg); }
+    #stack .card.swiping-left  { border-right: 4px solid var(--tri-out);  background: var(--tri-out-bg); }
+    #stack .card.swiping-up    { border-top: 4px solid var(--tri-open);   background: var(--tri-open-bg); }
+    #stack .card-tray-right { color: var(--tri-in); }
+    #stack .card-tray-left  { color: var(--tri-out); }
+    #stack .card-tray-up    { color: var(--tri-open); }
+    /* while dragging: only the target button keeps its tint (others neutral); at the trigger point it fills */
+    .tri:has(.card[class*="swiping-"]) .seg > button[data-tri] { background: #fff; color: var(--color-neutral-400); transition: background .12s, color .12s; }
+    .tri:has(.card.swiping-right) .seg > button[data-v="in"]  { background: var(--tri-in-bg);   color: #14532D; }
+    .tri:has(.card.swiping-left)  .seg > button[data-v="out"] { background: var(--tri-out-bg);  color: #7F1D1D; }
+    .tri:has(.card.swiping-up)    .seg > button[data-v="open"]{ background: var(--tri-open-bg); color: #713F12; }
+    .tri:has(.card.swiping-right.swipe-activate) .seg > button[data-v="in"]  { background: var(--tri-in);   color: #fff; }
+    .tri:has(.card.swiping-left.swipe-activate)  .seg > button[data-v="out"] { background: var(--tri-out);  color: #fff; }
+    .tri:has(.card.swiping-up.swipe-activate)    .seg > button[data-v="open"]{ background: var(--tri-open); color: #422006; }
     /* Nav: breadcrumb (topic) left · steps as action group right (REQ-UI2610-33) */
     .nav { padding-inline: var(--space-3); }
     #crumb { margin-right: auto; min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 2px; min-height: 44px; font-size: 13px; }
@@ -74,9 +91,9 @@
     .stamp { position: absolute; top: 12px; padding: 2px 8px; border: 3px solid currentColor; border-radius: 6px; font-weight: 800; font-size: 15px;
              letter-spacing: .03em; opacity: 0; transition: opacity .12s, transform .12s; pointer-events: none; background: rgba(255,255,255,.85); }
     /* stamp sits on the edge that stays on screen: swipe right → stamp top-left, swipe left → top-right */
-    .stamp-right { left: 12px;  color: #16A34A; transform: rotate(-10deg) scale(.9); }
-    .stamp-left  { right: 12px; color: #DC2626; transform: rotate(10deg) scale(.9); }
-    .stamp-up    { top: auto; bottom: 12px; left: 50%; color: #CA8A04; transform: translateX(-50%) scale(.9); }
+    .stamp-right { left: 12px;  color: var(--tri-in); transform: rotate(-10deg) scale(.9); }
+    .stamp-left  { right: 12px; color: var(--tri-out); transform: rotate(10deg) scale(.9); }
+    .stamp-up    { top: auto; bottom: 12px; left: 50%; color: var(--tri-open); transform: translateX(-50%) scale(.9); }
     .card.swiping-right .stamp-right, .card.swiping-left .stamp-left, .card.swiping-up .stamp-up { opacity: .4; }
     .card.swiping-right.swipe-activate .stamp-right { opacity: 1; transform: rotate(-10deg) scale(1.08); }
     .card.swiping-left.swipe-activate .stamp-left   { opacity: 1; transform: rotate(10deg) scale(1.08); }
@@ -305,7 +322,7 @@ function viewTriage() {
     if (!ids.length) return filter + `<p class="muted">Alles gesichtet. <button class="btn btn-ghost" data-go="rate">Weiter: Bewerten →</button></p>`;
     const id = ids[0];
     const t = own(itemKey(id), "tri");
-    return filter + `<div id="stack"><div class="card" data-tri-card="${id}"><div class="card-body">
+    return filter + `<div class="tri"><div id="stack"><div class="card" data-tri-card="${id}"><div class="card-body">
             <div class="row"><span class="item-title grow">${esc(titleOf(id))}</span>${indHtml(id)}</div>
             ${t === "open" ? `<span class="muted">bisher: Später</span>` : ""}
         </div>
@@ -316,7 +333,7 @@ function viewTriage() {
             <button data-tri="${id}" data-v="out">${TRI_ICON.out} Egal</button>
             <button class="${t === "open" ? "active" : ""}" data-tri="${id}" data-v="open">${TRI_ICON.open} Später</button>
             <button data-tri="${id}" data-v="in">${TRI_ICON.in} Relevant</button>
-        </div>`;
+        </div></div>`;
 }
 
 function srcHtml(id) {
